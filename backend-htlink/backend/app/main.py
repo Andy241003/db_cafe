@@ -18,9 +18,12 @@ if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",  # /api/v1/openapi.json
+    docs_url=f"{settings.API_V1_STR}/docs",             # /api/v1/docs
+    redoc_url=f"{settings.API_V1_STR}/redoc",           # /api/v1/redoc
     generate_unique_id_function=custom_generate_unique_id,
 )
+
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:
