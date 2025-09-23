@@ -6,6 +6,7 @@ from app import crud
 from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
 from app.models import Property
 from app.schemas import PropertyCreate, PropertyResponse, PropertyUpdate
+from app.core.permissions_utils import is_admin_or_owner, is_owner, is_viewer
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ def create_property(
     Create new property in tenant. Requires admin or owner role.
     """
     # Check permissions
-    if current_user.role not in ["owner", "admin"]:
+    if not is_admin_or_owner(current_user):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Ensure the property is being created in the correct tenant
@@ -94,7 +95,7 @@ def update_property(
     Update a property. Requires editor role or above.
     """
     # Check permissions
-    if current_user.role == "viewer":
+    if is_viewer(current_user):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     property = crud.property.get(session, id=property_id)
@@ -132,7 +133,7 @@ def delete_property(
     Delete a property. Only owners can delete properties.
     """
     # Only owners can delete properties
-    if current_user.role != "owner":
+    if not is_owner(current_user):
         raise HTTPException(status_code=403, detail="Only owners can delete properties")
     
     property = crud.property.get(session, id=property_id)

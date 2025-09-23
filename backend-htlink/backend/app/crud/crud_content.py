@@ -58,6 +58,18 @@ class CRUDFeatureCategory(CRUDBase[FeatureCategory, FeatureCategoryCreate, Featu
             .where(FeatureCategory.tenant_id == tenant_id)
         ).first()
 
+    def get_by_tenant(self, db: Session, *, tenant_id: int = 0, skip: int = 0, limit: int = 100, include_system: bool = True) -> List[FeatureCategory]:
+        """Get categories by tenant, optionally including system categories"""
+        query = select(FeatureCategory)
+        
+        if include_system:
+            # Include both tenant-specific and system categories (tenant_id=0)
+            query = query.where((FeatureCategory.tenant_id == tenant_id) | (FeatureCategory.tenant_id == 0))
+        else:
+            query = query.where(FeatureCategory.tenant_id == tenant_id)
+            
+        return db.exec(query.offset(skip).limit(limit)).all()
+
     def get_system_categories(self, db: Session) -> List[FeatureCategory]:
         """Get system-wide categories"""
         return db.exec(
@@ -120,6 +132,17 @@ class CRUDFeature(CRUDBase[Feature, FeatureCreate, FeatureUpdate]):
             .where(Feature.tenant_id == 0)
             .where(Feature.is_system == True)
         ).all()
+
+    def get_by_tenant(self, db: Session, *, tenant_id: int = 0, category_id: Optional[int] = None, skip: int = 0, limit: int = 100, include_system: bool = True) -> List[Feature]:
+        """Get features by tenant, optionally filtered by category and including system features"""
+        query = select(Feature)
+        if include_system:
+            query = query.where((Feature.tenant_id == tenant_id) | (Feature.tenant_id == 0))
+        else:
+            query = query.where(Feature.tenant_id == tenant_id)
+        if category_id:
+            query = query.where(Feature.category_id == category_id)
+        return db.exec(query.offset(skip).limit(limit)).all()
 
 
 class CRUDFeatureTranslation(CRUDBase[FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate]):
@@ -185,6 +208,19 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
             .order_by(Post.pinned.desc(), Post.created_at.desc())
         ).all()
 
+    def get_by_tenant(self, db: Session, *, tenant_id: int, property_id: Optional[int] = None, feature_id: Optional[int] = None, status: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[Post]:
+        """Get posts by tenant with optional filters"""
+        query = select(Post).where(Post.tenant_id == tenant_id)
+        
+        if property_id:
+            query = query.where(Post.property_id == property_id)
+        if feature_id:
+            query = query.where(Post.feature_id == feature_id)
+        if status:
+            query = query.where(Post.status == status)
+            
+        return db.exec(query.order_by(Post.pinned.desc(), Post.created_at.desc()).offset(skip).limit(limit)).all()
+
 
 class CRUDPostTranslation(CRUDBase[PostTranslation, PostTranslationCreate, PostTranslationUpdate]):
     def get_by_post_locale(self, db: Session, *, post_id: int, locale: str) -> Optional[PostTranslation]:
@@ -205,6 +241,13 @@ class CRUDMediaFile(CRUDBase[MediaFile, MediaFileCreate, MediaFileUpdate]):
             .where(MediaFile.tenant_id == tenant_id)
             .order_by(MediaFile.created_at.desc())
         ).all()
+
+    def get_by_tenant(self, db: Session, *, tenant_id: int, kind: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[MediaFile]:
+        """Get media files by tenant, optionally filtered by kind"""
+        query = select(MediaFile).where(MediaFile.tenant_id == tenant_id)
+        if kind:
+            query = query.where(MediaFile.kind == kind)
+        return db.exec(query.order_by(MediaFile.created_at.desc()).offset(skip).limit(limit)).all()
 
 
 class CRUDPostMedia(CRUDBase[PostMedia, PostMediaCreate, PostMediaUpdate]):

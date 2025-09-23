@@ -54,6 +54,25 @@ def update_password_me(
     return {"message": "Password updated successfully"}
 
 
+@router.patch("/me/password")
+def update_password_me_patch(
+    *,
+    session: SessionDep,
+    body: AdminUserPasswordUpdate,
+    current_user: CurrentUser,
+) -> Any:
+    """
+    Update own password (PATCH method).
+    """
+    if not crud.admin_user.authenticate(
+        session, email=current_user.email, password=body.current_password, tenant_id=current_user.tenant_id
+    ):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    
+    crud.admin_user.update_password(session, user=current_user, new_password=body.new_password)
+    return {"message": "Password updated successfully"}
+
+
 @router.get("/", response_model=List[AdminUserResponse])
 def read_users(
     session: SessionDep,

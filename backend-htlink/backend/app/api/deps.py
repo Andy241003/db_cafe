@@ -64,31 +64,41 @@ def get_current_active_superuser(current_user: AdminUser = Depends(get_current_u
 
 
 def get_tenant_from_header(
+    session: SessionDep,
     x_tenant_code: Annotated[str | None, Header()] = None
-) -> Optional[int]:
+) -> int:
     """
     Get tenant ID from X-Tenant-Code header
     """
     if not x_tenant_code:
-        return None
+        raise HTTPException(status_code=400, detail="Tenant header required")
     
-    # For now return None, will need session to lookup tenant
-    # This is a simplified version that doesn't do database lookup
-    return None
+    # Look up tenant by code
+    tenant = crud.tenant.get_by_code(session, code=x_tenant_code)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    return tenant.id
 
 
 def require_tenant_access(
+    session: SessionDep,
     current_user: AdminUser = Depends(get_current_user),
-    tenant_id: int = Depends(get_tenant_from_header)
+    x_tenant_code: Annotated[str | None, Header()] = None
 ) -> AdminUser:
     """
     Ensure user has access to the requested tenant
     """
-    if not tenant_id:
+    if not x_tenant_code:
         raise HTTPException(status_code=400, detail="Tenant header required")
+    
+    # Look up tenant by code
+    tenant = crud.tenant.get_by_code(session, code=x_tenant_code)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
         
     # Allow superusers to access any tenant, otherwise check user's tenant
-    if current_user.role != "owner" and current_user.tenant_id != tenant_id:
+    if current_user.role != "owner" and current_user.tenant_id != tenant.id:
         raise HTTPException(
             status_code=403, 
             detail="Access denied to this tenant"
