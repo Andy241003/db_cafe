@@ -4,69 +4,54 @@ services:
   db:
     image: mysql:8.0
     restart: always
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      retries: 5
-      start_period: 30s
-      timeout: 10s
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - app-db-data:/var/lib/mysql
-    env_file:
-      - .env
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD?Variable not set}
-      - MYSQL_DATABASE=${MYSQL_DATABASE?Variable not set}
-      - MYSQL_USER=${MYSQL_USER?Variable not set}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD?Variable not set}
     ports:
-      - "3306:3306"   # mở nếu cần kết nối MySQL từ ngoài
-
-  adminer:
-    image: adminer
-    restart: always
-    depends_on:
-      - db
-    environment:
-      - ADMINER_DESIGN=pepa-linha-dark
-    ports:
-      - "8081:8080"   # Adminer sẽ chạy ở cổng 8081 trên host
-
-  prestart:
-    build:
-      context: ./backend
-    restart: "no"
-    depends_on:
-      db:
-        condition: service_healthy
-    command: bash scripts/prestart.sh
-    env_file:
-      - .env
+      - "3306:3306"
 
   backend:
     build:
       context: ./backend
     restart: always
     depends_on:
-      db:
-        condition: service_healthy
-      prestart:
-        condition: service_completed_successfully
+      - db
     env_file:
       - .env
     ports:
-      - "8000:8000"   # Backend API
+      - "8000:8000"
 
   frontend:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=https://api.travel.link360.vn
+        - VITE_API_URL=https://travel.link360.vn/api
         - NODE_ENV=production
     restart: always
     ports:
-      - "3001:80"     # Frontend app
+      - "3001:80"
+
+  adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8081:8080"
+
+  prestart:
+    build:
+      context: ./backend
+    restart: "no"
+    depends_on:
+      - db
+    command: bash scripts/prestart.sh
+    env_file:
+      - .env
 
 volumes:
   app-db-data:
