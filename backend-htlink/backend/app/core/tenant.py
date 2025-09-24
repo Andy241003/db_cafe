@@ -25,9 +25,13 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip middleware for certain paths
         path = request.url.path
+        print(f"DEBUG: MultiTenant middleware processing path: {path}")
+        
         if self._should_skip_tenant_check(path):
             print(f"DEBUG: Skipping tenant check for path: {path}")
             return await call_next(request)
+            
+        print(f"DEBUG: Applying tenant check for path: {path}")
         
         # Get tenant code from header or use default
         tenant_code = request.headers.get("X-Tenant-Code", self.default_tenant_code)
