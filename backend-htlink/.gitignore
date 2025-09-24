@@ -1,9 +1,21 @@
-.vscode
+.vscode/
+!.vscode/settings.json
 node_modules/
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Environment files - keep templates, ignore actual config
 .env
+.env.local
+.env.production
+.env.staging
 backend/.env
 frontend/.env
+
+# Database
+*.db
+*.sqlite
+logs/
+*.log

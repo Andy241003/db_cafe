@@ -339,6 +339,73 @@ class AdminUserUpdate(SQLModel):
     is_active: Optional[bool] = None
 
 
+class LocaleCreate(SQLModel):
+    code: str
+    name: str
+    native_name: str
+
+
+class LocaleUpdate(SQLModel):
+    name: Optional[str] = None
+    native_name: Optional[str] = None
+
+
+class FeatureTranslationCreate(SQLModel):
+    feature_id: int
+    locale: str
+    title: str
+    short_desc: Optional[str] = None
+
+
+class FeatureTranslationUpdate(SQLModel):
+    title: Optional[str] = None
+    short_desc: Optional[str] = None
+
+
+class PostTranslationCreate(SQLModel):
+    post_id: int
+    locale: str
+    title: str
+    subtitle: Optional[str] = None
+    content_html: str
+    seo_title: Optional[str] = None
+    seo_desc: Optional[str] = None
+    og_image_id: Optional[int] = None
+
+
+class PostTranslationUpdate(SQLModel):
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    content_html: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_desc: Optional[str] = None
+    og_image_id: Optional[int] = None
+
+
+class FeatureCategoryTranslationCreate(SQLModel):
+    category_id: int
+    locale: str
+    title: str
+    short_desc: Optional[str] = None
+
+
+class FeatureCategoryTranslationUpdate(SQLModel):
+    title: Optional[str] = None
+    short_desc: Optional[str] = None
+
+
+class PropertyCategoryCreate(SQLModel):
+    property_id: int
+    category_id: int
+    is_enabled: bool = True
+    sort_order: int = 100
+
+
+class PropertyCategoryUpdate(SQLModel):
+    is_enabled: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
 # Import all models to ensure they are registered
 __all__ = [
     "Plan", "Tenant", "Locale", "AdminUser", "Property",
@@ -348,5 +415,10 @@ __all__ = [
     "Post", "PostTranslation", "MediaFile", "PostMedia",
     "Event", "Setting",
     "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
-    "AdminUserCreate", "AdminUserUpdate"
+    "AdminUserCreate", "AdminUserUpdate",
+    "LocaleCreate", "LocaleUpdate",
+    "FeatureTranslationCreate", "FeatureTranslationUpdate",
+    "PostTranslationCreate", "PostTranslationUpdate",
+    "FeatureCategoryTranslationCreate", "FeatureCategoryTranslationUpdate",
+    "PropertyCategoryCreate", "PropertyCategoryUpdate"
 ]

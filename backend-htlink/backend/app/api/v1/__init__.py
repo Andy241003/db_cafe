@@ -2,10 +2,12 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth, login, plans, tenants, users, properties, features, posts, media,
-    categories, events, settings
+    categories, events, settings, utils, locales, translations, property_categories,
+    multi_tenant_demo
 )
 
 api_router = APIRouter()
+api_router.include_router(utils.router, prefix="/utils", tags=["utils"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(login.router, prefix="/login", tags=["login"])
 api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
@@ -18,3 +20,7 @@ api_router.include_router(posts.router, prefix="/posts", tags=["posts"])
 api_router.include_router(media.router, prefix="/media", tags=["media"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+api_router.include_router(locales.router, prefix="/locales", tags=["locales"])
+api_router.include_router(translations.router, prefix="/translations", tags=["translations"])
+api_router.include_router(property_categories.router, prefix="/property-categories", tags=["property-categories"])
+api_router.include_router(multi_tenant_demo.router, prefix="/multi-tenant", tags=["multi-tenant-demo"])

@@ -12,46 +12,57 @@ services:
     volumes:
       - app-db-data:/var/lib/mysql
     ports:
-      - "3307:3306"
+      - "3306:3306"
+    networks:
+      - app-network
 
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: always
     depends_on:
       - db
     env_file:
-      - .env
+      - .env.production
     ports:
       - "8000:8000"
+    networks:
+      - app-network
+    environment:
+      - MYSQL_SERVER=db
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:8000
-        - NODE_ENV=development
+        - VITE_API_URL=https://travel.link360.vn/api
+        - NODE_ENV=production
     restart: always
     ports:
       - "3001:80"
-
-  adminer:
-    image: adminer
-    restart: always
-    depends_on:
-      - db
-    ports:
-      - "8081:8080"
+    networks:
+      - app-network
 
   prestart:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: "no"
     depends_on:
       - db
     command: bash scripts/prestart.sh
     env_file:
       - .env.production
+    networks:
+      - app-network
+    environment:
+      - MYSQL_SERVER=db
 
 volumes:
   app-db-data:
+
+networks:
+  app-network:
+    driver: bridge

@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import SessionDep, CurrentUser, CurrentTenant, CurrentTenantId, TenantEditor, TenantAdmin, TenantOwner, TenantUser
 from app.models import Property
 from app.schemas import PropertyCreate, PropertyResponse, PropertyUpdate
 from app.core.permissions_utils import is_admin_or_owner, is_owner, is_viewer
@@ -14,8 +14,8 @@ router = APIRouter()
 @router.get("/", response_model=List[PropertyResponse])
 def read_properties(
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -32,7 +32,7 @@ def read_properties(
 def create_property(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     tenant_id: int = Depends(get_tenant_from_header),
     property_in: PropertyCreate,
 ) -> Any:
