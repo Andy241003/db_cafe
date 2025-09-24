@@ -2,6 +2,7 @@
 Multi-tenant middleware for HotelLink 360 SaaS
 Handles tenant isolation and access control
 """
+import logging
 from typing import Dict, Optional
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -10,6 +11,8 @@ from sqlmodel import Session, select
 
 from app.core.db import engine
 from app.models import Tenant, AdminUser
+
+logger = logging.getLogger(__name__)
 
 
 class MultiTenantMiddleware(BaseHTTPMiddleware):
@@ -25,13 +28,13 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip middleware for certain paths
         path = request.url.path
-        print(f"DEBUG: MultiTenant middleware processing path: {path}")
+        logger.info(f"MultiTenant middleware processing path: {path}")
         
         if self._should_skip_tenant_check(path):
-            print(f"DEBUG: Skipping tenant check for path: {path}")
+            logger.info(f"Skipping tenant check for path: {path}")
             return await call_next(request)
             
-        print(f"DEBUG: Applying tenant check for path: {path}")
+        logger.info(f"Applying tenant check for path: {path}")
         
         # Get tenant code from header or use default
         tenant_code = request.headers.get("X-Tenant-Code", self.default_tenant_code)

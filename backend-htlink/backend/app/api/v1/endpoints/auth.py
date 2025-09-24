@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
+from app.api.deps import CurrentUser, SessionDep
 from app.core import security
 from app.core.config import settings
 from app.schemas import AdminUserResponse
