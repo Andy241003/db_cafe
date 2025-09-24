@@ -29,16 +29,17 @@ router = APIRouter()
 def login_access_token(
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    tenant_id: CurrentTenantId,
+    tenant_id: int | None = None,
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
+    # For login, find user by email first (tenant_id is optional)
     user = crud.admin_user.authenticate(
         session, 
         email=form_data.username, 
         password=form_data.password,
-        tenant_id=tenant_id
+        tenant_id=None  # Allow any tenant for login
     )
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
