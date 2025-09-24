@@ -1,12 +1,73 @@
-# FastAPI Project - Deployment
+# 🚀 Hotel Link 360 SaaS - Production Deployment Guide
 
-You can deploy the project using Docker Compose to a remote server.
+## Quick Start
 
-This project expects you to have a Traefik proxy handling communication to the outside world and HTTPS certificates.
+### 1. **First Time Setup (on Production Server)**
 
-You can use CI/CD (continuous integration and continuous deployment) systems to deploy automatically, there are already configurations to do it with GitHub Actions.
+```bash
+# Clone repository
+git clone https://github.com/nvdong123/hotel-link.git
+cd hotel-link/backend-htlink
 
-But you have to configure a couple things first. 🤓
+# Create production environment file
+cp .env.production.example .env.production
+
+# Edit with your actual values
+nano .env.production
+```
+
+### 2. **Quick Deployment (Linux/Mac)**
+
+```bash
+# Make script executable
+chmod +x quick-deploy.sh
+
+# Run deployment
+./quick-deploy.sh
+```
+
+### 3. **Quick Deployment (Windows)**
+
+```powershell
+# Run deployment
+.\quick-deploy.ps1
+```
+
+### 4. **Manual Deployment**
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Stop existing containers
+docker-compose down
+
+# Start with production config
+docker-compose -f docker-compose.production.yml up -d --build
+
+# Run migrations
+docker-compose -f docker-compose.production.yml exec backend alembic upgrade head
+```
+
+## 🔧 Configuration
+
+### Environment Variables (.env.production)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DOMAIN` | Your domain | `travel.link360.vn` |
+| `FRONTEND_HOST` | Frontend URL | `https://travel.link360.vn` |
+| `MYSQL_DATABASE` | Database name | `hotellink360_db` |
+| `MYSQL_PASSWORD` | Database password | `StrongPassword123!` |
+| `SECRET_KEY` | JWT secret | Generate random 64 chars |
+| `FIRST_SUPERUSER` | Admin email | `admin@yourdomain.com` |
+
+### Multi-Tenant Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEFAULT_TENANT_CODE` | Default tenant | `demo` |
+| `ENABLE_MULTI_TENANT` | Enable multi-tenancy | `true` |
 
 ## Preparation
 
