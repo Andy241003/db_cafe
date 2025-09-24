@@ -65,14 +65,30 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/favicon.ico",
             "/health",
-            "/api/v1/auth",  # All auth endpoints
-            "/api/v1/utils", # Utility endpoints
+            "/api/v1/auth/",  # All auth endpoints - note the trailing slash
+            "/api/v1/utils/", # Utility endpoints
+            "/api/v1/test/",  # Test endpoints
         ]
         
-        # Simple prefix matching
+        # Exact path matches
+        exact_paths = [
+            "/api/v1/auth/access-token",
+            "/api/v1/test/simple-login",
+            "/api/v1/test/test-login",
+        ]
+        
+        # Check exact matches first
+        if path in exact_paths:
+            logger.info(f"Exact match skip for path: {path}")
+            return True
+            
+        # Check prefix matches
         for skip_path in skip_paths:
             if path.startswith(skip_path):
+                logger.info(f"Prefix match skip for path: {path} (pattern: {skip_path})")
                 return True
+                
+        logger.info(f"No skip match for path: {path}")
         return False
     
     def _get_or_cache_tenant(self, tenant_code: str) -> Optional[Tenant]:
