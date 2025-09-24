@@ -57,9 +57,15 @@ docker-compose -f docker-compose.production.yml exec -T backend alembic upgrade 
 # Show status
 Write-Host "🎉 Deployment complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Services:"
-Write-Host "✅ Backend: http://localhost:8000"
-Write-Host "✅ Frontend: http://localhost:3000"  
-Write-Host "✅ API Docs: http://localhost:8000/docs"
+Write-Host "Services (via Nginx reverse proxy):"
+Write-Host "✅ Website: https://travel.link360.vn"
+Write-Host "✅ Dashboard: https://travel.link360.vn/dashboard/"
+Write-Host "✅ API: https://travel.link360.vn/api/"
+Write-Host "✅ API Docs: https://travel.link360.vn/api/docs"
+Write-Host "✅ Adminer: https://travel.link360.vn/adminer/"
+Write-Host ""
+Write-Host "Direct access (for debugging):"
+Write-Host "- Backend: http://localhost:8000"
+Write-Host "- Frontend: http://localhost:3001"
 Write-Host ""
 docker-compose -f docker-compose.production.yml ps

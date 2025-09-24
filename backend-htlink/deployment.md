@@ -69,6 +69,69 @@ docker-compose -f docker-compose.production.yml exec backend alembic upgrade hea
 | `DEFAULT_TENANT_CODE` | Default tenant | `demo` |
 | `ENABLE_MULTI_TENANT` | Enable multi-tenancy | `true` |
 
+## 🌐 VPS Nginx Configuration
+
+Your current Nginx setup on VPS:
+
+```nginx
+server {
+    server_name travel.link360.vn;
+
+    # Backend FastAPI
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Frontend React
+    location /dashboard/ {
+        proxy_pass http://127.0.0.1:3001/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Adminer
+    location /adminer/ {
+        proxy_pass http://127.0.0.1:8081/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SSL Configuration (Let's Encrypt)
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/travel.link360.vn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/travel.link360.vn/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# HTTP to HTTPS Redirect
+server {
+    if ($host = travel.link360.vn) {
+        return 301 https://$host$request_uri;
+    }
+    
+    server_name travel.link360.vn;
+    listen 80;
+    return 404;
+}
+```
+
+### Services Access URLs:
+
+- **🌐 Website**: `https://travel.link360.vn`
+- **📊 Dashboard**: `https://travel.link360.vn/dashboard/`
+- **🔌 API**: `https://travel.link360.vn/api/`
+- **📚 API Docs**: `https://travel.link360.vn/api/docs`
+- **🗄️ Adminer**: `https://travel.link360.vn/adminer/`
+
 ## Preparation
 
 * Have a remote server ready and available.

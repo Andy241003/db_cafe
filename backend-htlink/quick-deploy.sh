@@ -41,7 +41,7 @@ sleep 30
 echo -e "${YELLOW}🔍 Checking backend health...${NC}"
 for i in {1..5}; do
     if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✅ Backend is healthy${NC}"
+        echo -e "${GREEN}✅ Backend is healthy (port 8000)${NC}"
         break
     else
         echo -e "${YELLOW}⏳ Waiting for backend... (attempt $i/5)${NC}"
@@ -56,9 +56,15 @@ docker-compose -f docker-compose.production.yml exec -T backend alembic upgrade 
 # Show status
 echo -e "${GREEN}🎉 Deployment complete!${NC}"
 echo ""
-echo "Services:"
-echo "✅ Backend: http://localhost:8000"
-echo "✅ Frontend: http://localhost:3000"  
-echo "✅ API Docs: http://localhost:8000/docs"
+echo "Services (via Nginx reverse proxy):"
+echo "✅ Website: https://travel.link360.vn"
+echo "✅ Dashboard: https://travel.link360.vn/dashboard/"
+echo "✅ API: https://travel.link360.vn/api/"
+echo "✅ API Docs: https://travel.link360.vn/api/docs"
+echo "✅ Adminer: https://travel.link360.vn/adminer/"
+echo ""
+echo "Direct access (for debugging):"
+echo "- Backend: http://localhost:8000"
+echo "- Frontend: http://localhost:3001"
 echo ""
 docker-compose -f docker-compose.production.yml ps
