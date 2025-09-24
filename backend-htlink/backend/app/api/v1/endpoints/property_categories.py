@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
+from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
 from app.models import PropertyCategory, PropertyCategoryCreate, PropertyCategoryUpdate
 
 router = APIRouter()
@@ -14,7 +14,7 @@ router = APIRouter()
 def read_property_categories(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: str = CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -33,7 +33,7 @@ def create_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: str = CurrentTenantId,
     category_in: PropertyCategoryCreate,
 ) -> Any:
     """
@@ -51,7 +51,7 @@ def update_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: str = CurrentTenantId,
     category_id: int,
     category_in: PropertyCategoryUpdate,
 ) -> Any:
@@ -80,7 +80,7 @@ def read_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: str = CurrentTenantId,
     category_id: int,
 ) -> Any:
     """
@@ -102,7 +102,7 @@ def delete_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: str = CurrentTenantId,
     category_id: int,
 ) -> Any:
     """

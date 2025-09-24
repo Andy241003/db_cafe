@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
 from app import crud
-from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import MediaFile, MediaKind
 from app.schemas import MediaFileCreate, MediaFileResponse, MediaFileUpdate
 
@@ -13,8 +13,8 @@ router = APIRouter()
 @router.get("/", response_model=List[MediaFileResponse])
 def read_media_files(
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     kind: Optional[MediaKind] = None,
     skip: int = 0,
     limit: int = 100,
@@ -36,8 +36,8 @@ def read_media_files(
 async def upload_media_file(
     *,
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     file: UploadFile = File(...),
     kind: MediaKind,
     alt_text: Optional[str] = None,
@@ -70,7 +70,7 @@ async def upload_media_file(
 def read_media_file(
     media_id: int,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Get media file by ID.
@@ -90,7 +90,7 @@ def read_media_file(
 def update_media_file(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     media_id: int,
     media_in: MediaFileUpdate,
 ) -> Any:
@@ -116,7 +116,7 @@ def update_media_file(
 def delete_media_file(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     media_id: int,
 ) -> Any:
     """
@@ -143,7 +143,7 @@ def delete_media_file(
 def download_media_file(
     media_id: int,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Download media file.

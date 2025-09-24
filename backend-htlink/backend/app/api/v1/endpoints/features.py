@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Feature, FeatureCategory
 from app.schemas import (
     FeatureCategoryCreate, 
@@ -20,8 +20,8 @@ router = APIRouter()
 @router.get("/categories", response_model=List[FeatureCategoryResponse])
 def read_feature_categories(
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
     include_system: bool = True,
@@ -40,8 +40,8 @@ def read_feature_categories(
 def create_feature_category(
     *,
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     category_in: FeatureCategoryCreate,
 ) -> Any:
     """
@@ -59,7 +59,7 @@ def create_feature_category(
 def read_feature_category(
     category_id: int,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Get feature category by ID.
@@ -74,7 +74,7 @@ def read_feature_category(
 def update_feature_category(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     category_id: int,
     category_in: FeatureCategoryUpdate,
 ) -> Any:
@@ -96,8 +96,8 @@ def update_feature_category(
 @router.get("/", response_model=List[FeatureResponse])
 def read_features(
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     category_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
@@ -121,8 +121,8 @@ def read_features(
 def create_feature(
     *,
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     feature_in: FeatureCreate,
 ) -> Any:
     """
@@ -140,7 +140,7 @@ def create_feature(
 def read_feature(
     feature_id: int,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Get feature by ID.
@@ -155,7 +155,7 @@ def read_feature(
 def update_feature(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     feature_id: int,
     feature_in: FeatureUpdate,
 ) -> Any:
@@ -177,7 +177,7 @@ def update_feature(
 def delete_feature(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     feature_id: int,
 ) -> Any:
     """

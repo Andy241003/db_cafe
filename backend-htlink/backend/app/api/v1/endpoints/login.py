@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app import crud
-from app.api.deps import SessionDep, get_tenant_from_header
+from app.api.deps import SessionDep, CurrentTenantId
 from app.core import security
 from app.core.config import settings
 from app.schemas import Token
@@ -18,7 +18,7 @@ router = APIRouter()
 def login_access_token(
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    tenant_id: int | None = Depends(get_tenant_from_header)
+    tenant_id: CurrentTenantId,
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests

@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Post, PostStatus
 from app.schemas import PostCreate, PostResponse, PostUpdate
 
@@ -13,8 +13,8 @@ router = APIRouter()
 @router.get("/", response_model=List[PostResponse])
 def read_posts(
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     property_id: Optional[int] = None,
     feature_id: Optional[int] = None,
     status: Optional[PostStatus] = None,
@@ -40,8 +40,8 @@ def read_posts(
 def create_post(
     *,
     session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     post_in: PostCreate,
 ) -> Any:
     """
@@ -62,7 +62,7 @@ def create_post(
 def read_post(
     post_id: int,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Get post by ID.
@@ -82,7 +82,7 @@ def read_post(
 def update_post(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     post_id: int,
     post_in: PostUpdate,
 ) -> Any:
@@ -108,7 +108,7 @@ def update_post(
 def delete_post(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     post_id: int,
 ) -> Any:
     """
@@ -133,7 +133,7 @@ def delete_post(
 def publish_post(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     post_id: int,
 ) -> Any:
     """
@@ -162,7 +162,7 @@ def publish_post(
 def archive_post(
     *,
     session: SessionDep,
-    current_user: TenantUser,
+    current_user: CurrentUser,
     post_id: int,
 ) -> Any:
     """
