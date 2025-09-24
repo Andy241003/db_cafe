@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import SessionDep, CurrentUser, CurrentTenant, CurrentTenantId, TenantEditor, TenantAdmin, TenantOwner, TenantUser
+from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Property
 from app.schemas import PropertyCreate, PropertyResponse, PropertyUpdate
 from app.core.permissions_utils import is_admin_or_owner, is_owner, is_viewer
@@ -33,7 +33,7 @@ def create_property(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_in: PropertyCreate,
 ) -> Any:
     """
@@ -62,11 +62,10 @@ def create_property(
 
 @router.get("/{property_id}", response_model=PropertyResponse)
 def read_property(
-    *,
-    session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     property_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
 ) -> Any:
     """
     Get property by ID.
@@ -85,10 +84,10 @@ def read_property(
 @router.put("/{property_id}", response_model=PropertyResponse)
 def update_property(
     *,
-    session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     property_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     property_in: PropertyUpdate,
 ) -> Any:
     """
@@ -123,11 +122,10 @@ def update_property(
 
 @router.delete("/{property_id}")
 def delete_property(
-    *,
-    session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     property_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
 ) -> Any:
     """
     Delete a property. Only owners can delete properties.
@@ -150,11 +148,10 @@ def delete_property(
 
 @router.get("/by-code/{property_code}", response_model=PropertyResponse)
 def read_property_by_code(
-    *,
-    session: SessionDep,
-    current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     property_code: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
 ) -> Any:
     """
     Get property by code.

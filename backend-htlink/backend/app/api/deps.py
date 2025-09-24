@@ -52,6 +52,10 @@ def get_current_user(session: SessionDep, token: TokenDep) -> AdminUser:
     return user
 
 
+# Type annotations for dependencies (define early)
+CurrentUser = Annotated[AdminUser, Depends(get_current_user)]
+
+
 def get_current_active_superuser(current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
     """
     Get current active superuser (owner role)
@@ -119,8 +123,8 @@ def get_current_tenant_id(request: Request) -> int:
 
 
 def require_tenant_owner_access(
-    current_user: CurrentUser,
-    current_tenant: Annotated[Tenant, Depends(get_current_tenant)]
+    current_user: AdminUser = Depends(get_current_user),
+    current_tenant: Annotated[Tenant, Depends(get_current_tenant)] = None
 ) -> AdminUser:
     """
     Ensure current user is OWNER of the current tenant
@@ -141,8 +145,8 @@ def require_tenant_owner_access(
 
 
 def require_tenant_admin_access(
-    current_user: CurrentUser,
-    current_tenant: Annotated[Tenant, Depends(get_current_tenant)]
+    current_user: AdminUser = Depends(get_current_user),
+    current_tenant: Annotated[Tenant, Depends(get_current_tenant)] = None
 ) -> AdminUser:
     """
     Ensure current user is OWNER or ADMIN of the current tenant
@@ -163,8 +167,8 @@ def require_tenant_admin_access(
 
 
 def require_tenant_editor_access(
-    current_user: CurrentUser,
-    current_tenant: Annotated[Tenant, Depends(get_current_tenant)]
+    current_user: AdminUser = Depends(get_current_user),
+    current_tenant: Annotated[Tenant, Depends(get_current_tenant)] = None
 ) -> AdminUser:
     """
     Ensure current user has EDITOR+ access to the current tenant
@@ -210,8 +214,7 @@ def require_tenant_access(
     return current_user
 
 
-# Type annotations for dependencies
-CurrentUser = Annotated[AdminUser, Depends(get_current_user)]
+# Type annotations for dependencies (additional)
 CurrentActiveUser = Annotated[AdminUser, Depends(get_current_user)]
 CurrentSuperUser = Annotated[AdminUser, Depends(get_current_active_superuser)]
 TenantUser = Annotated[AdminUser, Depends(require_tenant_access)]
