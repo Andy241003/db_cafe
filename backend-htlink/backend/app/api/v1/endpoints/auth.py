@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
 from app.core import security
 from app.core.config import settings
 from app.schemas import AdminUserResponse
@@ -29,20 +29,16 @@ router = APIRouter()
 def login_access_token(
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    tenant_id: int | None = None,
+    tenant_id: int | None = Depends(get_tenant_from_header)
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    print(f"DEBUG: Auth endpoint called with username: {form_data.username}")
-    print(f"DEBUG: tenant_id parameter: {tenant_id}")
-    
-    # For login, find user by email first (tenant_id is optional)
     user = crud.admin_user.authenticate(
         session, 
         email=form_data.username, 
         password=form_data.password,
-        tenant_id=None  # Allow any tenant for login
+        tenant_id=tenant_id
     )
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")

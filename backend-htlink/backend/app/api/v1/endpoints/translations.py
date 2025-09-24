@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
+from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
 from app.models import FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate
 from app.models import PostTranslation, PostTranslationCreate, PostTranslationUpdate
 from app.models import FeatureCategoryTranslation, FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
@@ -17,7 +17,7 @@ router = APIRouter()
 def read_feature_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -36,7 +36,7 @@ def create_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_in: FeatureTranslationCreate,
 ) -> Any:
     """
@@ -54,7 +54,7 @@ def update_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
     translation_in: FeatureTranslationUpdate,
 ) -> Any:
@@ -83,7 +83,7 @@ def delete_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
 ) -> Any:
     """
@@ -108,7 +108,7 @@ def delete_feature_translation(
 def read_post_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -127,7 +127,7 @@ def create_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_in: PostTranslationCreate,
 ) -> Any:
     """
@@ -145,7 +145,7 @@ def update_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
     translation_in: PostTranslationUpdate,
 ) -> Any:
@@ -174,7 +174,7 @@ def delete_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
 ) -> Any:
     """
@@ -199,7 +199,7 @@ def delete_post_translation(
 def read_feature_category_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -218,7 +218,7 @@ def create_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_in: FeatureCategoryTranslationCreate,
 ) -> Any:
     """
@@ -236,7 +236,7 @@ def update_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
     translation_in: FeatureCategoryTranslationUpdate,
 ) -> Any:
@@ -265,7 +265,7 @@ def delete_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = CurrentTenantId,
+    tenant_code: str = get_tenant_from_header(),
     translation_id: int,
 ) -> Any:
     """

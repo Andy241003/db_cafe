@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentUser, CurrentTenantId
+from app.api.deps import CurrentUser, SessionDep, TenantUser, get_tenant_from_header
 from app.models import AdminUser
 from app.schemas import (
     AdminUserCreate, AdminUserResponse, AdminUserUpdate, 
@@ -76,8 +76,8 @@ def update_password_me_patch(
 @router.get("/", response_model=List[AdminUserResponse])
 def read_users(
     session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    current_user: TenantUser,
+    tenant_id: int = Depends(get_tenant_from_header),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -96,8 +96,8 @@ def read_users(
 def create_user(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    current_user: TenantUser,
+    tenant_id: int = Depends(get_tenant_from_header),
     user_in: AdminUserCreate,
 ) -> Any:
     """
@@ -118,8 +118,8 @@ def create_user(
 def update_user(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    current_user: TenantUser,
+    tenant_id: int = Depends(get_tenant_from_header),
     user_id: int,
     user_in: AdminUserUpdate,
 ) -> Any:
@@ -150,8 +150,8 @@ def update_user(
 def read_user(
     user_id: int,
     session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    current_user: TenantUser,
+    tenant_id: int = Depends(get_tenant_from_header),
 ) -> Any:
     """
     Get a specific user by id.
@@ -175,8 +175,8 @@ def read_user(
 def delete_user(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    current_user: TenantUser,
+    tenant_id: int = Depends(get_tenant_from_header),
     user_id: int,
 ) -> Any:
     """

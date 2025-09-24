@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
+from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
 from app.models import Locale, LocaleCreate, LocaleUpdate
 
 router = APIRouter()

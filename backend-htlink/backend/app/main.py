@@ -5,7 +5,6 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
-from app.core.tenant import MultiTenantMiddleware
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -25,9 +24,6 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 
-
-# Add Multi-Tenant Middleware
-app.add_middleware(MultiTenantMiddleware, default_tenant_code="demo")
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:
