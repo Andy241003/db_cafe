@@ -26,8 +26,8 @@ app = FastAPI(
 )
 
 
-# Add Multi-Tenant Middleware
-app.add_middleware(MultiTenantMiddleware, default_tenant_code="demo")
+# Add Multi-Tenant Middleware (temporarily disabled for testing)
+# app.add_middleware(MultiTenantMiddleware, default_tenant_code="demo")
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:

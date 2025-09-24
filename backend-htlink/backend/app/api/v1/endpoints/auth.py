@@ -34,6 +34,9 @@ def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
+    print(f"DEBUG: Auth endpoint called with username: {form_data.username}")
+    print(f"DEBUG: tenant_id parameter: {tenant_id}")
+    
     # For login, find user by email first (tenant_id is optional)
     user = crud.admin_user.authenticate(
         session, 
