@@ -24,7 +24,9 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         # Skip middleware for certain paths
-        if self._should_skip_tenant_check(request.url.path):
+        path = request.url.path
+        if self._should_skip_tenant_check(path):
+            print(f"DEBUG: Skipping tenant check for path: {path}")
             return await call_next(request)
         
         # Get tenant code from header or use default
@@ -56,10 +58,15 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/favicon.ico",
             "/health",
-            "/api/v1/auth/access-token",  # Login endpoint
+            "/api/v1/auth/access-token",  # Login endpoint (exact match)
+            "/api/v1/auth/",              # All auth endpoints
             "/api/v1/utils/",             # Utility endpoints
         ]
         
+        # Check exact match first, then prefix match
+        if path in ["/api/v1/auth/access-token"]:
+            return True
+            
         return any(path.startswith(skip_path) for skip_path in skip_paths)
     
     def _get_or_cache_tenant(self, tenant_code: str) -> Optional[Tenant]:
