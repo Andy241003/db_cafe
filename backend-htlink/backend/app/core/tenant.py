@@ -65,16 +65,15 @@ class MultiTenantMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/favicon.ico",
             "/health",
-            "/api/v1/auth/access-token",  # Login endpoint (exact match)
-            "/api/v1/auth/",              # All auth endpoints
-            "/api/v1/utils/",             # Utility endpoints
+            "/api/v1/auth",  # All auth endpoints
+            "/api/v1/utils", # Utility endpoints
         ]
         
-        # Check exact match first, then prefix match
-        if path in ["/api/v1/auth/access-token"]:
-            return True
-            
-        return any(path.startswith(skip_path) for skip_path in skip_paths)
+        # Simple prefix matching
+        for skip_path in skip_paths:
+            if path.startswith(skip_path):
+                return True
+        return False
     
     def _get_or_cache_tenant(self, tenant_code: str) -> Optional[Tenant]:
         """
