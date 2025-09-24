@@ -16,3 +16,12 @@ def simple_test() -> SimpleResponse:
 def simple_login() -> SimpleResponse:
     """Simple login endpoint for testing"""
     return SimpleResponse(message="Simple login test successful")
+
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated
+
+@router.post("/test-login")
+def test_login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> SimpleResponse:
+    """Test login with form data but no database"""
+    return SimpleResponse(message=f"Login test for user: {form_data.username}")
