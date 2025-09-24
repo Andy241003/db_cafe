@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
+from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
 from app.core import security
 from app.core.config import settings
 from app.schemas import AdminUserResponse
@@ -29,7 +29,7 @@ router = APIRouter()
 def login_access_token(
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    tenant_id: int | None = Depends(get_tenant_from_header)
+    tenant_id: CurrentTenantId,
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
