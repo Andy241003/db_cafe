@@ -1,0 +1,44 @@
+# PRODUCTION DEBUG COMMANDS
+# Server IP: 157.10.199.166
+
+# === BASIC CHECKS ===
+# Check if containers are running
+ssh user@157.10.199.166 'docker ps'
+
+# Check backend logs (most important!)
+ssh user@157.10.199.166 'docker logs $(docker ps -q --filter "name=backend") --tail=50'
+
+# Check database logs
+ssh user@157.10.199.166 'docker logs $(docker ps -q --filter "name=db") --tail=20'
+
+# === ENVIRONMENT CHECK ===
+# Check environment variables in backend container
+ssh user@157.10.199.166 'docker exec $(docker ps -q --filter "name=backend") env | grep -E "(MYSQL|FIRST_SUPERUSER|SECRET_KEY)"'
+
+# === DATABASE CHECK ===
+# Test database connection
+ssh user@157.10.199.166 'docker exec $(docker ps -q --filter "name=backend") python -c "from app.core.db import engine; from sqlmodel import Session, text; print(\"Testing DB...\"); session = Session(engine); result = session.exec(text(\"SELECT 1\")); print(\"DB OK\")"'
+
+# === DEBUG SCRIPT ===
+# Copy debug script to server
+scp debug_production.py user@157.10.199.166:~/debug_production.py
+
+# Copy to container and run
+ssh user@157.10.199.166 'docker cp ~/debug_production.py $(docker ps -q --filter "name=backend"):/app/ && docker exec $(docker ps -q --filter "name=backend") python debug_production.py'
+
+# === QUICK FIXES ===
+# Restart backend only
+ssh user@157.10.199.166 'docker restart $(docker ps -q --filter "name=backend")'
+
+# Full restart all services
+ssh user@157.10.199.166 'cd /path/to/project && docker-compose -f docker-compose.production.yml restart'
+
+# === REBUILD IF NEEDED ===
+# Rebuild backend with latest changes
+ssh user@157.10.199.166 'cd /path/to/project && docker-compose -f docker-compose.production.yml build --no-cache backend && docker-compose -f docker-compose.production.yml up -d'
+
+# === AFTER CHANGES ===
+# Test authentication after fix
+curl -X POST "http://157.10.199.166:8000/api/v1/auth/access-token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@travel.link360.vn&password=SuperSecretPass123"

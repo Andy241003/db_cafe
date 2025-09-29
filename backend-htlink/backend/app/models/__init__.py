@@ -394,6 +394,18 @@ class FeatureCategoryTranslationUpdate(SQLModel):
     short_desc: Optional[str] = None
 
 
+class FeatureCategoryCreate(SQLModel):
+    slug: str
+    icon_key: Optional[str] = None
+    is_system: bool = False
+
+
+class FeatureCategoryUpdate(SQLModel):
+    slug: Optional[str] = None
+    icon_key: Optional[str] = None
+    is_system: Optional[bool] = None
+
+
 class PropertyCategoryCreate(SQLModel):
     property_id: int
     category_id: int
@@ -420,5 +432,6 @@ __all__ = [
     "FeatureTranslationCreate", "FeatureTranslationUpdate",
     "PostTranslationCreate", "PostTranslationUpdate",
     "FeatureCategoryTranslationCreate", "FeatureCategoryTranslationUpdate",
+    "FeatureCategoryCreate", "FeatureCategoryUpdate",
     "PropertyCategoryCreate", "PropertyCategoryUpdate"
 ]

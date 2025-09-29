@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
-from app.api.deps import SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import SessionDep, TenantUser, CurrentTenantId
 from app.models import Property
 from app.schemas import PropertyCreate, PropertyResponse, PropertyUpdate
 from app.core.permissions_utils import is_admin_or_owner, is_owner, is_viewer
@@ -15,7 +15,7 @@ router = APIRouter()
 def read_properties(
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -33,7 +33,7 @@ def create_property(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_in: PropertyCreate,
 ) -> Any:
     """
@@ -65,7 +65,7 @@ def read_property(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_id: int,
 ) -> Any:
     """
@@ -87,7 +87,7 @@ def update_property(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_id: int,
     property_in: PropertyUpdate,
 ) -> Any:
@@ -126,7 +126,7 @@ def delete_property(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_id: int,
 ) -> Any:
     """
@@ -153,7 +153,7 @@ def read_property_by_code(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
+    tenant_id: CurrentTenantId,
     property_code: str,
 ) -> Any:
     """

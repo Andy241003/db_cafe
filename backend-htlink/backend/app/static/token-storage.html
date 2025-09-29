@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Storage</title>
+</head>
+<body>
+    <script>
+        // Auto save token to localStorage when this page loads
+        window.addEventListener('load', function() {
+            // Get token from URL params or from parent window
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('access_token');
+            
+            if (token) {
+                localStorage.setItem('access_token', token);
+                localStorage.setItem('token_type', 'bearer');
+                console.log('Token saved to localStorage:', token);
+            }
+            
+            // Also listen for messages from Swagger UI
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.access_token) {
+                    localStorage.setItem('access_token', event.data.access_token);
+                    localStorage.setItem('token_type', event.data.token_type || 'bearer');
+                    console.log('Token saved to localStorage from message:', event.data.access_token);
+                }
+            });
+            
+            // For external apps to get token
+            window.getStoredToken = function() {
+                return {
+                    access_token: localStorage.getItem('access_token'),
+                    token_type: localStorage.getItem('token_type') || 'bearer'
+                };
+            };
+        });
+    </script>
+    <h2>Token Storage Helper</h2>
+    <p>This page helps store authentication tokens in localStorage for external applications.</p>
+    <p>Token will be automatically saved when you authorize in API docs.</p>
+    
+    <script>
+        // Display current token if exists
+        const currentToken = localStorage.getItem('access_token');
+        if (currentToken) {
+            document.write('<p><strong>Current Token:</strong> ' + currentToken + '</p>');
+        }
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
+from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
 from app.models import FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate
 from app.models import PostTranslation, PostTranslationCreate, PostTranslationUpdate
 from app.models import FeatureCategoryTranslation, FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
@@ -17,7 +17,7 @@ router = APIRouter()
 def read_feature_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -25,7 +25,7 @@ def read_feature_translations(
     Retrieve feature translations.
     """
     statement = select(FeatureTranslation).where(
-        FeatureTranslation.tenant_id == tenant_code
+        FeatureTranslation.tenant_id == tenant_id
     ).offset(skip).limit(limit)
     translations = session.exec(statement).all()
     return translations
@@ -36,13 +36,13 @@ def create_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_in: FeatureTranslationCreate,
 ) -> Any:
     """
     Create new feature translation.
     """
-    translation = FeatureTranslation.model_validate(translation_in, update={"tenant_id": tenant_code})
+    translation = FeatureTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
     session.add(translation)
     session.commit()
     session.refresh(translation)
@@ -54,7 +54,7 @@ def update_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
     translation_in: FeatureTranslationUpdate,
 ) -> Any:
@@ -64,7 +64,7 @@ def update_feature_translation(
     translation = session.exec(
         select(FeatureTranslation).where(
             FeatureTranslation.id == translation_id,
-            FeatureTranslation.tenant_id == tenant_code
+            FeatureTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:
@@ -83,7 +83,7 @@ def delete_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
 ) -> Any:
     """
@@ -92,7 +92,7 @@ def delete_feature_translation(
     translation = session.exec(
         select(FeatureTranslation).where(
             FeatureTranslation.id == translation_id,
-            FeatureTranslation.tenant_id == tenant_code
+            FeatureTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:
@@ -108,7 +108,7 @@ def delete_feature_translation(
 def read_post_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -116,7 +116,7 @@ def read_post_translations(
     Retrieve post translations.
     """
     statement = select(PostTranslation).where(
-        PostTranslation.tenant_id == tenant_code
+        PostTranslation.tenant_id == tenant_id
     ).offset(skip).limit(limit)
     translations = session.exec(statement).all()
     return translations
@@ -127,13 +127,13 @@ def create_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_in: PostTranslationCreate,
 ) -> Any:
     """
     Create new post translation.
     """
-    translation = PostTranslation.model_validate(translation_in, update={"tenant_id": tenant_code})
+    translation = PostTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
     session.add(translation)
     session.commit()
     session.refresh(translation)
@@ -145,7 +145,7 @@ def update_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
     translation_in: PostTranslationUpdate,
 ) -> Any:
@@ -155,7 +155,7 @@ def update_post_translation(
     translation = session.exec(
         select(PostTranslation).where(
             PostTranslation.id == translation_id,
-            PostTranslation.tenant_id == tenant_code
+            PostTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:
@@ -174,7 +174,7 @@ def delete_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
 ) -> Any:
     """
@@ -183,7 +183,7 @@ def delete_post_translation(
     translation = session.exec(
         select(PostTranslation).where(
             PostTranslation.id == translation_id,
-            PostTranslation.tenant_id == tenant_code
+            PostTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:
@@ -199,7 +199,7 @@ def delete_post_translation(
 def read_feature_category_translations(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -207,7 +207,7 @@ def read_feature_category_translations(
     Retrieve feature category translations.
     """
     statement = select(FeatureCategoryTranslation).where(
-        FeatureCategoryTranslation.tenant_id == tenant_code
+        FeatureCategoryTranslation.tenant_id == tenant_id
     ).offset(skip).limit(limit)
     translations = session.exec(statement).all()
     return translations
@@ -218,13 +218,13 @@ def create_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_in: FeatureCategoryTranslationCreate,
 ) -> Any:
     """
     Create new feature category translation.
     """
-    translation = FeatureCategoryTranslation.model_validate(translation_in, update={"tenant_id": tenant_code})
+    translation = FeatureCategoryTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
     session.add(translation)
     session.commit()
     session.refresh(translation)
@@ -236,7 +236,7 @@ def update_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
     translation_in: FeatureCategoryTranslationUpdate,
 ) -> Any:
@@ -246,7 +246,7 @@ def update_feature_category_translation(
     translation = session.exec(
         select(FeatureCategoryTranslation).where(
             FeatureCategoryTranslation.id == translation_id,
-            FeatureCategoryTranslation.tenant_id == tenant_code
+            FeatureCategoryTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:
@@ -265,7 +265,7 @@ def delete_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_id: CurrentTenantId,
     translation_id: int,
 ) -> Any:
     """
@@ -274,7 +274,7 @@ def delete_feature_category_translation(
     translation = session.exec(
         select(FeatureCategoryTranslation).where(
             FeatureCategoryTranslation.id == translation_id,
-            FeatureCategoryTranslation.tenant_id == tenant_code
+            FeatureCategoryTranslation.tenant_id == tenant_id
         )
     ).first()
     if not translation:

@@ -20,7 +20,7 @@ class TokenPayload(BaseModel):
 
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/access-token"
+    tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
 
@@ -56,7 +56,7 @@ def get_current_active_superuser(current_user: AdminUser = Depends(get_current_u
     """
     Get current active superuser (owner role)
     """
-    if current_user.role != "owner":
+    if current_user.role.lower() != "owner":
         raise HTTPException(
             status_code=403, detail="Not enough permissions"
         )
@@ -99,7 +99,7 @@ def require_tenant_access(
         raise HTTPException(status_code=404, detail="Tenant not found")
         
     # Allow superusers to access any tenant, otherwise check user's tenant
-    if current_user.role != "owner" and current_user.tenant_id != tenant.id:
+    if current_user.role.lower() != "owner" and current_user.tenant_id != tenant.id:
         raise HTTPException(
             status_code=403, 
             detail="Access denied to this tenant"
@@ -112,3 +112,4 @@ CurrentUser = Annotated[AdminUser, Depends(get_current_user)]
 CurrentActiveUser = Annotated[AdminUser, Depends(get_current_user)]
 CurrentSuperUser = Annotated[AdminUser, Depends(get_current_active_superuser)]
 TenantUser = Annotated[AdminUser, Depends(require_tenant_access)]
+CurrentTenantId = Annotated[int, Depends(get_tenant_from_header)]

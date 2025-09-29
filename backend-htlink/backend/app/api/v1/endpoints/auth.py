@@ -1,15 +1,23 @@
 from datetime import timedelta
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from sqlmodel import select
 
-from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
+from app.api.deps import SessionDep
 from app.core import security
 from app.core.config import settings
-from app.schemas import AdminUserResponse
+from app.models import AdminUser, Tenant
+from app import crud
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_info: dict[str, Any]
+    tenant_info: dict[str, Any]
 
 
 class Token(BaseModel):
@@ -17,76 +25,116 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-class NewPassword(BaseModel):
-    token: str
-    new_password: str
-
-
 router = APIRouter()
 
 
-@router.post("/access-token")
-def login_access_token(
+@router.post("/login")
+def login(
     session: SessionDep,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    tenant_id: int | None = Depends(get_tenant_from_header)
-) -> Token:
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    tenant_code: str = "demo"
+):
     """
-    OAuth2 compatible token login, get an access token for future requests
+    Login endpoint with username/password authentication
+    
+    POST /api/v1/auth/login
+    Form data:
+    - username: admin@travel.link360.vn  
+    - password: admin123
+    - tenant_code: demo (or premier_admin)
+    
+    Returns access token for external apps to use
     """
+    # Get tenant by code
+    tenant = session.exec(
+        select(Tenant).where(Tenant.code == tenant_code)
+    ).first()
+    
+    if not tenant:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tenant '{tenant_code}' not found"
+        )
+    
+    # Authenticate user with username/password
     user = crud.admin_user.authenticate(
         session, 
         email=form_data.username, 
         password=form_data.password,
-        tenant_id=tenant_id
+        tenant_id=tenant.id
     )
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
     
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
-        access_token=security.create_access_token(
-            subject=str(user.id), expires_delta=access_token_expires
-        )
-    )
-
-
-@router.post("/test-token", response_model=AdminUserResponse)
-def test_token(current_user: CurrentUser) -> Any:
-    """
-    Test access token
-    """
-    return current_user
-
-
-@router.post("/password-recovery/{email}")
-def recover_password(email: str, session: SessionDep) -> Any:
-    """
-    Password Recovery
-    """
-    user = crud.admin_user.get_by_email(session, email=email)
-
     if not user:
         raise HTTPException(
-            status_code=404,
-            detail="The user with this email does not exist in the system.",
+            status_code=400, 
+            detail="Incorrect username or password"
         )
     
-    # TODO: Send password recovery email
-    # For now, just return a success message
-    return {"message": "Password recovery email sent"}
-
-
-@router.post("/reset-password/")
-def reset_password(session: SessionDep, body: NewPassword) -> Any:
-    """
-    Reset password
-    """
-    # TODO: Implement token verification for password reset
-    # For now, this is a placeholder
-    raise HTTPException(
-        status_code=400,
-        detail="Password reset not implemented yet"
+    if not user.is_active:
+        raise HTTPException(
+            status_code=400, 
+            detail="Inactive user"
+        )
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        subject=str(user.id), 
+        expires_delta=access_token_expires
     )
+    
+    # Return token with user info
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_info": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active
+        },
+        "tenant_info": {
+            "id": tenant.id,
+            "name": tenant.name,
+            "code": tenant.code
+        }
+    }
+
+
+@router.get("/auto-token", response_model=Token)
+def auto_generate_token_for_docs(
+    session: SessionDep,
+    tenant_code: str = "demo"
+) -> Token:
+    """
+    Auto-generate token for API docs "Authorize" button
+    This saves token to localStorage for external apps to use
+    """
+    # Get tenant by code
+    tenant = session.exec(
+        select(Tenant).where(Tenant.code == tenant_code)
+    ).first()
+    
+    if not tenant:
+        raise HTTPException(status_code=400, detail=f"Tenant '{tenant_code}' not found")
+    
+    # Get default admin user for this tenant
+    user = session.exec(
+        select(AdminUser).where(
+            AdminUser.email == settings.FIRST_SUPERUSER,
+            AdminUser.tenant_id == tenant.id
+        )
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Default admin user not found")
+    elif not user.is_active:
+        raise HTTPException(status_code=400, detail="Default admin user is inactive")
+    
+    # Create token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        subject=str(user.id), expires_delta=access_token_expires
+    )
+    
+    return Token(access_token=access_token, token_type="bearer")

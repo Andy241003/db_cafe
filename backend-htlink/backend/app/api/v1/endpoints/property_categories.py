@@ -4,64 +4,64 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
-from app.models import PropertyCategory, PropertyCategoryCreate, PropertyCategoryUpdate
+from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
+from app.models import FeatureCategory, FeatureCategoryCreate, FeatureCategoryUpdate
 
 router = APIRouter()
 
 
-@router.get("/", response_model=list[PropertyCategory])
+@router.get("/", response_model=list[FeatureCategory])
 def read_property_categories(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
     """
     Retrieve property categories.
     """
-    statement = select(PropertyCategory).where(
-        PropertyCategory.tenant_id == tenant_code
+    statement = select(FeatureCategory).where(
+        FeatureCategory.tenant_id == tenant_code
     ).offset(skip).limit(limit)
     categories = session.exec(statement).all()
     return categories
 
 
-@router.post("/", response_model=PropertyCategory)
+@router.post("/", response_model=FeatureCategory)
 def create_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
-    category_in: PropertyCategoryCreate,
+    tenant_code: CurrentTenantId,
+    category_in: FeatureCategoryCreate,
 ) -> Any:
     """
     Create new property category.
     """
-    category = PropertyCategory.model_validate(category_in, update={"tenant_id": tenant_code})
+    category = FeatureCategory.model_validate(category_in, update={"tenant_id": tenant_code})
     session.add(category)
     session.commit()
     session.refresh(category)
     return category
 
 
-@router.put("/{category_id}", response_model=PropertyCategory)
+@router.put("/{category_id}", response_model=FeatureCategory)
 def update_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: CurrentTenantId,
     category_id: int,
-    category_in: PropertyCategoryUpdate,
+    category_in: FeatureCategoryUpdate,
 ) -> Any:
     """
     Update a property category.
     """
     category = session.exec(
-        select(PropertyCategory).where(
-            PropertyCategory.id == category_id,
-            PropertyCategory.tenant_id == tenant_code
+        select(FeatureCategory).where(
+            FeatureCategory.id == category_id,
+            FeatureCategory.tenant_id == tenant_code
         )
     ).first()
     if not category:
@@ -75,21 +75,21 @@ def update_property_category(
     return category
 
 
-@router.get("/{category_id}", response_model=PropertyCategory)
+@router.get("/{category_id}", response_model=FeatureCategory)
 def read_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: CurrentTenantId,
     category_id: int,
 ) -> Any:
     """
     Get property category by ID.
     """
     category = session.exec(
-        select(PropertyCategory).where(
-            PropertyCategory.id == category_id,
-            PropertyCategory.tenant_id == tenant_code
+        select(FeatureCategory).where(
+            FeatureCategory.id == category_id,
+            FeatureCategory.tenant_id == tenant_code
         )
     ).first()
     if not category:
@@ -102,16 +102,16 @@ def delete_property_category(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_code: str = get_tenant_from_header(),
+    tenant_code: CurrentTenantId,
     category_id: int,
 ) -> Any:
     """
     Delete a property category.
     """
     category = session.exec(
-        select(PropertyCategory).where(
-            PropertyCategory.id == category_id,
-            PropertyCategory.tenant_id == tenant_code
+        select(FeatureCategory).where(
+            FeatureCategory.id == category_id,
+            FeatureCategory.tenant_id == tenant_code
         )
     ).first()
     if not category:

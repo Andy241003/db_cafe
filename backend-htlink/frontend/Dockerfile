@@ -1,23 +1,38 @@
-# Stage 0, "build-stage", based on Node.js, to build and compile the frontend
-FROM node:24 AS build-stage
+# Build stage
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json /app/
+# Copy package files
+COPY package*.json ./
 
-RUN npm install
+# Install dependencies (including dev dependencies for build)
+RUN npm ci
 
-COPY ./ /app/
+# Copy source code
+COPY . .
 
-ARG VITE_API_URL=${VITE_API_URL}
+# Build arguments
+ARG VITE_API_URL=http://localhost:8000
+ARG NODE_ENV=production
 
+# Set environment variables
+ENV VITE_API_URL=${VITE_API_URL}
+ENV NODE_ENV=${NODE_ENV}
+
+# Build the app
 RUN npm run build
 
+# Production stage
+FROM nginx:alpine
 
-# Stage 1, based on Nginx, to have only the compiled app, ready for production with Nginx
-FROM nginx:1
+# Copy built app to nginx
+COPY --from=build /app/dist /usr/share/nginx/html
 
-COPY --from=build-stage /app/dist/ /usr/share/nginx/html
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
-COPY ./nginx-backend-not-found.conf /etc/nginx/extra-conf.d/backend-not-found.conf
+# Expose port
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

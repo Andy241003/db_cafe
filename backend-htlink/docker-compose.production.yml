@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   db:
     image: mysql:8.0
@@ -57,16 +59,6 @@ services:
       - app-network
     environment:
       - MYSQL_SERVER=db
-
-  adminer:
-    image: adminer
-    restart: always
-    depends_on:
-      - db
-    ports:
-      - "8081:8080"
-    networks:
-      - app-network
 
 volumes:
   app-db-data:
