@@ -13,7 +13,7 @@ RUN npm ci
 COPY . .
 
 # Build arguments
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=https://travel.link360.vn/api/v1
 ARG NODE_ENV=production
 
 # Set environment variables

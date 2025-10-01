@@ -22,6 +22,6 @@ export default defineConfig({
   },
   define: {
     // Make environment variables available - using import.meta.env instead
-    __VITE_API_URL__: JSON.stringify('http://localhost:8000'),
+    __VITE_API_URL__: JSON.stringify(process.env.VITE_API_URL || 'http://localhost:8000'),
   }
 })

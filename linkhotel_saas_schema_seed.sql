@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
   email VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(180) NOT NULL,
-  role ENUM('owner','admin','editor','viewer') NOT NULL DEFAULT 'editor',
+  role ENUM('OWNER','ADMIN','EDITOR','VIEWER') NOT NULL DEFAULT 'EDITOR',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL,
