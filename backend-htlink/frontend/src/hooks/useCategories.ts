@@ -20,36 +20,57 @@ export const useCategories = (): UseCategoriesReturn => {
     const loadCategories = async () => {
       try {
         setLoading(true);
+        console.log('🔄 Loading categories from API...');
+        console.log('🏢 Current tenant context:', {
+          tenant_code: localStorage.getItem('tenant_code'),
+          tenant_id: localStorage.getItem('tenant_id'),
+          currentUser: JSON.parse(localStorage.getItem('currentUser') || '{}')
+        });
         const apiCategories = await categoriesAPI.getAll();
+        console.log('✅ Categories loaded for current tenant:', apiCategories);
+        
+        // Also load features to count features per category
+        const { featuresAPI } = await import('../services/api');
+        const apiFeatures = await featuresAPI.getAll();
+        console.log('📊 Features loaded for counting:', apiFeatures);
         
         // Convert FeatureCategory from API to Category for frontend
-        const convertedCategories: Category[] = apiCategories.map((cat: PropertyCategory) => ({
-          id: cat.id,
-          name: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert slug to title
-          slug: cat.slug,
-          icon: cat.icon_key || 'fas fa-layer-group',
-          status: 'active' as const,
-          type: cat.is_system ? 'system' as const : 'custom' as const,
-          featureCount: 0,
-          translations: {
-            en: {
-              title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              description: `Category for ${cat.slug.replace(/-/g, ' ')}`
-            },
-            vi: {
-              title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              description: `Danh mục cho ${cat.slug.replace(/-/g, ' ')}`
-            },
-            ja: {
-              title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              description: `${cat.slug.replace(/-/g, ' ')}のカテゴリ`
+        const convertedCategories: Category[] = apiCategories.map((cat: PropertyCategory) => {
+          // Count features in this category
+          const featuresInCategory = apiFeatures.filter(feature => feature.category_id === cat.id);
+          const featureCount = featuresInCategory.length;
+          
+          console.log(`📊 Category "${cat.slug}" has ${featureCount} features:`, featuresInCategory.map(f => f.slug));
+          
+          return {
+            id: cat.id,
+            name: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert slug to title
+            slug: cat.slug,
+            icon: cat.icon_key || 'fas fa-layer-group',
+            status: 'active' as const,
+            type: cat.is_system ? 'system' as const : 'custom' as const,
+            featureCount: featureCount, // Real count from API
+            translations: {
+              en: {
+                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                description: `Category for ${cat.slug.replace(/-/g, ' ')}`
+              },
+              vi: {
+                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                description: `Danh mục cho ${cat.slug.replace(/-/g, ' ')}`
+              },
+              ja: {
+                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                description: `${cat.slug.replace(/-/g, ' ')}のカテゴリ`
+              }
             }
-          }
-        }));
+          };
+        });
         
         setCategories(convertedCategories);
+        console.log('✅ Categories converted for UI:', convertedCategories);
       } catch (error) {
-        console.error('Failed to load categories:', error);
+        console.error('❌ Failed to load categories:', error);
         // Fallback to empty array on error
         setCategories([]);
       } finally {

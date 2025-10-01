@@ -12,14 +12,16 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
-// Auto-detect tenant code based on domain
+// Get tenant code from user login (multi-tenant support)
 const getTenantCode = (): string => {
-  const savedTenant = localStorage.getItem('tenant_domain');
-  if (savedTenant) return savedTenant;
+  // First check if user is logged in and has tenant from backend
+  const userTenantCode = localStorage.getItem('tenant_code');
+  if (userTenantCode) {
+    return userTenantCode;
+  }
   
+  // Fallback: Legacy domain-based detection for backward compatibility
   const hostname = window.location.hostname;
-  
-  // Map domains to tenant codes
   if (hostname.includes('zalominiapp.vtlink.vn')) {
     return 'premier_admin';
   }
@@ -55,7 +57,6 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid, clear storage and redirect to login
       localStorage.removeItem('access_token');
-      localStorage.removeItem('tenant_domain');
       localStorage.removeItem('currentUser');
       localStorage.setItem('isAuthenticated', 'false');
       
@@ -70,7 +71,26 @@ apiClient.interceptors.response.use(
 export interface LoginRequest {
   username: string;
   password: string;
-  tenantDomain?: string;
+}
+
+export interface DashboardStats {
+  total_page_views: number;
+  page_views_growth: number;
+  unique_visitors: number;
+  categories_this_month: number;
+  features_this_month: number;
+  period_days: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string;
+  text: string;
+  time: string;
+  user_name: string;
+  icon: string;
+  iconBg: string;
+  iconColor: string;
 }
 
 export interface LoginResponse {
@@ -120,6 +140,33 @@ export interface FeatureCategory {
   created_at: string;
 }
 
+export interface Post {
+  id: number;
+  tenant_id: number;
+  property_id: number;
+  feature_id: number;
+  slug: string;
+  status: 'draft' | 'published' | 'archived';
+  pinned: boolean;
+  cover_media_id?: number;
+  published_at?: string;
+  created_by?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface UIPost extends Post {
+  // UI-specific fields for display
+  title: string;
+  excerpt: string;
+  locale: string;
+  localeName: string;
+  flagClass: string;
+  content?: string;
+  vrLink?: string;
+  updatedAt: string; // For legacy compatibility
+}
+
 export interface FeatureCategoryCreate {
   slug: string;
   icon_key?: string;
@@ -150,25 +197,20 @@ export interface Post {
 // Authentication API
 export const authAPI = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    const { username, password, tenantDomain } = credentials;
-    
-    // Auto-detect tenant code if not provided
-    const tenantCode = tenantDomain || getTenantCode();
+    const { username, password } = credentials;
     
     const response: AxiosResponse<LoginResponse> = await axios.post(
-      `${API_BASE_URL}/auth/access-token`,
+      `${API_BASE_URL}/auth/login`,
       `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Tenant-Code': tenantCode,
         },
       }
     );
     
-    // Save token and tenant to localStorage
+    // Save token to localStorage (tenant is auto-detected by backend)
     localStorage.setItem('access_token', response.data.access_token);
-    localStorage.setItem('tenant_domain', tenantCode);
     localStorage.setItem('isAuthenticated', 'true');
     
     return response.data;
@@ -176,8 +218,9 @@ export const authAPI = {
 
   logout: () => {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('tenant_domain');
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('tenant_code');
+    localStorage.removeItem('tenant_id');
     localStorage.setItem('isAuthenticated', 'false');
   },
 
@@ -231,16 +274,19 @@ export const featuresAPI = {
   },
 
   create: async (feature: Partial<Feature>): Promise<Feature> => {
+    console.log('featuresAPI: Creating feature with data:', feature);
     const response: AxiosResponse<Feature> = await apiClient.post('/features/', feature);
     return response.data;
   },
 
   update: async (id: number, feature: Partial<Feature>): Promise<Feature> => {
+    console.log('featuresAPI: Updating feature with data:', feature);
     const response: AxiosResponse<Feature> = await apiClient.put(`/features/${id}`, feature);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
+    console.log('featuresAPI: Deleting feature:', id);
     await apiClient.delete(`/features/${id}`);
   },
 };
@@ -274,8 +320,9 @@ export const categoriesAPI = {
 
 // Posts API
 export const postsAPI = {
-  getAll: async (): Promise<Post[]> => {
-    const response: AxiosResponse<Post[]> = await apiClient.get('/posts/');
+  getAll: async (feature_id?: number): Promise<Post[]> => {
+    const params = feature_id ? { feature_id } : {};
+    const response: AxiosResponse<Post[]> = await apiClient.get('/posts/', { params });
     return response.data;
   },
 
@@ -316,6 +363,53 @@ export const getCurrentUserFromStorage = (): User | null => {
     }
   }
   return null;
+};
+
+// Analytics API
+export const analyticsAPI = {
+  trackPageView: async (pagePath: string, referrer?: string): Promise<void> => {
+    await apiClient.post('/analytics/page-view', {
+      page_path: pagePath,
+      referrer: referrer || document.referrer,
+      session_id: getSessionId()
+    });
+  },
+
+  logActivity: async (
+    activityType: string, 
+    description: string, 
+    entityType?: string, 
+    entityId?: number,
+    extraData?: any
+  ): Promise<void> => {
+    await apiClient.post('/analytics/activity', {
+      activity_type: activityType,
+      description,
+      entity_type: entityType,
+      entity_id: entityId,
+      extra_data: extraData
+    });
+  },
+
+  getDashboardStats: async (days: number = 30): Promise<DashboardStats> => {
+    const response = await apiClient.get(`/analytics/dashboard-stats?days=${days}`);
+    return response.data;
+  },
+
+  getRecentActivities: async (limit: number = 10): Promise<ActivityItem[]> => {
+    const response = await apiClient.get(`/analytics/recent-activities?limit=${limit}`);
+    return response.data;
+  }
+};
+
+// Helper function to get or create session ID
+const getSessionId = (): string => {
+  let sessionId = sessionStorage.getItem('session_id');
+  if (!sessionId) {
+    sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    sessionStorage.setItem('session_id', sessionId);
+  }
+  return sessionId;
 };
 
 // Default export

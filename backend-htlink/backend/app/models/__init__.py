@@ -4,6 +4,7 @@ from sqlalchemy.dialects.mysql import LONGTEXT, MEDIUMTEXT
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from enum import Enum as PythonEnum
+import enum
 
 
 class UserRole(str, PythonEnum):
@@ -14,9 +15,9 @@ class UserRole(str, PythonEnum):
 
 
 class PostStatus(str, PythonEnum):
-    DRAFT = "draft"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
 
 
 class EventType(str, PythonEnum):
@@ -74,6 +75,10 @@ class Tenant(SQLModel, table=True):
     posts: List["Post"] = Relationship(back_populates="tenant")
     media_files: List["MediaFile"] = Relationship(back_populates="tenant")
     events: List["Event"] = Relationship(back_populates="tenant")
+    # Analytics relationships
+    page_views: List["PageView"] = Relationship(back_populates="tenant")
+    activity_logs: List["ActivityLog"] = Relationship(back_populates="tenant")
+    analytics_summaries: List["AnalyticsSummary"] = Relationship(back_populates="tenant")
 
 
 # Locale model
@@ -101,6 +106,9 @@ class AdminUser(SQLModel, table=True):
     
     # Relationships
     tenant: Tenant = Relationship(back_populates="admin_users")
+    # Analytics relationships
+    page_views: List["PageView"] = Relationship(back_populates="user")
+    activity_logs: List["ActivityLog"] = Relationship(back_populates="user")
 
 
 # Property model
@@ -139,8 +147,8 @@ class Property(SQLModel, table=True):
     longitude: Optional[float] = Field(sa_column=Column(DECIMAL(11, 8)))
     
     # Branding
-    primary_color: Optional[str] = Field(max_length=10)
-    secondary_color: Optional[str] = Field(max_length=10)
+    primary_color: Optional[str] = Field(max_length=255)  # Support CSS gradients
+    secondary_color: Optional[str] = Field(max_length=255)
     
     # Legal
     copyright_text: Optional[str] = Field(max_length=255)
@@ -418,6 +426,81 @@ class PropertyCategoryUpdate(SQLModel):
     sort_order: Optional[int] = None
 
 
+# Analytics & Activity Tracking Models
+class ActivityType(str, enum.Enum):
+    LOGIN = "login"
+    LOGOUT = "logout"
+    CREATE_CATEGORY = "create_category"
+    UPDATE_CATEGORY = "update_category"
+    DELETE_CATEGORY = "delete_category"
+    CREATE_FEATURE = "create_feature"
+    UPDATE_FEATURE = "update_feature"
+    DELETE_FEATURE = "delete_feature"
+    UPLOAD_MEDIA = "upload_media"
+    DELETE_MEDIA = "delete_media"
+    CREATE_USER = "create_user"
+    UPDATE_USER = "update_user"
+    DELETE_USER = "delete_user"
+    SYSTEM_UPDATE = "system_update"
+
+class PageView(SQLModel, table=True):
+    """Track page views for analytics"""
+    __tablename__ = "page_views"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
+    user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
+    page_path: str = Field(max_length=255)
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    user_agent: Optional[str] = Field(default=None, max_length=500)
+    referrer: Optional[str] = Field(default=None, max_length=500)
+    session_id: Optional[str] = Field(default=None, max_length=100)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    tenant: Tenant = Relationship(back_populates="page_views")
+    user: Optional[AdminUser] = Relationship(back_populates="page_views")
+
+class ActivityLog(SQLModel, table=True):
+    """Track user activities for audit trail"""
+    __tablename__ = "activity_logs"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
+    user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
+    activity_type: ActivityType
+    entity_type: Optional[str] = Field(default=None, max_length=50)  # category, feature, user, etc.
+    entity_id: Optional[int] = Field(default=None)
+    description: str = Field(max_length=500)
+    extra_data: Optional[str] = Field(default=None)  # JSON string for extra data
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    user_agent: Optional[str] = Field(default=None, max_length=500)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    tenant: Tenant = Relationship(back_populates="activity_logs")
+    user: Optional[AdminUser] = Relationship(back_populates="activity_logs")
+
+class AnalyticsSummary(SQLModel, table=True):
+    """Daily/Monthly analytics summary for performance"""
+    __tablename__ = "analytics_summary"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
+    date: datetime = Field(index=True)
+    period_type: str = Field(max_length=10)  # daily, monthly
+    total_page_views: int = Field(default=0)
+    unique_visitors: int = Field(default=0)
+    total_activities: int = Field(default=0)
+    categories_created: int = Field(default=0)
+    features_created: int = Field(default=0)
+    users_active: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+    
+    # Relationships
+    tenant: Tenant = Relationship(back_populates="analytics_summaries")
+
 # Import all models to ensure they are registered
 __all__ = [
     "Plan", "Tenant", "Locale", "AdminUser", "Property",
@@ -427,6 +510,8 @@ __all__ = [
     "Post", "PostTranslation", "MediaFile", "PostMedia",
     "Event", "Setting",
     "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
+    # Analytics models
+    "ActivityType", "PageView", "ActivityLog", "AnalyticsSummary",
     "AdminUserCreate", "AdminUserUpdate",
     "LocaleCreate", "LocaleUpdate",
     "FeatureTranslationCreate", "FeatureTranslationUpdate",

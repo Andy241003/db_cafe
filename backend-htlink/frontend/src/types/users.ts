@@ -12,6 +12,7 @@ export interface User {
   avatar?: string; // optional, nếu có ảnh
   initials?: string; // hiển thị avatar chữ
   permissions?: Record<string, boolean>; // chỉ dùng nếu role === 'editor'
+  tenant_id?: number; // for permission checks and tenant isolation
 }
 
 export interface UserFormData {
@@ -20,5 +21,6 @@ export interface UserFormData {
   email: string;
   role: Role | '';
   status: Status;
+  password?: string; // for new users only
   permissions?: Record<string, boolean>;
 }

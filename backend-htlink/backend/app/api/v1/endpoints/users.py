@@ -84,8 +84,8 @@ def read_users(
     """
     Retrieve users in tenant. Requires admin or owner role.
     """
-    # Check if user has permission to list users
-    if current_user.role not in ["owner", "admin"]:
+    # Check if user has permission to list users (case-insensitive)
+    if current_user.role.lower() not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     users = crud.admin_user.get_multi(session, skip=skip, limit=limit, tenant_id=tenant_id)
@@ -103,8 +103,8 @@ def create_user(
     """
     Create new user in tenant. Requires admin or owner role.
     """
-    # Check if user has permission to create users
-    if current_user.role not in ["owner", "admin"]:
+    # Check if user has permission to create users (case-insensitive)
+    if current_user.role.lower() not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Ensure the user is being created in the correct tenant
@@ -126,8 +126,8 @@ def update_user(
     """
     Update a user. Requires admin or owner role.
     """
-    # Check if user has permission to update users
-    if current_user.role not in ["owner", "admin"]:
+    # Check if user has permission to update users (case-insensitive)
+    if current_user.role.lower() not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     user = crud.admin_user.get(session, id=user_id)
@@ -138,8 +138,8 @@ def update_user(
     if user.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
-    # Non-owners cannot modify owner users
-    if current_user.role != "owner" and user.role == "owner":
+    # Non-owners cannot modify owner users (case-insensitive)
+    if current_user.role.lower() != "owner" and user.role.lower() == "owner":
         raise HTTPException(status_code=403, detail="Cannot modify owner user")
     
     user = crud.admin_user.update(session, db_obj=user, obj_in=user_in)
@@ -164,8 +164,8 @@ def read_user(
     if user.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
-    # Users can only see themselves unless they are admin/owner
-    if current_user.role not in ["owner", "admin"] and user_id != current_user.id:
+    # Users can only see themselves unless they are admin/owner (case-insensitive)
+    if current_user.role.lower() not in ["owner", "admin"] and user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     return user
@@ -182,8 +182,8 @@ def delete_user(
     """
     Delete a user. Only owners can delete users.
     """
-    # Only owners can delete users
-    if current_user.role != "owner":
+    # Only owners can delete users (case-insensitive)
+    if current_user.role.lower() != "owner":
         raise HTTPException(status_code=403, detail="Only owners can delete users")
     
     user = crud.admin_user.get(session, id=user_id)

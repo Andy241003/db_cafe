@@ -1,13 +1,83 @@
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
-
-from app import crud
+﻿from typing import Any, Optional, List
+import os
+import uuid
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
-from app.models import MediaFile, MediaKind
-from app.schemas import MediaFileCreate, MediaFileResponse, MediaFileUpdate
+from app.models import MediaKind, MediaFile
+from app.schemas import MediaFileResponse, MediaFileCreate
+from app import crud
+import sys
 
+print(" MEDIA.PY FILE LOADED!", flush=True, file=sys.stderr)
 router = APIRouter()
+
+# Create upload directory
+UPLOAD_DIR = Path("/app/uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@router.post("/upload", response_model=MediaFileResponse)
+async def upload_media_file(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    file: Optional[UploadFile] = File(None),
+    kind: Optional[MediaKind] = None,
+    alt_text: Optional[str] = None,
+) -> Any:
+    print(" UPLOAD REACHED!", flush=True, file=sys.stderr)
+    print(f"User: {current_user.email}, Role: {current_user.role}", flush=True, file=sys.stderr)
+    print(f"File: {file.filename if file else 'None'}, Kind: {kind}", flush=True, file=sys.stderr)
+    
+    # Check permissions
+    allowed_roles = ["OWNER", "ADMIN", "EDITOR"]
+    if current_user.role.upper() not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Validate file type
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Invalid file type")
+    
+    try:
+        # Generate unique filename
+        file_key = f"{uuid.uuid4()}{file_ext}"
+        file_path = UPLOAD_DIR / file_key
+        
+        # Save file
+        print(f"💾 Saving file to: {file_path}", flush=True, file=sys.stderr)
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # Create database record
+        media_data = MediaFileCreate(
+            file_key=file_key,
+            original_filename=file.filename,
+            kind=kind or MediaKind.IMAGE,
+            alt_text=alt_text,
+            file_size=len(content),
+            mime_type=file.content_type,
+            tenant_id=tenant_id
+        )
+        
+        print(f"📝 Creating DB record for tenant {tenant_id}", flush=True, file=sys.stderr)
+        media_file = crud.media_file.create(session=session, obj_in=media_data)
+        
+        print(f"✅ Upload successful! ID: {media_file.id}", flush=True, file=sys.stderr)
+        return media_file
+        
+    except Exception as e:
+        print(f"❌ Upload error: {str(e)}", flush=True, file=sys.stderr)
+        # Clean up file if it was created
+        if 'file_path' in locals() and file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.get("/", response_model=List[MediaFileResponse])
@@ -15,147 +85,22 @@ def read_media_files(
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    kind: Optional[MediaKind] = None,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
-    """
-    Retrieve media files for tenant, optionally filtered by kind.
-    """
-    media_files = crud.media_file.get_by_tenant(
-        session, 
-        tenant_id=tenant_id,
-        kind=kind,
-        skip=skip, 
-        limit=limit
+    """Get media files for current tenant"""
+    media_files = crud.media_file.get_by_tenant_multi(
+        session=session, tenant_id=tenant_id, skip=skip, limit=limit
     )
     return media_files
 
 
-@router.post("/upload", response_model=MediaFileResponse)
-async def upload_media_file(
-    *,
-    session: SessionDep,
-    current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
-    file: UploadFile = File(...),
-    kind: MediaKind,
-    alt_text: Optional[str] = None,
-) -> Any:
-    """
-    Upload media file. Editors and above can upload files.
-    """
-    if current_user.role not in ["owner", "admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+@router.get("/{file_key}")
+async def serve_media_file(file_key: str):
+    """Serve uploaded media files"""
+    file_path = UPLOAD_DIR / file_key
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
     
-    # TODO: Implement actual file upload to storage (S3, local, etc.)
-    # For now, we'll just store the filename and metadata
-    
-    # Create media file record
-    media_in = MediaFileCreate(
-        tenant_id=tenant_id,
-        uploader_id=current_user.id,
-        kind=kind,
-        mime_type=file.content_type,
-        file_key=f"{tenant_id}/{file.filename}",
-        size_bytes=file.size,
-        alt_text=alt_text
-    )
-    
-    media_file = crud.media_file.create(session, obj_in=media_in)
-    return media_file
-
-
-@router.get("/{media_id}", response_model=MediaFileResponse)
-def read_media_file(
-    media_id: int,
-    session: SessionDep,
-    current_user: CurrentUser,
-) -> Any:
-    """
-    Get media file by ID.
-    """
-    media_file = crud.media_file.get(session, id=media_id)
-    if not media_file:
-        raise HTTPException(status_code=404, detail="Media file not found")
-    
-    # Check if user has access to this media file's tenant
-    if current_user.tenant_id != media_file.tenant_id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    return media_file
-
-
-@router.put("/{media_id}", response_model=MediaFileResponse)
-def update_media_file(
-    *,
-    session: SessionDep,
-    current_user: CurrentUser,
-    media_id: int,
-    media_in: MediaFileUpdate,
-) -> Any:
-    """
-    Update media file metadata. Editors and above can update.
-    """
-    if current_user.role not in ["owner", "admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    media_file = crud.media_file.get(session, id=media_id)
-    if not media_file:
-        raise HTTPException(status_code=404, detail="Media file not found")
-    
-    # Check if user has access to this media file's tenant
-    if current_user.tenant_id != media_file.tenant_id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    media_file = crud.media_file.update(session, db_obj=media_file, obj_in=media_in)
-    return media_file
-
-
-@router.delete("/{media_id}")
-def delete_media_file(
-    *,
-    session: SessionDep,
-    current_user: CurrentUser,
-    media_id: int,
-) -> Any:
-    """
-    Delete media file. Editors and above can delete.
-    """
-    if current_user.role not in ["owner", "admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    media_file = crud.media_file.get(session, id=media_id)
-    if not media_file:
-        raise HTTPException(status_code=404, detail="Media file not found")
-    
-    # Check if user has access to this media file's tenant
-    if current_user.tenant_id != media_file.tenant_id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # TODO: Also delete actual file from storage
-    
-    crud.media_file.remove(session, id=media_id)
-    return {"detail": "Media file deleted"}
-
-
-@router.get("/{media_id}/download")
-def download_media_file(
-    media_id: int,
-    session: SessionDep,
-    current_user: CurrentUser,
-) -> Any:
-    """
-    Download media file.
-    """
-    media_file = crud.media_file.get(session, id=media_id)
-    if not media_file:
-        raise HTTPException(status_code=404, detail="Media file not found")
-    
-    # Check if user has access to this media file's tenant  
-    if current_user.tenant_id != media_file.tenant_id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # TODO: Implement actual file serving from storage
-    # For now, return file info
-    return {"file_key": media_file.file_key, "mime_type": media_file.mime_type}
+    from fastapi.responses import FileResponse
+    return FileResponse(file_path)

@@ -1,21 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AddFeatureModal from '../components/features/AddFeatureModal';
-import EditPostModal from '../components/features/EditPostModal';
+import EditFeatureModal from '../components/features/EditFeatureModal';
+import EditPostModal from '../components/features/EditPostModalSimple';
 import TranslateModal from '../components/features/TranslateModal';
 import { useFeatures } from '../hooks/useFeatures';
 import { useCategories } from '../hooks/useCategories';
-
-interface Post {
-  id: number;
-  title: string;
-  excerpt: string;
-  locale: string;
-  localeName: string;
-  flagClass: string;
-  status: 'published' | 'draft';
-  updatedAt: string;
-  content?: string;
-}
+import type { UIPost } from '../services/api';
+import { postsAPI, propertiesAPI } from '../services/api';
 
 interface LocalFeature {
   id: number;
@@ -24,7 +15,7 @@ interface LocalFeature {
   icon: string;
   iconColor: string;
   status: 'active' | 'inactive';
-  posts: Post[];
+  posts: UIPost[];
 }
 
 interface FormData {
@@ -41,7 +32,7 @@ interface FormData {
 
 const Features: React.FC = () => {
   // Use real API data
-  const { features: apiFeatures, loading, error } = useFeatures();
+  const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeatures();
   const { categories, loading: categoriesLoading } = useCategories();
   
   // Convert API features to LocalFeature format for UI compatibility
@@ -51,6 +42,32 @@ const Features: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(new Set());
+
+  // Load posts for all features
+  const loadPostsForFeatures = async (features: any[]) => {
+    const postsPromises = features.map(async (feature: any) => {
+      try {
+        const posts = await postsAPI.getAll(feature.id);
+        console.log(`=== LOADED POSTS FOR FEATURE ${feature.slug} (ID: ${feature.id}) ===`);
+        console.log(`Number of posts: ${posts.length}`);
+        posts.forEach((post: any) => {
+          console.log(`- Post ${post.id}: "${post.title}" | Content: "${post.content_html}"`);
+        });
+        return { featureId: feature.id, posts };
+      } catch (error) {
+        console.error(`Error loading posts for feature ${feature.id}:`, error);
+        return { featureId: feature.id, posts: [] };
+      }
+    });
+    
+    const postsResults = await Promise.all(postsPromises);
+    const postsMap = new Map();
+    postsResults.forEach(result => {
+      postsMap.set(result.featureId, result.posts);
+    });
+    
+    return postsMap;
+  };
 
   // Debug logging
   useEffect(() => {
@@ -62,46 +79,97 @@ const Features: React.FC = () => {
 
   // Convert API features to LocalFeature format when data loads
   useEffect(() => {
-    console.log('Converting features:', apiFeatures.length, 'features');
+    console.log('=== FEATURE CONVERSION DEBUG ===');
+    console.log('API Features:', apiFeatures.length, 'features, data:', apiFeatures);
+    console.log('Categories:', categories.length, 'categories, data:', categories);
+    
     if (apiFeatures.length > 0) {
-      const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
-        // Find category by id to get slug for filtering
-        const category = categories.find(cat => cat.id === feature.category_id);
-        console.log('Converting feature:', feature, 'with category:', category);
+      const convertFeatures = async () => {
+        // Load posts for all features first
+        const postsMap = await loadPostsForFeatures(apiFeatures);
         
-        return {
-          id: feature.id,
-          name: feature.title || feature.slug, // Use title if available, otherwise slug
-          category: category?.slug || "general", // Use category slug for filtering
-          icon: feature.icon_key || "fa-file-alt",
-          iconColor: "linear-gradient(135deg, #667eea, #764ba2)", // Default gradient
-          status: "active" as const, // Default status
-          posts: [], // Posts will be loaded separately
-        };
-      });
-      console.log('Converted features:', convertedFeatures);
-      setFeatures(convertedFeatures);
+        const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
+          // Find category by id to get slug for filtering
+          const category = categories.find(cat => cat.id === feature.category_id);
+          console.log('Converting feature:', feature.slug, 'icon_key:', feature.icon_key, 'is_system:', feature.is_system, 'category:', category?.slug);
+          
+          // Get posts for this feature
+          const featurePosts = postsMap.get(feature.id) || [];
+          console.log(`Posts for feature ${feature.slug}:`, featurePosts);
+          
+          const uiPosts: UIPost[] = featurePosts.map((post: any) => {
+            console.log('Converting post:', post.id, 'title:', post.title, 'content_html:', post.content_html);
+            
+            return {
+              ...post,
+              title: post.title || `Post ${post.id}`,
+              excerpt: post.content_html ? post.content_html.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : 'No content',
+              locale: post.locale || 'en',
+              localeName: 'English',
+              flagClass: 'flag-icon-us', 
+              content: post.content_html || '', // Ensure content is from content_html
+              slug: post.slug || '',
+              status: post.status ? post.status.toLowerCase() : 'draft',
+              updatedAt: post.updated_at || post.created_at,
+              // Also keep original fields for reference
+              content_html: post.content_html
+            };
+          });
+          
+          console.log('Converted UI posts:', uiPosts);
+          
+          // Convert is_system to status for UI
+          // is_system: false = active (normal feature)
+          // is_system: true = inactive (system feature that can be disabled)
+          
+          return {
+            id: feature.id,
+            name: feature.title || feature.slug, // Use title if available, otherwise slug
+            category: category?.slug || "general", // Use category slug for filtering
+            icon: feature.icon_key || "fa-file-alt",
+            iconColor: "linear-gradient(135deg, #667eea, #764ba2)", // Default gradient
+            status: feature.is_system ? "inactive" : "active",
+            posts: uiPosts, // Use loaded posts
+          };
+        });
+        console.log('=== CONVERTED FEATURES WITH POSTS ===', convertedFeatures);
+        setFeatures(convertedFeatures);
+        
+        // Expand first feature by default if any exist
+        if (convertedFeatures.length > 0) {
+          setExpandedFeatures(new Set([convertedFeatures[0].id]));
+        }
+      };
       
-      // Expand first feature by default if any exist
-      if (convertedFeatures.length > 0) {
-        setExpandedFeatures(new Set([convertedFeatures[0].id]));
-      }
+      convertFeatures();
+    } else {
+      console.log('No API features to convert yet...');
     }
   }, [apiFeatures, categories]);
   
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
+  const [isEditFeatureModalOpen, setIsEditFeatureModalOpen] = useState(false);
   const [isEditPostModalOpen, setIsEditPostModalOpen] = useState(false);
   const [isTranslateModalOpen, setIsTranslateModalOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedPost, setSelectedPost] = useState<UIPost | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
 
-  // Filter features based on search and filters
-  const filteredFeatures = features.filter(feature => {
-    const matchesSearch = feature.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !categoryFilter || feature.category === categoryFilter;
-    const matchesStatus = !statusFilter || feature.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  // Filter features based on search and filters - NO LIMITS, show all features
+  const filteredFeatures = useMemo(() => {
+    console.log('Filtering features with:', { searchQuery, categoryFilter, statusFilter });
+    console.log('Total features:', features.length);
+    
+    const filtered = features.filter(feature => {
+      const matchesSearch = feature.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = !categoryFilter || feature.category === categoryFilter;
+      const matchesStatus = !statusFilter || feature.status === statusFilter;
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+    
+    console.log('Filtered features count:', filtered.length);
+    return filtered;
+  }, [features, searchQuery, categoryFilter, statusFilter]);
 
   // Toggle feature expansion
   const toggleFeature = (featureId: number) => {
@@ -114,40 +182,315 @@ const Features: React.FC = () => {
     setExpandedFeatures(newExpanded);
   };
 
-  // Post management functions
-  const handleEditPostClick = (post: Post) => {
-    setSelectedPost(post);
+  // Post management functions  
+  const handleEditPostClick = (post: UIPost) => {
+    console.log('=== EDIT POST DEBUG ===');
+    console.log('Post ID:', post.id);
+    console.log('Post title:', post.title);
+    console.log('Post feature_id:', post.feature_id);
+    console.log('Post content:', post.content);
+    console.log('Post content_html:', (post as any).content_html);
+    console.log('Full post object:', post);
+    
+    // Use content_html as primary source since that's what we store in DB
+    const editPost = {
+      ...post,
+      content: (post as any).content_html || post.content || 'No content available. Start writing here...',
+      title: post.title || `Post ${post.id}`,
+      slug: post.slug || `post-${post.id}`,
+      status: post.status || 'draft',
+      feature_id: post.feature_id || (post as any).feature_id // Ensure feature_id is preserved
+    };
+    
+    console.log('Prepared edit post:', editPost);
+    console.log('Edit post feature_id:', editPost.feature_id);
+    console.log('Edit post content to send to modal:', editPost.content);
+    
+    setSelectedPost(editPost);
     setIsEditPostModalOpen(true);
   };
 
-  const handleTranslateClick = (post: Post) => {
+  const handleTranslateClick = (post: UIPost) => {
     setSelectedPost(post);
     setIsTranslateModalOpen(true);
   };
 
-  const deletePost = (postId: number) => {
+  const deletePost = async (postId: number) => {
+    console.log('Delete Post clicked:', postId);
     if (window.confirm('Are you sure you want to delete this post?')) {
-      alert(`Post #${postId} deleted successfully!`);
+      try {
+        await postsAPI.delete(postId);
+        alert('Post deleted successfully!');
+        
+        // Refresh features to update posts list
+        await refreshFeatures();
+        
+        // Force reload posts for updated features display
+        if (apiFeatures.length > 0) {
+          const postsMap = await loadPostsForFeatures(apiFeatures);
+          
+          // Update local features with fresh posts
+          const updatedFeatures = features.map(feature => {
+            const freshPosts = postsMap.get(feature.id) || [];
+            const uiPosts: UIPost[] = freshPosts.map((post: any) => ({
+              ...post,
+              title: post.title || `Post ${post.id}`,
+              excerpt: post.content_html ? post.content_html.substring(0, 100) + '...' : '',
+              locale: 'en',
+              localeName: 'English',
+              flagClass: 'flag-icon-us',
+              content: post.content_html,
+              updatedAt: post.updated_at || post.created_at
+            }));
+            
+            return {
+              ...feature,
+              posts: uiPosts
+            };
+          });
+          
+          console.log('Updated features after delete:', updatedFeatures);
+          setFeatures(updatedFeatures);
+        }
+      } catch (error: any) {
+        console.error('Error deleting post:', error);
+        alert(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
+      }
+    }
+  };
+
+  const handleEditFeature = (featureId: number) => {
+    console.log('Editing feature ID:', featureId);
+    const feature = apiFeatures.find(f => f.id === featureId);
+    if (feature) {
+      console.log('Found feature for editing:', feature);
+      setSelectedFeature(feature);
+      setIsEditFeatureModalOpen(true);
+    } else {
+      console.error('Feature not found for ID:', featureId);
+      alert('Feature not found');
+    }
+  };
+
+  const handleDeleteFeature = async (featureId: number) => {
+    if (window.confirm('Are you sure you want to delete this feature? This will also delete all associated posts.')) {
+      try {
+        console.log('Deleting feature:', featureId);
+        await deleteFeature(featureId);
+        alert('Feature deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting feature:', error);
+        alert('Failed to delete feature. Please try again.');
+      }
     }
   };
 
   const addPost = (featureId: number) => {
     console.log("Adding post to feature:", featureId);
-    setSelectedPost(null);
+    
+    // Create a new post object for the feature
+    const newPost = {
+      id: 0, // New post
+      tenant_id: 1, // Default tenant
+      property_id: 1, // Default property - TODO: get from context
+      feature_id: featureId,
+      slug: '',
+      status: 'draft' as const,
+      pinned: true,
+      created_at: new Date().toISOString(),
+      // UI fields
+      title: '',
+      excerpt: '',
+      locale: 'en',
+      localeName: 'English',
+      flagClass: 'en',
+      content: '',
+      updatedAt: new Date().toISOString()
+    };
+    
+    setSelectedPost(newPost);
     setIsEditPostModalOpen(true);
   };
 
   // Modal handlers
-  const handleSavePost = (postData: any) => {
-    console.log('Saving post:', postData);
-    alert('Post saved successfully!');
-    setIsEditPostModalOpen(false);
+  const handleSavePost = async (postData: any) => {
+    try {
+      console.log('=== SAVING POST ===');
+      console.log('Post data from form:', postData);
+      console.log('Selected post object:', selectedPost);
+      
+      // Get user context for tenant and property
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      const tenantId = parseInt(localStorage.getItem('tenant_id') || '1');
+      
+      console.log('User context:', { currentUser, tenantId });
+      
+      // Get or create property_id
+      let propertyId = currentUser.property_id;
+      
+      if (!propertyId) {
+        try {
+          console.log('No property_id in user context, fetching properties...');
+          const properties = await propertiesAPI.getAll();
+          console.log('Available properties:', properties);
+          
+          if (properties.length > 0) {
+            propertyId = properties[0].id;
+            console.log(`Using first available property: ${propertyId}`);
+          } else {
+            // Create default property if none exist
+            console.log('No properties found, creating default property...');
+            const defaultProperty = await propertiesAPI.create({
+              name: 'Default Hotel Property',
+              tenant_id: tenantId,
+              description: 'Auto-created default property for posts',
+              address: ''
+            });
+            propertyId = defaultProperty.id;
+            console.log(`Created default property: ${propertyId}`);
+          }
+        } catch (propertyError) {
+          console.error('Failed to get/create property:', propertyError);
+          throw new Error('Failed to get property information. Please contact administrator.');
+        }
+      }
+      
+      // Convert postData to API format
+      const postPayload = {
+        tenant_id: tenantId,
+        property_id: propertyId, // Now guaranteed to have a valid property_id
+        feature_id: selectedPost?.feature_id || selectedPost?.id || 1,
+        slug: postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-'),
+        status: (postData.status || 'draft').toUpperCase(),
+        pinned: true,
+        title: postData.title,
+        content_html: postData.content || '',
+        locale: postData.locale || 'en'
+      };
+      
+      console.log('API payload to send:', postPayload);
+      console.log('Update or Create?', selectedPost?.id && selectedPost.id > 0 ? 'UPDATE' : 'CREATE');
+      
+      if (selectedPost?.id && selectedPost.id > 0) {
+        // Update existing post
+        console.log(`Updating existing post ID: ${selectedPost.id}`);
+        const updatedPost = await postsAPI.update(selectedPost.id, postPayload);
+        console.log('Updated post response:', updatedPost);
+        alert('Post updated successfully!');
+      } else {
+        // Create new post  
+        console.log('Creating new post');
+        const newPost = await postsAPI.create(postPayload);
+        console.log('Created post response:', newPost);
+        alert('Post created successfully!');
+      }
+      
+      setIsEditPostModalOpen(false);
+      setSelectedPost(null);
+      
+      // REFRESH DATA - Reload features and posts
+      console.log('=== POST SAVED - REFRESHING DATA ===');
+      try {
+        // Method 1: Use the refreshFeatures hook to get fresh API data
+        await refreshFeatures();
+        console.log('✅ Features refreshed via hook');
+        
+        // Method 2: Force re-conversion of features with fresh posts
+        if (apiFeatures.length > 0) {
+          console.log('🔄 Reloading posts for all features...');
+          const postsMap = await loadPostsForFeatures(apiFeatures);
+          
+          // Update local features with fresh posts
+          const updatedFeatures = features.map(feature => {
+            const freshPosts = postsMap.get(feature.id) || [];
+            const uiPosts: UIPost[] = freshPosts.map((post: any) => ({
+              ...post,
+              title: post.title || `Post ${post.id}`,
+              excerpt: post.content_html ? post.content_html.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : 'No content',
+              locale: post.locale || 'en',
+              localeName: 'English',
+              flagClass: 'flag-icon-us',
+              content: post.content_html || '',
+              slug: post.slug || '',
+              status: post.status ? post.status.toLowerCase() : 'draft',
+              updatedAt: post.updated_at || post.created_at,
+              content_html: post.content_html
+            }));
+            
+            return {
+              ...feature,
+              posts: uiPosts
+            };
+          });
+          
+          setFeatures(updatedFeatures);
+          console.log('✅ Local features updated with fresh posts');
+        }
+      } catch (refreshError) {
+        console.error('❌ Failed to refresh data, trying page reload...', refreshError);
+        // Fallback: Full page reload
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error('Error saving post:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      alert(`Failed to save post: ${error.response?.data?.detail || error.message}`);
+    }
   };
 
-  const handleSaveFeature = (formData: FormData) => {
-    console.log('Saving feature:', formData);
-    alert('Feature saved successfully!');
-    setIsAddFeatureModalOpen(false);
+  const handleSaveFeature = async (formData: FormData) => {
+    try {
+      console.log('Creating feature:', formData);
+      
+      // Convert FormData to API format
+      const featureData = {
+        slug: formData.slug,
+        icon_key: formData.icon,
+        category_id: categories.find(cat => cat.slug === formData.category)?.id || 1,
+        tenant_id: 1, // Default tenant
+        is_system: formData.status === 'inactive' // Convert status to is_system
+      };
+      
+      console.log('API feature data:', featureData);
+      await createFeature(featureData);
+      alert('Feature created successfully!');
+      setIsAddFeatureModalOpen(false);
+    } catch (error) {
+      console.error('Error creating feature:', error);
+      alert('Failed to create feature. Please try again.');
+    }
+  };
+
+  const handleSaveEditFeature = async (featureId: number, formData: any) => {
+    try {
+      console.log('Updating feature:', featureId, formData);
+      
+      // Convert FormData to API format
+      const updateData = {
+        slug: formData.slug,
+        icon_key: formData.icon,
+        category_id: categories.find(cat => cat.slug === formData.category)?.id || 1,
+        tenant_id: 1,
+        is_system: formData.status === 'inactive' // Convert status back to is_system
+      };
+      
+      console.log('API update data:', updateData);
+      await updateFeature(featureId, updateData);
+      
+      console.log('Feature updated successfully, refreshing data...');
+      
+      // Force refresh features list to show updated data
+      await refreshFeatures();
+      
+      console.log('Data refreshed, closing modal...');
+      alert('Feature updated successfully!');
+      setIsEditFeatureModalOpen(false);
+      setSelectedFeature(null);
+    } catch (error) {
+      console.error('Error updating feature:', error);
+      alert('Failed to update feature. Please try again.');
+    }
   };
 
   const handleTranslate = (translationData: any) => {
@@ -156,12 +499,17 @@ const Features: React.FC = () => {
   };
 
   const getIconClass = (iconName: string) => {
-    switch (iconName) {
-      case 'fa-sign-in-alt': return 'fas fa-sign-in-alt';
-      case 'fa-utensils': return 'fas fa-utensils';
-      case 'fa-crown': return 'fas fa-crown';
-      default: return 'fas fa-file-alt';
+    console.log('getIconClass: Converting icon:', iconName);
+    
+    // Handle icons with fa- prefix
+    if (iconName.startsWith('fa-')) {
+      return `fas ${iconName}`;
     }
+    
+    // Handle icons without prefix - add fa- prefix
+    const iconWithPrefix = `fa-${iconName}`;
+    console.log('getIconClass: Added prefix:', iconWithPrefix);
+    return `fas ${iconWithPrefix}`;
   }
 
   // Handle loading and error states
@@ -251,7 +599,17 @@ const Features: React.FC = () => {
 
       {/* Features List */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {filteredFeatures.map(feature => (
+        
+        <div 
+          className="max-h-[70vh] overflow-y-auto" 
+          style={{ 
+            scrollBehavior: 'smooth',
+            overscrollBehavior: 'contain',
+            transform: 'translateZ(0)', // Hardware acceleration
+            willChange: 'scroll-position' // Optimize for scrolling
+          }}
+        >
+          {filteredFeatures.map(feature => (
           <div key={feature.id} className="border-b border-slate-200 last:border-b-0">
             <div
               className={`flex items-center p-4 cursor-pointer transition-all ${expandedFeatures.has(feature.id) ? 'bg-blue-50 border-b border-blue-200' : 'hover:bg-slate-50'}`}
@@ -261,7 +619,7 @@ const Features: React.FC = () => {
                 <i className={getIconClass(feature.icon)}></i>
               </div>
               <div className="flex-1 flex items-center gap-4">
-                <div>
+                <div className="flex-1">
                   <h3 className="text-base font-semibold text-slate-900 mb-1">{feature.name}</h3>
                   <div className="flex items-center gap-4 text-sm text-slate-600">
                     <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{feature.category}</span>
@@ -274,11 +632,43 @@ const Features: React.FC = () => {
                     </span>
                   </div>
                 </div>
+                
+                {/* Feature Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-blue-600 hover:text-blue-800 p-2 rounded-md hover:bg-blue-50 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditFeature(feature.id);
+                    }}
+                    title="Edit Feature"
+                  >
+                    <i className="fas fa-edit"></i>
+                  </button>
+                  <button
+                    className="text-red-600 hover:text-red-800 p-2 rounded-md hover:bg-red-50 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFeature(feature.id);
+                    }}
+                    title="Delete Feature"
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
+                </div>
               </div>
               <i className={`fas fa-chevron-down text-slate-600 text-base transition-transform ${expandedFeatures.has(feature.id) ? 'rotate-180' : ''}`}></i>
             </div>
             
-            <div className={`bg-slate-50 transition-all duration-300 ease-in-out overflow-hidden ${expandedFeatures.has(feature.id) ? 'max-h-[1000px]' : 'max-h-0'}`}>
+            <div 
+              className={`bg-slate-50 transition-all duration-300 ease-in-out overflow-hidden ${
+                expandedFeatures.has(feature.id) ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+              style={{ 
+                transform: 'translateZ(0)', 
+                backfaceVisibility: 'hidden' 
+              }}
+            >
               <div className="p-5">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-base font-semibold text-slate-900">Posts in this Feature</h4>
@@ -343,7 +733,7 @@ const Features: React.FC = () => {
                             <div className={`w-2 h-2 rounded-full ${post.status === 'published' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
                             {post.status}
                           </div>
-                          <span>Updated: {post.updatedAt}</span>
+                          <span>Updated: {post.updated_at || post.created_at}</span>
                         </div>
                       </div>
                     ))}
@@ -353,6 +743,7 @@ const Features: React.FC = () => {
             </div>
           </div>
         ))}
+        </div>
       </div>
 
       {/* Modals */}
@@ -360,6 +751,13 @@ const Features: React.FC = () => {
         isOpen={isAddFeatureModalOpen}
         onClose={() => setIsAddFeatureModalOpen(false)}
         onSave={handleSaveFeature}
+      />
+
+      <EditFeatureModal
+        isOpen={isEditFeatureModalOpen}
+        onClose={() => setIsEditFeatureModalOpen(false)}
+        feature={selectedFeature}
+        onSave={handleSaveEditFeature}
       />
 
       <EditPostModal

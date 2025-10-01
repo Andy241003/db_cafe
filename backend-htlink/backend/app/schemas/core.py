@@ -161,8 +161,8 @@ class PropertyBase(BaseModel):
     longitude: Optional[float] = None
     
     # Branding
-    primary_color: Optional[str] = Field(None, max_length=10)
-    secondary_color: Optional[str] = Field(None, max_length=10)
+    primary_color: Optional[str] = Field(None, max_length=255)  # Support CSS gradients
+    secondary_color: Optional[str] = Field(None, max_length=255)
     
     # Legal
     copyright_text: Optional[str] = Field(None, max_length=255)
@@ -177,7 +177,7 @@ class PropertyBase(BaseModel):
 
 
 class PropertyCreate(PropertyBase):
-    tenant_id: int
+    tenant_id: Optional[int] = None  # Will be set by endpoint
 
 
 class PropertyUpdate(BaseModel):
@@ -205,8 +205,8 @@ class PropertyUpdate(BaseModel):
     google_map_url: Optional[str] = Field(None, max_length=512)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    primary_color: Optional[str] = Field(None, max_length=10)
-    secondary_color: Optional[str] = Field(None, max_length=10)
+    primary_color: Optional[str] = Field(None, max_length=255)  # Support CSS gradients
+    secondary_color: Optional[str] = Field(None, max_length=255)
     copyright_text: Optional[str] = Field(None, max_length=255)
     terms_url: Optional[str] = Field(None, max_length=255)
     privacy_url: Optional[str] = Field(None, max_length=255)

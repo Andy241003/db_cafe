@@ -15,6 +15,8 @@ interface HotelItemProps {
   onEditPost: (post: HotelPost) => void;
   onTranslatePost: (post: HotelPost) => void;
   onDeletePost: (postId: number) => void;
+  onEditHotel: (hotel: Hotel) => void;
+  onDeleteHotel: (hotelId: string) => void;
 }
 
 export const HotelItem: React.FC<HotelItemProps> = ({
@@ -24,7 +26,9 @@ export const HotelItem: React.FC<HotelItemProps> = ({
   onAddPost,
   onEditPost,
   onTranslatePost,
-  onDeletePost
+  onDeletePost,
+  onEditHotel,
+  onDeleteHotel
 }) => {
   const getLocaleFlag = (locale: string) => {
     switch (locale) {
@@ -81,6 +85,31 @@ export const HotelItem: React.FC<HotelItemProps> = ({
         </div>
         <div className="flex items-center gap-4">
           <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClass}`}>{statusText}</span>
+          
+          {/* Hotel Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditHotel(hotel);
+              }}
+              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Edit Hotel"
+            >
+              <FontAwesomeIcon icon={faEdit} size="sm" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteHotel(hotel.id);
+              }}
+              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="Delete Hotel"
+            >
+              <FontAwesomeIcon icon={faTrash} size="sm" />
+            </button>
+          </div>
+          
           <FontAwesomeIcon 
             icon={faChevronDown} 
             className={`text-slate-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
@@ -94,7 +123,11 @@ export const HotelItem: React.FC<HotelItemProps> = ({
             <h4 className="font-semibold text-slate-700">Posts for this Hotel</h4>
             <button 
               className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-md font-semibold text-xs flex items-center gap-2 hover:bg-slate-100 transition-colors" 
-              onClick={onAddPost}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Add Post button clicked');
+                onAddPost();
+              }}
             >
               <FontAwesomeIcon icon={faPlus} />
               Add Post
@@ -112,7 +145,7 @@ export const HotelItem: React.FC<HotelItemProps> = ({
               {hotel.posts.map((post) => (
                 <div key={post.id} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <span className="text-lg">{getLocaleFlag(post.locale)}</span>
+                    <span className="text-lg">{getLocaleFlag(post.locale || 'en')}</span>
                     <div>
                       <p className="font-semibold text-slate-800">{post.title}</p>
                       <p className="text-xs text-slate-500">

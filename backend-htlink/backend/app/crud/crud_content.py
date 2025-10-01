@@ -1,5 +1,6 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from sqlmodel import Session, select
+from fastapi import HTTPException
 from .base import CRUDBase
 from ..models import (
     Property, FeatureCategory, FeatureCategoryTranslation,
@@ -178,6 +179,108 @@ class CRUDPropertyFeature(CRUDBase[PropertyFeature, PropertyFeatureCreate, Prope
 
 
 class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
+    def __init__(self, model):
+        super().__init__(model)
+        print("=== CRUDPost INITIALIZED ===")  # Debug log
+
+    def create(self, db: Session, *, obj_in: PostCreate) -> Post:
+        """Create post with translation"""
+        # Extract translation fields
+        translation_data = {
+            'locale': obj_in.locale,
+            'title': obj_in.title,
+            'content_html': obj_in.content_html
+        }
+        
+        # Create post data without translation fields
+        post_data = obj_in.dict(exclude={'locale', 'title', 'content_html'})
+        
+        try:
+            # Create post
+            db_post = Post(**post_data)
+            db.add(db_post)
+            db.flush()  # Get post.id without committing
+            
+            # Create translation
+            translation_data['post_id'] = db_post.id
+            db_translation = PostTranslation(**translation_data)
+            db.add(db_translation)
+            
+            db.commit()
+            db.refresh(db_post)
+            return db_post
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Error creating post: {str(e)}")
+
+    def update(
+        self,
+        db: Session,
+        *,
+        db_obj: Post,
+        obj_in: Union[PostUpdate, Dict[str, Any]]
+    ) -> Post:
+        """Update post with translation - CUSTOM METHOD"""
+        print(f"=== CUSTOM POST UPDATE METHOD CALLED ===", flush=True)
+        print(f"Post ID: {db_obj.id}", flush=True)
+        print(f"Update data: {obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)}", flush=True)
+        
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        
+        # Extract translation fields if provided
+        translation_fields = {}
+        if 'title' in update_data:
+            translation_fields['title'] = update_data.pop('title')
+            print(f"Found title to update: {translation_fields['title']}")
+        if 'content_html' in update_data:
+            translation_fields['content_html'] = update_data.pop('content_html')
+            print(f"Found content_html to update: {translation_fields['content_html']}")
+        if 'locale' in update_data:
+            translation_fields['locale'] = update_data.pop('locale')
+            print(f"Found locale: {translation_fields['locale']}")
+        
+        try:
+            # Update post fields
+            for field, value in update_data.items():
+                setattr(db_obj, field, value)
+            
+            # Update or create translation if translation fields provided
+            if translation_fields:
+                locale = translation_fields.get('locale', 'en')
+                
+                # Try to find existing translation
+                existing_translation = db.exec(
+                    select(PostTranslation)
+                    .where(PostTranslation.post_id == db_obj.id)
+                    .where(PostTranslation.locale == locale)
+                ).first()
+                
+                if existing_translation:
+                    # Update existing translation
+                    for field, value in translation_fields.items():
+                        if field != 'locale':  # Don't update locale itself
+                            setattr(existing_translation, field, value)
+                else:
+                    # Create new translation
+                    translation_fields['post_id'] = db_obj.id
+                    if 'locale' not in translation_fields:
+                        translation_fields['locale'] = 'en'
+                    db_translation = PostTranslation(**translation_fields)
+                    db.add(db_translation)
+            
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+            return db_obj
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Error updating post: {str(e)}")
+
     def get_by_slug(self, db: Session, *, slug: str, tenant_id: int, property_id: int, feature_id: int) -> Optional[Post]:
         """Get post by slug (unique within tenant/property/feature)"""
         return db.exec(
@@ -220,6 +323,81 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
             query = query.where(Post.status == status)
             
         return db.exec(query.order_by(Post.pinned.desc(), Post.created_at.desc()).offset(skip).limit(limit)).all()
+
+    def get_by_tenant_with_translations(self, db: Session, *, tenant_id: int, property_id: Optional[int] = None, feature_id: Optional[int] = None, status: Optional[str] = None, locale: str = "en", skip: int = 0, limit: int = 100) -> List[dict]:
+        """Get posts by tenant with translation data"""
+        query = select(Post, PostTranslation).join(
+            PostTranslation, Post.id == PostTranslation.post_id
+        ).where(
+            Post.tenant_id == tenant_id,
+            PostTranslation.locale == locale
+        )
+        
+        if property_id:
+            query = query.where(Post.property_id == property_id)
+        if feature_id:
+            query = query.where(Post.feature_id == feature_id)
+        if status:
+            query = query.where(Post.status == status)
+            
+        results = db.exec(query.offset(skip).limit(limit).order_by(Post.pinned.desc(), Post.created_at.desc())).all()
+        
+        # Combine post and translation data
+        posts_with_translations = []
+        for post, translation in results:
+            post_dict = {
+                "id": post.id,
+                "tenant_id": post.tenant_id,
+                "property_id": post.property_id, 
+                "feature_id": post.feature_id,
+                "slug": post.slug,
+                "status": post.status,
+                "pinned": post.pinned,
+                "cover_media_id": post.cover_media_id,
+                "published_at": post.published_at,
+                "created_by": post.created_by,
+                "created_at": post.created_at,
+                "updated_at": post.updated_at,
+                "title": translation.title,
+                "content_html": translation.content_html,
+                "locale": translation.locale
+            }
+            posts_with_translations.append(post_dict)
+            
+        return posts_with_translations
+
+    def get_with_translation(self, db: Session, *, post_id: int, locale: str = "en") -> Optional[dict]:
+        """Get single post with translation data"""
+        result = db.exec(
+            select(Post, PostTranslation).join(
+                PostTranslation, Post.id == PostTranslation.post_id
+            ).where(
+                Post.id == post_id,
+                PostTranslation.locale == locale
+            )
+        ).first()
+        
+        if not result:
+            return None
+            
+        post, translation = result
+        return {
+            "id": post.id,
+            "tenant_id": post.tenant_id,
+            "property_id": post.property_id, 
+            "feature_id": post.feature_id,
+            "slug": post.slug,
+            "status": post.status,
+            "pinned": post.pinned,
+            "cover_media_id": post.cover_media_id,
+            "published_at": post.published_at,
+            "created_by": post.created_by,
+            "created_at": post.created_at,
+            "updated_at": post.updated_at,
+            "title": translation.title,
+            "content_html": translation.content_html,
+            "locale": translation.locale
+        }
 
 
 class CRUDPostTranslation(CRUDBase[PostTranslation, PostTranslationCreate, PostTranslationUpdate]):

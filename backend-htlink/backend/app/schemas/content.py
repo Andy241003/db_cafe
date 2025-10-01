@@ -68,6 +68,7 @@ class FeatureUpdate(BaseModel):
     slug: Optional[str] = Field(None, max_length=120)
     icon_key: Optional[str] = Field(None, max_length=120)
     category_id: Optional[int] = None
+    is_system: Optional[bool] = None
 
 
 class FeatureResponse(FeatureBase):
@@ -165,6 +166,11 @@ class PostCreate(PostBase):
     property_id: int
     feature_id: int
     created_by: Optional[int] = None
+    
+    # Translation fields for default locale
+    title: str = Field(max_length=250)
+    content_html: str
+    locale: str = Field(default="en", max_length=10)
 
 
 class PostUpdate(BaseModel):
@@ -173,6 +179,11 @@ class PostUpdate(BaseModel):
     pinned: Optional[bool] = None
     cover_media_id: Optional[int] = None
     published_at: Optional[datetime] = None
+    
+    # Translation fields for updating content
+    title: Optional[str] = Field(None, max_length=250)
+    content_html: Optional[str] = None
+    locale: Optional[str] = Field(None, max_length=10)
 
 
 class PostResponse(PostBase):
@@ -186,6 +197,13 @@ class PostResponse(PostBase):
     
     class Config:
         from_attributes = True
+
+
+class PostWithTranslationResponse(PostResponse):
+    # Include default translation fields
+    title: Optional[str] = None
+    content_html: Optional[str] = None
+    locale: Optional[str] = None
 
 
 # Post Translation schemas

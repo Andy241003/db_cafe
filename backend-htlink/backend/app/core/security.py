@@ -3,6 +3,7 @@ from typing import Any
 
 import jwt
 from passlib.context import CryptContext
+from fastapi import Request
 
 from app.core.config import settings
 
@@ -25,3 +26,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+
+def get_client_ip(request: Request) -> str:
+    """Get client IP address from request"""
+    # Check for forwarded headers first (for reverse proxy setups)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    
+    # Fallback to direct client IP
+    return request.client.host if request.client else "unknown"

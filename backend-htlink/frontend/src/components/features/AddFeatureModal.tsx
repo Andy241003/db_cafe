@@ -5,6 +5,7 @@ import {
   faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag, 
   faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink
 } from '@fortawesome/free-solid-svg-icons';
+import { useCategories } from '../../hooks/useCategories';
 
 interface FormData {
   name: string;
@@ -28,6 +29,24 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
   const [selectedIcon, setSelectedIcon] = useState('star');
   const [selectedColor, setSelectedColor] = useState('linear-gradient(135deg, #3b82f6, #1d4ed8)');
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const { categories, loading: categoriesLoading } = useCategories();
+
+  // Close icon picker when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (iconPickerOpen) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.icon-picker-container')) {
+          setIconPickerOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [iconPickerOpen]);
   
   const [featureForm, setFeatureForm] = useState<FormData>({
     name: '',
@@ -141,12 +160,16 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
                   value={featureForm.category}
                   onChange={(e) => setFeatureForm(prev => ({ ...prev, category: e.target.value }))}
                   required
+                  disabled={categoriesLoading}
                 >
-                  <option value="">Select category...</option>
-                  <option value="general">General</option>
-                  <option value="services">Services</option>
-                  <option value="facilities">Facilities</option>
-                  <option value="activities">Activities</option>
+                  <option value="">
+                    {categoriesLoading ? 'Loading categories...' : 'Select category...'}
+                  </option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -198,23 +221,50 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
             <div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Icon</label>
-                <div className="relative">
-                  <div className="flex items-center gap-3 p-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer" onClick={() => setIconPickerOpen(!iconPickerOpen)}>
+                <div className="relative icon-picker-container">
+                  <button 
+                    type="button"
+                    className="flex items-center gap-3 p-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors w-full text-left" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Icon picker clicked, current state:', iconPickerOpen);
+                      setIconPickerOpen(!iconPickerOpen);
+                    }}
+                  >
                     <FontAwesomeIcon icon={selectedIconObject} className="w-5 h-5 text-blue-600" />
                     <span className="text-sm text-gray-600">Click to change</span>
-                  </div>
+                  </button>
+                  
                   {iconPickerOpen && (
-                    <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg p-3 shadow-lg z-10 mt-1">
-                      <div className="grid grid-cols-6 gap-2">
-                        {icons.map(({ icon, name }) => (
-                          <div
-                            key={name}
-                            className="w-10 h-10 border border-gray-200 rounded-md flex items-center justify-center cursor-pointer transition-all hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50"
-                            onClick={() => selectIcon(name)}
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-[1001] flex items-center justify-center p-4">
+                      <div className="bg-white rounded-lg p-4 max-w-md w-full max-h-96 overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                          <h4 className="text-lg font-semibold">Choose an Icon</h4>
+                          <button 
+                            type="button"
+                            className="text-gray-400 hover:text-gray-600"
+                            onClick={() => setIconPickerOpen(false)}
                           >
-                            <FontAwesomeIcon icon={icon} className="text-lg" />
-                          </div>
-                        ))}
+                            ×
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-6 gap-3">
+                          {icons.map(({ icon, name }) => (
+                            <button
+                              type="button"
+                              key={name}
+                              className={`w-12 h-12 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 ${
+                                selectedIcon === name ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200'
+                              }`}
+                              onClick={() => {
+                                console.log('Selected icon:', name);
+                                selectIcon(name);
+                              }}
+                            >
+                              <FontAwesomeIcon icon={icon} className="text-lg" />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}

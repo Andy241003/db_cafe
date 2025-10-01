@@ -1,102 +1,154 @@
-// src/pages/Users.tsx
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react';
 import RoleCard from '../components/users/RoleCard';
 import UserModal from '../components/users/UserModal';
 import type { User, UserFormData } from '../types/users';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserPlus, faEdit, faUserTimes } from '@fortawesome/free-solid-svg-icons';
+import { faUserPlus, faEdit, faUserTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { usersApi, type ApiUser } from '../services/usersApi';
 
+// Convert API user to frontend format
+const convertApiUser = (apiUser: ApiUser): User => ({
+  id: apiUser.id,
+  name: apiUser.full_name,
+  email: apiUser.email,
+  role: apiUser.role.toLowerCase() as User['role'],
+  status: apiUser.is_active ? 'active' : 'inactive', 
+  lastLogin: new Date(apiUser.created_at).toLocaleDateString(),
+  initials: apiUser.full_name.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase(),
+  tenant_id: apiUser.tenant_id
+});
 
-const initialUsers: User[] = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john.doe@tabitower.com',
-    role: 'owner',
-    status: 'active',
-    lastLogin: '2 hours ago',
-    initials: 'JD',
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane.smith@tabitower.com',
-    role: 'admin',
-    status: 'active',
-    lastLogin: '1 day ago',
-    initials: 'JS',
-  },
-  {
-    id: 3,
-    name: 'Mike Wilson',
-    email: 'mike.wilson@tabitower.com',
-    role: 'admin',
-    status: 'active',
-    lastLogin: '3 days ago',
-    initials: 'MW',
-  },
-  {
-    id: 4,
-    name: 'Sarah Brown',
-    email: 'sarah.brown@tabitower.com',
-    role: 'editor',
-    status: 'active',
-    lastLogin: '5 hours ago',
-    initials: 'SB',
-  },
-  {
-    id: 5,
-    name: 'Tom Johnson',
-    email: 'tom.johnson@tabitower.com',
-    role: 'editor',
-    status: 'active',
-    lastLogin: '1 week ago',
-    initials: 'TJ',
-  },
-  {
-    id: 6,
-    name: 'Lisa Davis',
-    email: 'lisa.davis@tabitower.com',
-    role: 'editor',
-    status: 'inactive',
-    lastLogin: '1 month ago',
-    initials: 'LD',
-  },
-  {
-    id: 7,
-    name: 'Bob Kim',
-    email: 'bob.kim@tabitower.com',
-    role: 'viewer',
-    status: 'active',
-    lastLogin: '2 days ago',
-    initials: 'BK',
-  }
-];
+// Permission checks based on database roles
+const canManageUsers = (role: string) => ['owner', 'admin'].includes(role.toLowerCase());
+
+const canEditUser = (currentRole: string, targetRole: string, isSelf: boolean) => {
+  if (isSelf) return true;
+  if (!canManageUsers(currentRole)) return false;
+  return !(currentRole.toLowerCase() !== 'owner' && targetRole.toLowerCase() === 'owner');
+};
 
 const Users: React.FC = () => {
-  const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>(initialUsers);
-
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-
+  
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  // Derived: counts per role
+  // Load users on component mount (normal flow)
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Check authentication
+        const token = localStorage.getItem('access_token');
+        const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+        const tenantCode = localStorage.getItem('tenant_code');
+        
+        console.log('🔍 Debug Info:', { 
+          token: token?.substring(0, 20) + '...', 
+          isAuth, 
+          tenantCode,
+          localStorage: {
+            tenant_code: localStorage.getItem('tenant_code'),
+            tenant_id: localStorage.getItem('tenant_id'),
+            currentUser: localStorage.getItem('currentUser')
+          }
+        });
+        
+        if (!token || !isAuth) {
+          setError('Not authenticated. Please login to view users.');
+          setLoading(false);
+          return;
+        }
+        
+        // Get current user info first
+        console.log('📡 Getting current user info...');
+        const currentUserInfo = await usersApi.getCurrentUser();
+        console.log('👤 Current user:', currentUserInfo);
+        console.log('👤 User tenant_id:', currentUserInfo.tenant_id);
+        console.log('👤 User role:', currentUserInfo.role);
+        
+        const currentUserConverted = convertApiUser(currentUserInfo);
+        setCurrentUser(currentUserConverted);
+        
+        // IMPORTANT: Update tenant info based on current user
+        const correctTenantCode = currentUserInfo.tenant_id === 1 ? 'demo' : 'premier_admin';
+        const currentTenantCode = localStorage.getItem('tenant_code');
+        
+        if (currentTenantCode !== correctTenantCode) {
+          console.log('🔄 Updating tenant:', { 
+            current: currentTenantCode, 
+            correct: correctTenantCode,
+            userTenantId: currentUserInfo.tenant_id 
+          });
+          localStorage.setItem('tenant_code', correctTenantCode);
+          localStorage.setItem('tenant_id', currentUserInfo.tenant_id.toString());
+        }
+        
+        // Check permissions
+        console.log('🔐 Checking permissions for role:', currentUserConverted.role);
+        console.log('🔐 canManageUsers result:', canManageUsers(currentUserConverted.role));
+        
+        if (!canManageUsers(currentUserConverted.role)) {
+          setError(`Access denied. Your role (${currentUserConverted.role.toUpperCase()}) cannot manage users. Only OWNER and ADMIN can view users.`);
+          setLoading(false);
+          return;
+        }
+        
+        // Load users
+        console.log('📋 Loading users list...');
+        const apiUsers = await usersApi.getUsers();
+        console.log('📋 Received users:', apiUsers);
+        
+        const frontendUsers = apiUsers.map(convertApiUser);
+        setUsers(frontendUsers);
+        
+      } catch (err: any) {
+        console.error('❌ Failed to load users - Full Error:', err);
+        console.error('❌ Error details:', {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+          config: {
+            url: err.config?.url,
+            headers: err.config?.headers
+          }
+        });
+        
+        if (err.response?.status === 403) {
+          setError('Access denied. You need OWNER or ADMIN privileges to view users.');
+        } else if (err.response?.status === 401) {
+          setError('Authentication failed. Please login again.');
+        } else {
+          setError(`Failed to load users: ${err.response?.data?.detail || err.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  // Derived counts
   const counts = useMemo(() => {
     const map = { owner: 0, admin: 0, editor: 0, viewer: 0 } as Record<string, number>;
-    users.forEach(u => {
-      map[u.role] = (map[u.role] || 0) + 1;
-    });
+    users.forEach(u => { map[u.role] = (map[u.role] || 0) + 1; });
     return map;
   }, [users]);
 
-  // Filtered user list
+  // Filtered users
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return users.filter(u => {
@@ -118,43 +170,107 @@ const Users: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm('Are you sure you want to remove this user? This action cannot be undone.')) return;
-    setUsers(prev => prev.filter(u => u.id !== id));
-    alert(`User ${id} removed successfully!`);
-  };
-
-  const handleSave = async (data: UserFormData) => {
-    // If id provided -> update, else create new 
-    if (data.id) {
-      setUsers(prev => prev.map(u => u.id === data.id ? {
-        ...u,
-        name: data.name,
-        email: data.email,
-        role: (data.role as User['role']) ?? u.role,
-        status: data.status,
-        permissions: data.permissions ?? u.permissions,
-      } : u));
-    } else {
-      const newId = Math.max(0, ...users.map(u => u.id)) + 1;
-      const initials = data.name.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-      const newUser: User = {
-        id: newId,
-        name: data.name,
-        email: data.email,
-        role: (data.role as User['role']) || 'viewer',
-        status: data.status,
-        lastLogin: 'Just now',
-        initials,
-        permissions: data.permissions,
-      };
-      setUsers(prev => [newUser, ...prev]);
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to remove this user?')) return;
+    
+    try {
+      await usersApi.deleteUser(id);
+      setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      alert('Failed to delete user. Please try again.');
     }
   };
 
-  const handleViewFeatures = (categoryId: number) => {
-    // from original users.html: not applicable here but keep function available
-    navigate(`/features?category=${categoryId}`);
+  // Generate secure random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleSave = async (data: UserFormData) => {
+    try {
+      if (data.id) {
+        // Update existing user
+        const updateData = {
+          email: data.email,
+          full_name: data.name,
+          role: data.role?.toUpperCase() as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER',
+          is_active: data.status === 'active'
+        };
+        
+        const updatedApiUser = await usersApi.updateUser(data.id, updateData);
+        const updatedUser = convertApiUser(updatedApiUser);
+        
+        setUsers(prev => prev.map(u => u.id === data.id ? updatedUser : u));
+        
+        alert('✅ User updated successfully!');
+      } else {
+        // Create new user
+        const userPassword = data.password?.trim() || generatePassword();
+        const tenantId = localStorage.getItem('tenant_id');
+        
+        if (!tenantId) {
+          alert('Error: No tenant context found. Please refresh and try again.');
+          return;
+        }
+        
+        const createData = {
+          email: data.email,
+          password: userPassword,
+          full_name: data.name,
+          role: (data.role?.toUpperCase() || 'VIEWER') as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER',
+          is_active: data.status === 'active',
+          tenant_id: parseInt(tenantId)
+        };
+        
+        const newApiUser = await usersApi.createUser(createData);
+        const newUser = convertApiUser(newApiUser);
+        
+        setUsers(prev => [newUser, ...prev]);
+        
+        // Show credentials to admin
+        const message = `✅ User created successfully!
+        
+📧 Email: ${data.email}
+🔑 Password: ${userPassword}
+👤 Role: ${data.role?.toUpperCase()}
+
+⚠️ IMPORTANT: Please share these credentials with the user securely and ask them to change the password on first login.
+
+💡 TIP: Save these credentials now as they won't be shown again.`;
+        
+        alert(message);
+      }
+      
+      setModalOpen(false);
+    } catch (err: any) {
+      console.error('❌ Failed to save user:', err);
+      console.error('❌ Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message
+      });
+      
+      let errorMessage = 'Failed to save user. Please try again.';
+      
+      if (err.response?.status === 403) {
+        errorMessage = 'Access denied. You need OWNER or ADMIN privileges to create users.';
+      } else if (err.response?.status === 422) {
+        errorMessage = `Validation error: ${err.response?.data?.detail || 'Invalid data provided'}`;
+      } else if (err.response?.status === 409) {
+        errorMessage = 'A user with this email already exists.';
+      } else if (err.response?.data?.detail) {
+        errorMessage = `Error: ${err.response.data.detail}`;
+      }
+      
+      alert(errorMessage);
+    }
   };
 
   return (
@@ -163,13 +279,66 @@ const Users: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Team Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage users and their permissions for your hotel property</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage users and permissions for your hotel property
+            {currentUser && (
+              <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                Logged in as: {currentUser.name} ({currentUser.role.toUpperCase()}) 
+                | Tenant: {localStorage.getItem('tenant_code')?.toUpperCase() || 'UNKNOWN'}
+              </span>
+            )}
+          </p>
         </div>
 
-        <div>
-          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700" onClick={openAddModal}>
+        <div className="flex gap-2">
+          <button 
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50" 
+            onClick={openAddModal}
+            disabled={loading || !currentUser || !canManageUsers(currentUser.role)}
+          >
             <FontAwesomeIcon icon={faUserPlus} />
             Add User
+          </button>
+          
+          {/* Debug button - remove in production */}
+          <button 
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200" 
+            onClick={async () => {
+              console.log('🧪 Testing create user API...');
+              try {
+                const tenantId = localStorage.getItem('tenant_id');
+                if (!tenantId) {
+                  alert('No tenant_id found in localStorage');
+                  return;
+                }
+                
+                const testUser = {
+                  email: `test${Date.now()}@example.com`,
+                  password: 'TestPass123!',
+                  full_name: 'Test User',
+                  role: 'VIEWER' as const,
+                  is_active: true,
+                  tenant_id: parseInt(tenantId) // Add required tenant_id
+                };
+                console.log('📤 Sending user data:', { ...testUser, password: '[HIDDEN]' });
+                
+                const result = await usersApi.createUser(testUser);
+                console.log('✅ Test user created:', result);
+                alert('Test user created successfully!');
+                // Refresh users list
+                const apiUsers = await usersApi.getUsers();
+                const frontendUsers = apiUsers.map(convertApiUser);
+                setUsers(frontendUsers);
+              } catch (error: any) {
+                console.error('❌ Test failed:', error);
+                if (error.response && error.response.data) {
+                  console.error('📋 Validation errors:', error.response.data.detail);
+                  alert(`Validation error: ${JSON.stringify(error.response.data.detail, null, 2)}`);
+                }
+              }
+            }}
+          >
+            🧪 Test API
           </button>
         </div>
       </div>
@@ -186,14 +355,13 @@ const Users: React.FC = () => {
       <div className="flex flex-wrap gap-3 mb-6">
         <input
           type="text"
-          id="searchInput"
           className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
           placeholder="Search users..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
 
-        <select className="px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" id="roleFilter" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+        <select className="px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="">All Roles</option>
           <option value="owner">Owner</option>
           <option value="admin">Admin</option>
@@ -201,12 +369,24 @@ const Users: React.FC = () => {
           <option value="viewer">Viewer</option>
         </select>
 
-        <select className="px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="text-red-500 text-lg">⚠️</div>
+            <div>
+              <p className="text-red-700 text-sm font-medium">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="overflow-hidden bg-white border border-slate-200 rounded-xl">
@@ -214,66 +394,115 @@ const Users: React.FC = () => {
           <h3 className="text-base font-semibold text-slate-800">Team Members</h3>
         </div>
 
-        <table className="w-full border-collapse">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">User</th>
-              <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Role</th>
-              <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Status</th>
-              <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Last Login</th>
-              <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-slate-200">
-            {filteredUsers.map(user => (
-              <tr key={user.id} data-role={user.role} data-status={user.status}>
-                <td className="px-5 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 text-white font-semibold text-sm flex items-center justify-center">
-                      {user.initials ?? user.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-900">{user.name}</span>
-                      <span className="text-xs text-slate-500">{user.email}</span>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-5 py-4 whitespace-nowrap">
-                  <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${
-                    user.role === 'owner' ? 'bg-amber-100 text-amber-800' :
-                    user.role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                    user.role === 'editor' ? 'bg-green-100 text-green-800' : 'bg-violet-100 text-violet-800'
-                  }`}>{user.role}</span>
-                </td>
-
-                <td className="px-5 py-4 whitespace-nowrap">
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {user.status === 'active' ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-
-                <td className="px-5 py-4 text-sm text-slate-600 whitespace-nowrap">
-                  {user.lastLogin}
-                </td>
-
-                <td className="px-5 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200" onClick={() => openEditModal(user.id)}>
-                      <FontAwesomeIcon icon={faEdit} /> Edit
-                    </button>
-                    {user.role !== 'owner' && (
-                      <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200" onClick={() => handleDelete(user.id)}>
-                        <FontAwesomeIcon icon={faUserTimes} /> Remove
-                      </button>
-                    )}
-                  </div>
-                </td>
+        {loading ? (
+          <div className="px-5 py-8 text-center">
+            <FontAwesomeIcon icon={faSpinner} className="animate-spin text-2xl text-blue-600 mb-2" />
+            <p className="text-slate-600">Loading users...</p>
+          </div>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">User</th>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Role</th>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Tenant</th>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Status</th>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Last Login</th>
+                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody className="divide-y divide-slate-200">
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                    No users found
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map(user => (
+                  <tr key={user.id}>
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 text-white font-semibold text-sm flex items-center justify-center">
+                          {user.initials}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-slate-900">
+                            {user.name}
+                            {currentUser && currentUser.id === user.id && (
+                              <span className="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">You</span>
+                            )}
+                          </span>
+                          <span className="text-xs text-slate-500">{user.email}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${'owner' === user.role ? 'bg-amber-100 text-amber-800' : 'admin' === user.role ? 'bg-blue-100 text-blue-800' : 'editor' === user.role ? 'bg-green-100 text-green-800' : 'bg-violet-100 text-violet-800'}`}>{user.role}</span>
+                    </td>
+
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${
+                        user.tenant_id === 1 ? 'bg-blue-100 text-blue-800' : 
+                        user.tenant_id === 2 ? 'bg-purple-100 text-purple-800' : 
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {user.tenant_id === 1 ? 'DEMO' : user.tenant_id === 2 ? 'PREMIER' : `T${user.tenant_id}`}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.status === 'active' ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-600 whitespace-nowrap">
+                      {user.lastLogin}
+                    </td>
+
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {/* Edit button */}
+                        {currentUser && canEditUser(currentUser.role, user.role, currentUser.id === user.id) && (
+                          <button 
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200" 
+                            onClick={() => openEditModal(user.id)}
+                          >
+                            <FontAwesomeIcon icon={faEdit} /> 
+                            Edit
+                          </button>
+                        )}
+                        
+                        {/* Remove button - only OWNER can delete, cannot delete OWNER users or self */}
+                        {currentUser && 
+                         currentUser.role === 'owner' && 
+                         user.role !== 'owner' && 
+                         currentUser.id !== user.id && (
+                          <button 
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200" 
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <FontAwesomeIcon icon={faUserTimes} /> Remove
+                          </button>
+                        )}
+                        
+                        {/* Protection indicators */}
+                        {user.role === 'owner' && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-md">
+                            👑 Protected
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* User Modal */}

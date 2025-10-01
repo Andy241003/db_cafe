@@ -5,12 +5,33 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Post, PostStatus
-from app.schemas import PostCreate, PostResponse, PostUpdate
+from app.schemas import PostCreate, PostResponse, PostUpdate, PostWithTranslationResponse
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[PostResponse])
+@router.post("/test", response_model=dict)
+def create_post_test(
+    session: SessionDep,
+    title: str,
+    content: str,
+    property_id: int = 1,
+) -> Any:
+    """
+    Create test post - no auth required
+    """
+    # Simple test response
+    return {
+        "success": True,
+        "message": f"Test post '{title}' created for property {property_id}",
+        "data": {
+            "title": title,
+            "content": content,
+            "property_id": property_id
+        }
+    }
+
+@router.get("/", response_model=List[PostWithTranslationResponse])
 def read_posts(
     session: SessionDep,
     current_user: CurrentUser,
@@ -24,7 +45,7 @@ def read_posts(
     """
     Retrieve posts for tenant, optionally filtered by property, feature, or status.
     """
-    posts = crud.post.get_by_tenant(
+    posts = crud.post.get_by_tenant_with_translations(
         session, 
         tenant_id=tenant_id,
         property_id=property_id,
@@ -36,7 +57,7 @@ def read_posts(
     return posts
 
 
-@router.post("/", response_model=PostResponse)
+@router.post("/", response_model=PostWithTranslationResponse)
 def create_post(
     *,
     session: SessionDep,
@@ -47,7 +68,7 @@ def create_post(
     """
     Create new post. Editors and above can create posts.
     """
-    if current_user.role not in ["owner", "admin", "editor"]:
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Ensure the post is being created in the correct tenant
@@ -55,7 +76,10 @@ def create_post(
     post_in.created_by = current_user.id
     
     post = crud.post.create(session, obj_in=post_in)
-    return post
+    
+    # Return post with translation data
+    post_with_translation = crud.post.get_with_translation(session, post_id=post.id)
+    return post_with_translation or post
 
 
 @router.get("/{post_id}", response_model=PostResponse)
@@ -78,7 +102,7 @@ def read_post(
     return post
 
 
-@router.put("/{post_id}", response_model=PostResponse)
+@router.put("/{post_id}", response_model=PostWithTranslationResponse)
 def update_post(
     *,
     session: SessionDep,
@@ -89,7 +113,7 @@ def update_post(
     """
     Update post. Editors and above can update posts.
     """
-    if current_user.role not in ["owner", "admin", "editor"]:
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
@@ -101,7 +125,10 @@ def update_post(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.update(session, db_obj=post, obj_in=post_in)
-    return post
+    
+    # Return post with translation data
+    post_with_translation = crud.post.get_with_translation(session, post_id=post.id)
+    return post_with_translation or post
 
 
 @router.delete("/{post_id}")
@@ -114,7 +141,7 @@ def delete_post(
     """
     Delete post. Editors and above can delete posts.
     """
-    if current_user.role not in ["owner", "admin", "editor"]:
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)

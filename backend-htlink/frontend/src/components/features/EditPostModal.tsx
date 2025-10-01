@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTimes, faInfoCircle, faLink, faBold, faItalic, faUnderline, faStrikethrough, 
@@ -6,31 +6,18 @@ import {
   faImage, faTable, faCode 
 } from '@fortawesome/free-solid-svg-icons';
 
-interface Post {
-  id: number;
-  title: string;
-  excerpt: string;
-  locale: string;
-  localeName: string;
-  flagClass: string;
-  status: 'published' | 'draft';
-  updatedAt: string;
-  content?: string;
-  vrLink?: string;
-}
+import type { UIPost } from '../../services/api';
 
 interface EditPostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  post: Post | null;
+  post: UIPost | null;
   onSave: (postData: any) => void;
 }
 
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
   const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
-  const [editorContent, setEditorContent] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
-  const editorRef = useRef<HTMLDivElement>(null);
+  // Removed editorRef - using simple textarea now
   
   const [postForm, setPostForm] = useState({
     locale: '',
@@ -38,124 +25,57 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
     slug: '',
     target: 'self',
     content: '',
-    status: 'draft' as 'draft' | 'published',
+    status: 'draft' as 'draft' | 'published' | 'archived',
     vrLink: ''
   });
 
   useEffect(() => {
+    console.log('=== EditPostModal useEffect ===');
+    console.log('Post prop:', post);
+    
     if (post) {
+      console.log('Setting up form with post data:');
+      console.log('- Title:', post.title);
+      console.log('- Content:', post.content);
+      
       setPostForm({
-        locale: post.locale,
-        title: post.title,
-        slug: '',
+        locale: post.locale || 'en',
+        title: post.title || '',
+        slug: post.slug || '',
         target: 'self',
-        content: post.content || '',
-        status: post.status,
+        content: post.content || 'No content available. Start writing here...',
+        status: (post.status as 'draft' | 'published' | 'archived') || 'draft',
         vrLink: post.vrLink || ''
       });
-      setEditorContent(post.content || '');
-      setHtmlContent(post.content || '');
+
     } else {
+      console.log('No post data, setting defaults');
       setPostForm({
-        locale: '',
+        locale: 'en',
         title: '',
         slug: '',
         target: 'self',
-        content: '<p>Start writing your content here...</p>',
+        content: 'Start writing your content here...',
         status: 'draft',
         vrLink: ''
       });
-      setEditorContent('<p>Start writing your content here...</p>');
-      setHtmlContent('<p>Start writing your content here...</p>');
+
     }
     setEditorMode('visual');
   }, [post]);
 
-  // Rich text editor functions
-  const formatText = (command: string, value?: string) => {
-    if (editorMode === 'html') return;
-    document.execCommand(command, false, value);
-    syncContentToHTML();
-  };
-
-  const formatHeading = (tag: string) => {
-    if (editorMode === 'html' || !tag) return;
-    if (tag === 'blockquote') {
-      document.execCommand('formatBlock', false, '<blockquote>');
-    } else {
-      document.execCommand('formatBlock', false, `<${tag}>`);
-    }
-    syncContentToHTML();
-  };
-
-  const insertLink = () => {
-    if (editorMode === 'html') return;
-    const url = prompt('Enter the URL:');
-    if (url) {
-      document.execCommand('createLink', false, url);
-      syncContentToHTML();
-    }
-  };
-
-  const insertImage = () => {
-    if (editorMode === 'html') return;
-    const url = prompt('Enter the image URL:');
-    if (url) {
-      document.execCommand('insertImage', false, url);
-      syncContentToHTML();
-    }
-  };
-
-  const insertTable = () => {
-    if (editorMode === 'html') return;
-    const rows = prompt('Number of rows:', '3');
-    const cols = prompt('Number of columns:', '3');
-    
-    if (rows && cols) {
-      let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
-      for (let i = 0; i < parseInt(rows); i++) {
-        tableHTML += '<tr>';
-        for (let j = 0; j < parseInt(cols); j++) {
-          tableHTML += '<td style="padding: 8px; border: 1px solid #ddd;">Cell</td>';
-        }
-        tableHTML += '</tr>';
-      }
-      tableHTML += '</table>';
-      
-      document.execCommand('insertHTML', false, tableHTML);
-      syncContentToHTML();
-    }
-  };
-
+  // Simplified editor mode toggle
   const toggleEditorMode = () => {
-    if (editorMode === 'visual') {
-      setEditorMode('html');
-      syncContentToHTML();
-    } else {
-      setEditorMode('visual');
-      syncContentFromHTML();
-    }
+    setEditorMode(editorMode === 'visual' ? 'html' : 'visual');
   };
 
-  const syncContentToHTML = () => {
-    if (editorRef.current) {
-      const content = editorRef.current.innerHTML;
-      setHtmlContent(content);
-      setEditorContent(content);
-    }
-  };
-
-  const syncContentFromHTML = () => {
-    if (editorRef.current) {
-      editorRef.current.innerHTML = htmlContent;
-      setEditorContent(htmlContent);
-    }
-  };
+  // Simplified - no sync needed since we're using controlled components
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const content = editorMode === 'html' ? htmlContent : editorContent;
-    onSave({ ...postForm, content });
+    console.log('=== SUBMITTING POST ===');
+    console.log('Post form data:', postForm);
+    onSave(postForm);
   };
 
   const handleModalClick = (e: React.MouseEvent) => {
@@ -341,19 +261,28 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               </div>
               
               {editorMode === 'visual' ? (
-                <div
-                  ref={editorRef}
-                  className="prose max-w-none min-h-[250px] p-4 outline-none text-sm leading-relaxed text-gray-800"
-                  contentEditable
-                  dangerouslySetInnerHTML={{ __html: editorContent }}
-                  onInput={syncContentToHTML}
+                <textarea
+                  className="w-full min-h-[250px] p-4 border-none outline-none text-sm leading-relaxed text-gray-800 resize-none"
+                  value={postForm.content}
+                  onChange={(e) => {
+                    const newContent = e.target.value;
+                    setPostForm(prev => ({ ...prev, content: newContent }));
+                    setEditorContent(newContent);
+                    setHtmlContent(newContent);
+                  }}
+                  placeholder="Write your content here..."
                 />
               ) : (
                 <textarea
                   className="font-mono text-sm leading-normal bg-slate-50 border-none outline-none resize-y min-h-[250px] p-4 w-full box-border"
-                  value={htmlContent}
-                  onChange={(e) => setHtmlContent(e.target.value)}
-                  required
+                  value={postForm.content}
+                  onChange={(e) => {
+                    const newContent = e.target.value;
+                    setPostForm(prev => ({ ...prev, content: newContent }));
+                    setEditorContent(newContent);
+                    setHtmlContent(newContent);
+                  }}
+                  placeholder="Enter HTML content here..."
                 />
               )}
             </div>
@@ -364,7 +293,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             <select
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white transition-all focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={postForm.status}
-              onChange={(e) => setPostForm(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' }))}
+              onChange={(e) => setPostForm(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' | 'archived' }))}
             >
               <option value="draft">Draft</option>
               <option value="published">Published</option>

@@ -7,6 +7,7 @@ import Header from '../components/layout/Header';   // Corrected import path
 import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
 import Settings from '../pages/Settings';
+import TenantSettings from '../pages/TenantSettings';
 import Categories from '../pages/Categories';
 import Features from '../pages/Features';
 import Properties from '../pages/Properties';
@@ -30,6 +31,8 @@ const MainLayout: React.FC = () => {
         return { title: 'Users & Roles', breadcrumb: 'Management / Users & Roles' };
       case '/settings':
         return { title: 'Settings', breadcrumb: 'Management / Settings' };
+      case '/tenant-settings':
+        return { title: 'Tenant Settings', breadcrumb: 'Management / Tenant Settings' };
       case '/reports':
         return { title: 'Reports', breadcrumb: 'Analytics / Reports' };
       case '/categories':
@@ -74,6 +77,7 @@ const MainLayout: React.FC = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<Users />} />
             <Route path="/settings/*" element={<Settings />} />
+            <Route path="/tenant-settings" element={<TenantSettings />} />
             <Route path="/categories/*" element={<Categories />} />
             <Route path="/features/*" element={<Features />} />
             <Route path="/properties/*" element={<Properties />} />

@@ -21,12 +21,18 @@ export const useFeatures = (): UseFeatures => {
       setLoading(true);
       setError(null);
       console.log('useFeatures: Fetching features from API...');
+      console.log('🏢 Current tenant context:', {
+        tenant_code: localStorage.getItem('tenant_code'),
+        tenant_id: localStorage.getItem('tenant_id'),
+        currentUser: JSON.parse(localStorage.getItem('currentUser') || '{}')
+      });
       const data = await featuresAPI.getAll();
-      console.log('useFeatures: API returned data:', data);
+      console.log('useFeatures: API returned features for current tenant:', data);
       setFeatures(data);
     } catch (err) {
       console.error('useFeatures: Error fetching features:', err);
       setError('Failed to load features');
+      setFeatures([]); // No fallback, use empty array to show real API issues
     } finally {
       setLoading(false);
     }
@@ -34,10 +40,12 @@ export const useFeatures = (): UseFeatures => {
 
   const createFeature = async (feature: Partial<Feature>) => {
     try {
+      console.log('useFeatures: Creating feature with data:', feature);
       const newFeature = await featuresAPI.create(feature);
+      console.log('useFeatures: Feature created successfully:', newFeature);
       setFeatures(prev => [...prev, newFeature]);
     } catch (err) {
-      console.error('Error creating feature:', err);
+      console.error('useFeatures: Error creating feature:', err);
       setError('Failed to create feature');
       throw err;
     }
@@ -45,10 +53,15 @@ export const useFeatures = (): UseFeatures => {
 
   const updateFeature = async (id: number, feature: Partial<Feature>) => {
     try {
+      console.log('useFeatures: Updating feature ID:', id, 'with data:', feature);
       const updatedFeature = await featuresAPI.update(id, feature);
-      setFeatures(prev => 
-        prev.map(f => f.id === id ? updatedFeature : f)
-      );
+      console.log('useFeatures: Update API response:', updatedFeature);
+      
+      setFeatures(prev => {
+        const updated = prev.map(f => f.id === id ? updatedFeature : f);
+        console.log('useFeatures: Updated features state:', updated);
+        return updated;
+      });
     } catch (err) {
       console.error('Error updating feature:', err);
       setError('Failed to update feature');

@@ -1,13 +1,13 @@
 // src/pages/Properties.tsx
 import React, { useState } from "react";
-import { useProperties } from "../hooks/useProperties";
+import { usePropertiesApi } from "../hooks/usePropertiesApi";
 import { SearchFilters } from "../components/properties/SearchFilters";
 import { HotelItem } from "../components/properties/HotelItem";
 import { AddHotelModal } from "../components/properties/AddHotelModal";
 import { EditHotelPostModal } from "../components/properties/EditHotelPostModal";
 import { TranslateModal } from "../components/properties/TranslateModal";
-import type { HotelPost, TranslationData } from "../types/properties";
-import { faPlus, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import type { Hotel, HotelPost, TranslationData } from "../types/properties";
+import { faPlus, faSpinner, faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const Properties: React.FC = () => {
@@ -19,20 +19,25 @@ const Properties: React.FC = () => {
     setSearchQuery,
     setStatusFilter,
     createHotel,
+    updateHotel,
+    deleteHotel,
     createHotelPost,
     updateHotelPost,
     deleteHotelPost,
     translatePost,
     toggleHotelExpansion,
     isHotelExpanded,
-  } = useProperties();
+    refreshProperties,
+  } = usePropertiesApi();
 
   // Modal states
   const [isAddHotelModalOpen, setIsAddHotelModalOpen] = useState(false);
+  const [isEditHotelModalOpen, setIsEditHotelModalOpen] = useState(false);
   const [isEditPostModalOpen, setIsEditPostModalOpen] = useState(false);
   const [isTranslateModalOpen, setIsTranslateModalOpen] = useState(false);
 
   // Current editing states
+  const [currentEditingHotel, setCurrentEditingHotel] = useState<Hotel | null>(null);
   const [currentEditingPost, setCurrentEditingPost] = useState<HotelPost | null>(null);
   const [currentTranslatingPost, setCurrentTranslatingPost] = useState<HotelPost | null>(null);
   const [currentHotelId, setCurrentHotelId] = useState<string>("");
@@ -49,9 +54,11 @@ const Properties: React.FC = () => {
   const handleCloseAddHotelModal = () => setIsAddHotelModalOpen(false);
 
   const handleAddPost = (hotelId: string) => {
+    console.log('Add Post clicked for hotel:', hotelId);
     setCurrentHotelId(hotelId);
     setCurrentEditingPost(null);
     setIsEditPostModalOpen(true);
+    console.log('Modal should be open now');
   };
 
   const handleEditPost = (post: HotelPost) => {
@@ -89,11 +96,16 @@ const Properties: React.FC = () => {
   };
 
   const handleSavePost = async (postData: any) => {
+    console.log('Save Post called with data:', postData);
+    console.log('Current hotel ID:', currentHotelId);
+    console.log('Is editing?', !!currentEditingPost);
+    
     try {
       if (currentEditingPost) {
         await updateHotelPost({ ...currentEditingPost, ...postData });
         showNotification("Post updated successfully!", "success");
       } else {
+        console.log('Creating new post...');
         await createHotelPost(currentHotelId, postData);
         showNotification("Post created successfully!", "success");
       }
@@ -116,6 +128,36 @@ const Properties: React.FC = () => {
     }
   };
 
+  const handleEditHotel = (hotel: Hotel) => {
+    setCurrentEditingHotel(hotel);
+    setIsEditHotelModalOpen(true);
+  };
+
+  const handleDeleteHotel = async (hotelId: string) => {
+    if (window.confirm("Are you sure you want to delete this hotel? This action cannot be undone and will also delete all associated posts.")) {
+      try {
+        await deleteHotel(hotelId);
+        showNotification("Hotel deleted successfully!", "success");
+      } catch (error) {
+        console.error("Error deleting hotel:", error);
+        showNotification("Failed to delete hotel.", "error");
+      }
+    }
+  };
+
+  const handleSaveEditHotel = async (formData: any) => {
+    if (!currentEditingHotel) return;
+    try {
+      await updateHotel(currentEditingHotel.id, formData);
+      showNotification("Hotel updated successfully!", "success");
+      setIsEditHotelModalOpen(false);
+      setCurrentEditingHotel(null);
+    } catch (error) {
+      console.error("Error updating hotel:", error);
+      showNotification("Failed to update hotel.", "error");
+    }
+  };
+
   return (
     <div className="p-6 bg-slate-50 min-h-full">
       {notification && (
@@ -133,13 +175,23 @@ const Properties: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Properties</h1>
           <p className="text-sm text-slate-600 mt-1">Manage your hotel properties and their content.</p>
         </div>
-        <button
-          onClick={handleOpenAddHotelModal}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
-        >
-          <FontAwesomeIcon icon={faPlus} />
-          Add Hotel
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={refreshProperties}
+            className="bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-slate-700 transition-colors"
+            disabled={loading}
+          >
+            <FontAwesomeIcon icon={faSync} spin={loading} />
+            Refresh
+          </button>
+          <button
+            onClick={handleOpenAddHotelModal}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Add Hotel
+          </button>
+        </div>
       </header>
 
       <SearchFilters
@@ -156,18 +208,42 @@ const Properties: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          {hotels.map((hotel) => (
-            <HotelItem
-              key={hotel.id}
-              hotel={hotel}
-              isExpanded={isHotelExpanded(hotel.id)}
-              onToggleExpand={() => toggleHotelExpansion(hotel.id)}
-              onAddPost={() => handleAddPost(hotel.id)}
-              onEditPost={handleEditPost}
-              onDeletePost={handleDeletePost}
-              onTranslatePost={handleTranslatePost}
-            />
-          ))}
+          {hotels.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-slate-400 text-6xl mb-4">🏨</div>
+              <h3 className="text-lg font-semibold text-slate-600 mb-2">No Properties Found</h3>
+              <p className="text-slate-500 mb-4">
+                {searchQuery || statusFilter 
+                  ? "No properties match your current filters." 
+                  : "Get started by adding your first hotel property."
+                }
+              </p>
+              {!searchQuery && !statusFilter && (
+                <button
+                  onClick={handleOpenAddHotelModal}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors mx-auto"
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  Add Your First Hotel
+                </button>
+              )}
+            </div>
+          ) : (
+            hotels.map((hotel) => (
+              <HotelItem
+                key={hotel.id}
+                hotel={hotel}
+                isExpanded={isHotelExpanded(hotel.id)}
+                onToggleExpand={() => toggleHotelExpansion(hotel.id)}
+                onAddPost={() => handleAddPost(hotel.id)}
+                onEditPost={handleEditPost}
+                onDeletePost={handleDeletePost}
+                onTranslatePost={handleTranslatePost}
+                onEditHotel={handleEditHotel}
+                onDeleteHotel={handleDeleteHotel}
+              />
+            ))
+          )}
         </div>
       )}
 
@@ -175,6 +251,14 @@ const Properties: React.FC = () => {
         isOpen={isAddHotelModalOpen}
         onClose={handleCloseAddHotelModal}
         onSave={handleSaveHotel}
+      />
+
+      <AddHotelModal
+        isOpen={isEditHotelModalOpen}
+        onClose={() => setIsEditHotelModalOpen(false)}
+        onSave={handleSaveEditHotel}
+        hotel={currentEditingHotel}
+        isEditing={true}
       />
 
       <EditHotelPostModal

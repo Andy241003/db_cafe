@@ -8,17 +8,15 @@ import { useNavigate } from 'react-router-dom';
 interface LoginFormData {
   email: string;
   password: string;
-  tenantDomain: string;
 }
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   
-  // State management for form data
+  // State management for form data - auto set tenant domain
   const [formData, setFormData] = useState<LoginFormData>({
-    email: 'test@demo.com',
-    password: 'test123',
-    tenantDomain: 'demo'
+    email: 'admin@travel.link360.vn',
+    password: 'admin123'
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -40,20 +38,53 @@ const Login: React.FC = () => {
     setError('');
     
     try {
-      // Call backend API
+      console.log('Attempting login...');
+      
+      // Step 1: Login without tenant (backend will identify user's tenant)
       await authAPI.login({
         username: formData.email,
-        password: formData.password,
-        tenantDomain: formData.tenantDomain
+        password: formData.password
       });
 
-      // Get user data after successful login
+      // Step 2: Get user data to determine tenant
       const userData = await authAPI.getCurrentUser();
-      
       console.log('Login successful:', userData);
       
-      // Redirect to dashboard using React Router
+      // Step 3: Get tenant data from backend based on user's tenant_id
+      try {
+        const tenantResponse = await fetch(`http://localhost:8000/api/v1/tenants/${userData.tenant_id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (tenantResponse.ok) {
+          const tenantData = await tenantResponse.json();
+          console.log('Tenant data from backend:', tenantData);
+          
+          // Save tenant info to localStorage
+          localStorage.setItem('tenant_code', tenantData.code);
+          localStorage.setItem('tenant_id', userData.tenant_id.toString());
+          localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
+          
+          console.log(`✅ User belongs to tenant: ${tenantData.code} (ID: ${userData.tenant_id}, Name: ${tenantData.name})`);
+        } else if (tenantResponse.status === 404) {
+          console.error('❌ Tenant not found! User assigned to deleted tenant.');
+          throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);
+        } else {
+          console.error('Failed to fetch tenant data, response:', tenantResponse.status);
+          throw new Error('Failed to load tenant information. Please try again.');
+        }
+      } catch (tenantError) {
+        console.error('Error fetching tenant data:', tenantError);
+        // Re-throw tenant errors for user to see
+        throw tenantError;
+      }
+      
+      // Step 4: Redirect to dashboard using React Router
       navigate('/');
+      
     } catch (err: any) {
       console.error('Login failed:', err);
       
@@ -119,19 +150,7 @@ const Login: React.FC = () => {
             />
           </div>
 
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tenant Domain</label>
-            <input 
-              type="text" 
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none transition-all duration-200 bg-gray-50 text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white placeholder-gray-400" 
-              name="tenantDomain"
-              id="tenantDomain" 
-              placeholder="demo" 
-              required
-              value={formData.tenantDomain}
-              onChange={handleInputChange}
-            />
-          </div>
+
           
           <div className="mt-2">
             <button 

@@ -3,13 +3,54 @@ from typing import Any, List
 from fastapi import APIRouter, HTTPException, Depends
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentSuperUser
+from app.api.deps import CurrentUser, SessionDep, CurrentSuperUser, CurrentTenantId
 from app.models import Tenant
 from app.schemas import TenantCreate, TenantResponse, TenantUpdate
 
 router = APIRouter()
 
 
+# Current tenant endpoints (using 'me' prefix to avoid conflicts)
+@router.get("/me/info", response_model=TenantResponse)
+def read_current_tenant(
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+) -> Any:
+    """
+    Get current tenant information.
+    """
+    tenant = crud.tenant.get(session, id=tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return tenant
+
+
+@router.put("/me/info", response_model=TenantResponse)
+def update_current_tenant(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    tenant_in: TenantUpdate,
+) -> Any:
+    """
+    Update current tenant. Only owners and admins can update tenant settings.
+    """
+    # Check permissions - only owners and admins can update tenant
+    if current_user.role not in ["OWNER", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    tenant = crud.tenant.get(session, id=tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    # Note: Tenant code cannot be updated through current tenant endpoint for security
+    tenant = crud.tenant.update(session, db_obj=tenant, obj_in=tenant_in)
+    return tenant
+
+
+# General tenant endpoints
 @router.get("/", response_model=List[TenantResponse])
 def read_tenants(
     session: SessionDep,

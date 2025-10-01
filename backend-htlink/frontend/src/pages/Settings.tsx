@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { tenantApi } from '../services/tenantApi';
+import { propertiesApi } from '../services/propertiesApi';
+import { mediaApi } from '../services/mediaApi';
+// import type { TenantSettings } from '../services/tenantApi'; // Will be used later
+import type { ApiProperty } from '../types/properties-api';
 
 // Interfaces for type safety
 interface GeneralSettings {
@@ -47,20 +52,21 @@ interface ContactSettings {
 interface AdvancedSettings {
   introVideoUrl: string;
   vr360Url: string;
-  bannerImages: string;
+  bannerImages: string[];
   autoLanguageDetection: boolean;
   analyticsTracking: boolean;
   cacheSystem: boolean;
   propertyActive: boolean;
 }
 
-interface AllSettings {
-  general: GeneralSettings;
-  branding: BrandingSettings;
-  localization: LocalizationSettings;
-  contact: ContactSettings;
-  advanced: AdvancedSettings;
-}
+// Remove unused AllSettings interface - will be implemented when needed
+// interface AllSettings {
+//   general: GeneralSettings;
+//   branding: BrandingSettings;
+//   localization: LocalizationSettings;
+//   contact: ContactSettings;
+//   advanced: AdvancedSettings;
+// }
 
 interface Language {
   code: string;
@@ -73,7 +79,21 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('general');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<number | null>(null);
+  
+  // Tenant data - will be used for tenant-level settings in future
+  // const [tenantData, setTenantData] = useState<TenantSettings | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // Properties data
+  const [properties, setProperties] = useState<ApiProperty[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<ApiProperty | null>(null);
+  const [propertiesLoading, setPropertiesLoading] = useState<boolean>(false);
+  
+  // File upload states
+  const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
+  const [dragOver, setDragOver] = useState<boolean>(false);
 
   // Form states
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
@@ -122,7 +142,7 @@ const Settings: React.FC = () => {
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
     introVideoUrl: '',
     vr360Url: '',
-    bannerImages: '',
+    bannerImages: [],
     autoLanguageDetection: true,
     analyticsTracking: true,
     cacheSystem: true,
@@ -211,19 +231,289 @@ const Settings: React.FC = () => {
     }));
   };
 
+  // Save individual sections
+  const saveGeneralSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        property_name: generalSettings.propertyName,
+        code: generalSettings.propertyCode,
+        slogan: generalSettings.propertySlogan,
+        description: generalSettings.propertyDescription,
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('General settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving general settings:', error);
+      showSuccess('Failed to save general settings. Please try again.');
+    }
+  };
+
+  const saveBrandingSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        settings_json: {
+          ...selectedProperty.settings_json,
+          branding: brandingSettings
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Branding settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving branding settings:', error);
+      showSuccess('Failed to save branding settings. Please try again.');
+    }
+  };
+
+  const saveContactSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        address: contactSettings.address,
+        phone_number: contactSettings.phoneNumber,
+        email: contactSettings.emailAddress,
+        website_url: contactSettings.websiteUrl,
+        settings_json: {
+          ...selectedProperty.settings_json,
+          contact: contactSettings
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Contact settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving contact settings:', error);
+      showSuccess('Failed to save contact settings. Please try again.');
+    }
+  };
+
+  const saveLocalizationSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        default_locale: localizationSettings.defaultLanguage,
+        settings_json: {
+          ...selectedProperty.settings_json,
+          localization: localizationSettings
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Localization settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving localization settings:', error);
+      showSuccess('Failed to save localization settings. Please try again.');
+    }
+  };
+
+  const saveAdvancedSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        is_active: advancedSettings.propertyActive,
+        settings_json: {
+          ...selectedProperty.settings_json,
+          advanced: advancedSettings
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Advanced settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving advanced settings:', error);
+      showSuccess('Failed to save advanced settings. Please try again.');
+    }
+  };
+
+  // Save Legal & Footer settings
+  const saveLegalSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        settings_json: {
+          ...selectedProperty.settings_json,
+          branding: {
+            ...brandingSettings,
+            copyrightText: brandingSettings.copyrightText,
+            termsUrl: brandingSettings.termsUrl,
+            privacyUrl: brandingSettings.privacyUrl
+          }
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Legal settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving legal settings:', error);
+      showSuccess('Failed to save legal settings. Please try again.');
+    }
+  };
+
+  // Save Regional settings  
+  const saveRegionalSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        settings_json: {
+          ...selectedProperty.settings_json,
+          localization: {
+            ...localizationSettings,
+            timezone: localizationSettings.timezone,
+            dateFormat: localizationSettings.dateFormat
+          }
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Regional settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving regional settings:', error);
+      showSuccess('Failed to save regional settings. Please try again.');
+    }
+  };
+
+  // Save Location settings
+  const saveLocationSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        settings_json: {
+          ...selectedProperty.settings_json,
+          contact: {
+            ...contactSettings,
+            latitude: contactSettings.latitude,
+            longitude: contactSettings.longitude,
+            googleMapUrl: contactSettings.googleMapUrl
+          }
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Location settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving location settings:', error);
+      showSuccess('Failed to save location settings. Please try again.');
+    }
+  };
+
+  // Save Social Media settings
+  const saveSocialSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        settings_json: {
+          ...selectedProperty.settings_json,
+          contact: {
+            ...contactSettings,
+            facebookUrl: contactSettings.facebookUrl,
+            instagramUrl: contactSettings.instagramUrl,
+            youtubeUrl: contactSettings.youtubeUrl,
+            tiktokUrl: contactSettings.tiktokUrl,
+            zaloOaId: contactSettings.zaloOaId
+          }
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Social media settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving social media settings:', error);
+      showSuccess('Failed to save social media settings. Please try again.');
+    }
+  };
+
+  // Save System settings (just fake for now since it's mostly read-only info)
+  const saveSystemSettings = async () => {
+    showSuccess('System settings are read-only and managed automatically.');
+  };
+
   // Save all settings
-  const saveAllSettings = () => {
-    const allSettings: AllSettings = {
-      general: generalSettings,
-      branding: brandingSettings,
-      localization: localizationSettings,
-      contact: contactSettings,
-      advanced: advancedSettings
-    };
-    
-    console.log('All settings:', allSettings);
-    showSuccess('All settings saved successfully!');
-    // In real implementation, send data to server
+  const saveAllSettings = async () => {
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      // Update property data with current form values
+      const propertyUpdateData = {
+        property_name: generalSettings.propertyName,
+        code: generalSettings.propertyCode,
+        slogan: generalSettings.propertySlogan,
+        description: generalSettings.propertyDescription,
+        address: contactSettings.address,
+        phone_number: contactSettings.phoneNumber,
+        email: contactSettings.emailAddress,
+        website_url: contactSettings.websiteUrl,
+        is_active: advancedSettings.propertyActive,
+        default_locale: localizationSettings.defaultLanguage,
+        // Store additional settings in metadata or custom fields if needed
+        settings_json: {
+          branding: brandingSettings,
+          contact: contactSettings,
+          localization: localizationSettings,
+          advanced: advancedSettings
+        }
+      };
+      
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('Property settings saved successfully!');
+      
+      // Reload properties to get updated info
+      await loadProperties();
+      
+    } catch (error) {
+      console.error('Error saving property settings:', error);
+      showSuccess('Failed to save property settings. Please try again.');
+    }
   };
 
   // Reset settings
@@ -281,7 +571,7 @@ const Settings: React.FC = () => {
           setAdvancedSettings({
             introVideoUrl: '',
             vr360Url: '',
-            bannerImages: '',
+            bannerImages: [],
             autoLanguageDetection: true,
             analyticsTracking: true,
             cacheSystem: true,
@@ -293,6 +583,267 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Load properties for tenant
+  const loadProperties = async () => {
+    try {
+      setPropertiesLoading(true);
+      const propertiesData = await propertiesApi.getProperties();
+      setProperties(propertiesData);
+      
+      // Auto-select first property if available
+      if (propertiesData.length > 0 && !selectedPropertyId) {
+        setSelectedPropertyId(propertiesData[0].id);
+        setSelectedProperty(propertiesData[0]);
+        updateFormWithPropertyData(propertiesData[0]);
+      }
+    } catch (error) {
+      console.error('Error loading properties:', error);
+    } finally {
+      setPropertiesLoading(false);
+    }
+  };
+
+  // Update form data based on selected property
+  const updateFormWithPropertyData = (property: ApiProperty) => {
+    console.log('🔄 Updating all form data with property:', property);
+    console.log('📋 Property settings_json:', (property as any).settings_json);
+    
+    // Update General Settings
+    setGeneralSettings(prev => ({
+      ...prev,
+      propertyName: property.property_name,
+      propertyCode: property.code,
+      propertySlogan: property.slogan || '',
+      propertyDescription: property.description || ''
+    }));
+    
+    // Update Branding Settings from settings_json
+    const brandingData = (property as any).settings_json?.branding || {};
+    setBrandingSettings(prev => ({
+      ...prev,
+      primaryColor: brandingData.primaryColor || '#3b82f6',  
+      secondaryColor: brandingData.secondaryColor || '#64748b',
+      logoUrl: brandingData.logoUrl || 'https://example.com/logo.png',
+      copyrightText: brandingData.copyrightText || '© 2024 Your Hotel Name',
+      termsUrl: brandingData.termsUrl || 'https://example.com/terms',
+      privacyUrl: brandingData.privacyUrl || 'https://example.com/privacy'
+    }));
+    
+    // Update Contact Settings
+    const contactData = (property as any).settings_json?.contact || {};
+    setContactSettings(prev => ({
+      ...prev,
+      address: property.address || '',
+      district: contactData.district || '',
+      city: contactData.city || '',
+      country: contactData.country || '',
+      postalCode: contactData.postalCode || '',
+      latitude: contactData.latitude || '',
+      longitude: contactData.longitude || '',
+      googleMapUrl: contactData.googleMapUrl || '',
+      phoneNumber: property.phone_number || '',
+      emailAddress: property.email || '',
+      websiteUrl: property.website_url || '',
+      zaloOaId: contactData.zaloOaId || '',
+      facebookUrl: contactData.facebookUrl || '',
+      instagramUrl: contactData.instagramUrl || '',
+      youtubeUrl: contactData.youtubeUrl || '',
+      tiktokUrl: contactData.tiktokUrl || ''
+    }));
+    
+    // Update Localization Settings
+    const localizationData = (property as any).settings_json?.localization || {};
+    setLocalizationSettings(prev => ({
+      ...prev,
+      defaultLanguage: property.default_locale || 'en',
+      fallbackLanguage: localizationData.fallbackLanguage || 'en',
+      supportedLanguages: localizationData.supportedLanguages || ['en', 'vi'],
+      timezone: localizationData.timezone || 'Asia/Ho_Chi_Minh',
+      dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
+    }));
+    
+    // Update Advanced Settings
+    const advancedData = (property as any).settings_json?.advanced || {};
+    setAdvancedSettings(prev => ({
+      ...prev,
+      propertyActive: property.is_active,
+      bannerImages: advancedData.bannerImages || [],
+      maintenanceMode: advancedData.maintenanceMode || false,
+      debugMode: advancedData.debugMode || false,
+      cacheEnabled: advancedData.cacheEnabled || true,
+      analyticsEnabled: advancedData.analyticsEnabled || true,
+      notificationsEnabled: advancedData.notificationsEnabled || true
+    }));
+    
+    console.log('✅ All settings updated with property data');
+  };
+
+  // Handle property selection change
+  const handlePropertyChange = async (propertyId: number) => {
+    const property = properties.find(p => p.id === propertyId);
+    if (property) {
+      setSelectedPropertyId(propertyId);
+      setSelectedProperty(property);
+      updateFormWithPropertyData(property);
+    }
+  };
+
+  // File upload functions
+  const handleFileUpload = async (files: FileList) => {
+    setUploadingBanner(true);
+    const validFiles: File[] = [];
+
+    // Validate files first
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showSuccess(`${file.name} is not an image file`);
+        continue;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showSuccess(`${file.name} is too large (max 5MB)`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) {
+      setUploadingBanner(false);
+      return;
+    }
+
+    try {
+      console.log('🔄 Uploading files:', validFiles.map(f => f.name));
+      
+      // Check user permissions
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      console.log('👤 Current user:', currentUser);
+      console.log('👤 Current user role:', currentUser.role);
+      console.log('👤 Role type:', typeof currentUser.role);
+      console.log('🔑 Access token:', localStorage.getItem('access_token')?.substring(0, 20) + '...');
+      console.log('🏢 Tenant info:', {
+        tenant_code: localStorage.getItem('tenant_code'),
+        tenant_id: localStorage.getItem('tenant_id')
+      });
+      
+      if (!currentUser.role || !['OWNER', 'ADMIN', 'EDITOR'].includes(currentUser.role.toUpperCase())) {
+        throw new Error('You need Editor, Admin, or Owner permissions to upload files.');
+      }
+      
+      // Upload files using real API
+      const uploadResults = await mediaApi.uploadFiles(validFiles, 'IMAGE');
+      console.log('✅ Upload results:', uploadResults);
+      
+      // Extract URLs from upload results
+      const newUrls = uploadResults.map(result => {
+        // Use the correct endpoint path for serving files
+        const url = result.url || `http://localhost:8000/api/v1/media/${result.file_key}`;
+        console.log('📄 Generated URL:', url, 'from file_key:', result.file_key);
+        return url;
+      });
+      
+      // Update banner images array
+      setAdvancedSettings(prev => ({
+        ...prev,
+        bannerImages: [...prev.bannerImages, ...newUrls]
+      }));
+
+      showSuccess(`${newUrls.length} image(s) uploaded successfully!`);
+      console.log('✅ Updated banner images:', [...advancedSettings.bannerImages, ...newUrls]);
+      
+    } catch (error: any) {
+      const token = localStorage.getItem('access_token');
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      console.log('🔍 Debug info:', {
+        userRole: currentUser?.role,
+        token: token?.substring(0, 30) + '...',
+        fullToken: token,
+        tenantCode: localStorage.getItem('tenantCode'),
+        tenant_code: localStorage.getItem('tenant_code'),
+        tenant_domain: localStorage.getItem('tenant_domain'),
+        allLocalStorage: Object.keys(localStorage).reduce((acc, key) => {
+          acc[key] = localStorage.getItem(key)?.substring(0, 50);
+          return acc;
+        }, {} as Record<string, string | undefined>)
+      });
+      console.error('❌ Upload error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error details:', JSON.stringify(error.response?.data, null, 2));
+      
+      let errorMessage = 'Failed to upload images. ';
+      if (error.response?.status === 403) {
+        errorMessage += 'You need Editor, Admin, or Owner permissions.';
+      } else if (error.response?.status === 422) {
+        errorMessage += 'Invalid file format or data.';
+      } else if (error.response?.data?.detail) {
+        errorMessage += error.response.data.detail;
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      showSuccess(errorMessage);
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileUpload(files);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const removeBannerImage = (index: number) => {
+    setAdvancedSettings(prev => ({
+      ...prev,
+      bannerImages: prev.bannerImages.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Load tenant data on component mount
+  useEffect(() => {
+    const loadTenantData = async () => {
+      try {
+        setLoading(true);
+        const response = await tenantApi.getCurrentTenant();
+        const tenant = response.data;
+        // setTenantData(tenant); // Will store tenant data when needed
+        console.log('Tenant loaded:', tenant.name);
+        
+        // Load properties after tenant data is loaded
+        await loadProperties();
+        
+      } catch (error) {
+        console.error('Error loading tenant data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTenantData();
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -301,6 +852,18 @@ const Settings: React.FC = () => {
       }
     };
   }, [autoSaveTimeout]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="text-slate-800 bg-slate-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="text-slate-800 bg-slate-50 min-h-screen">
@@ -320,6 +883,13 @@ const Settings: React.FC = () => {
             <p className="mt-1 text-sm text-slate-500">Configure your hotel property settings and preferences</p>
           </div>
           <div className="flex gap-3">
+            <a
+              href="/tenant-settings"
+              className="rounded-lg bg-slate-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 flex items-center gap-2"
+            >
+              <i className="fas fa-cog"></i>
+              Tenant Settings
+            </a>
             <button 
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 flex items-center gap-2"
               onClick={saveAllSettings}
@@ -329,9 +899,58 @@ const Settings: React.FC = () => {
             </button>
           </div>
         </div>
-        
-        {/* Settings Tabs */}
-        <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1">
+
+        {/* Property Selector */}
+        <div className="mb-6 bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <i className="fas fa-building text-blue-600"></i>
+              <label htmlFor="property-select" className="text-sm font-medium text-slate-700">
+                Select Property:
+              </label>
+            </div>
+            <div className="flex-1 max-w-md">
+              {propertiesLoading ? (
+                <div className="flex items-center gap-2 text-slate-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  Loading properties...
+                </div>
+              ) : (
+                <select
+                  id="property-select"
+                  value={selectedPropertyId || ''}
+                  onChange={(e) => handlePropertyChange(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a property to configure</option>
+                  {properties.map(property => (
+                    <option key={property.id} value={property.id}>
+                      {property.property_name} ({property.code})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {selectedProperty && (
+              <div className="text-sm text-slate-600">
+                <span className="font-medium">Status:</span>
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                  selectedProperty.is_active 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedProperty.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Show settings only when a property is selected */}
+        {selectedProperty ? (
+          <>
+            {/* Settings Tabs */}
+            <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1">
           {tabs.map((tab) => (
             <button 
               key={tab.id}
@@ -415,7 +1034,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('general')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('General settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveGeneralSettings}>Save</button>
               </div>
             </div>
           </div>
@@ -480,7 +1099,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('branding')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Brand settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveBrandingSettings}>Save</button>
               </div>
             </div>
 
@@ -541,7 +1160,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('branding')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Legal settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLegalSettings}>Save</button>
               </div>
             </div>
           </div>
@@ -623,7 +1242,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('localization')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Language settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLocalizationSettings}>Save</button>
               </div>
             </div>
 
@@ -674,7 +1293,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('localization')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Regional settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveRegionalSettings}>Save</button>
               </div>
             </div>
           </div>
@@ -808,7 +1427,7 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Location settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLocationSettings}>Save</button>
               </div>
             </div>
 
@@ -884,7 +1503,7 @@ const Settings: React.FC = () => {
 
                 <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                   <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
-                  <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Contact settings saved!')}>Save</button>
+                  <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveContactSettings}>Save</button>
                 </div>
               </div>
 
@@ -959,7 +1578,7 @@ const Settings: React.FC = () => {
 
                 <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                   <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
-                  <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('Social media settings saved!')}>Save</button>
+                  <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveSocialSettings}>Save</button>
                 </div>
               </div>
             </div>
@@ -1011,16 +1630,98 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-slate-700">Banner Images (JSON)</label>
-                <textarea 
-                  className="w-full min-h-[100px] resize-y rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
-                  placeholder='["image1.jpg", "image2.jpg"]'
-                  value={advancedSettings.bannerImages}
-                  onChange={(e) => {
-                    setAdvancedSettings(prev => ({ ...prev, bannerImages: e.target.value }));
-                    handleAutoSave('bannerImages', e.target.value);
-                  }}
-                />
+                <label className="mb-2 block text-sm font-medium text-slate-700">Banner Images</label>
+                
+                {/* File Upload Area */}
+                <div
+                  className={`relative rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+                    dragOver
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`rounded-full p-3 ${dragOver ? 'bg-blue-100' : 'bg-slate-100'}`}>
+                      {uploadingBanner ? (
+                        <i className="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                      ) : (
+                        <i className={`fas fa-cloud-upload-alt text-2xl ${dragOver ? 'text-blue-600' : 'text-slate-400'}`}></i>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {uploadingBanner ? 'Uploading images...' : 'Drop images here or click to browse'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Supports: JPG, PNG, GIF (max 5MB each)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleFileUpload(e.target.files);
+                      }
+                    }}
+                    disabled={uploadingBanner}
+                  />
+                </div>
+
+                {/* Image Preview Grid */}
+                {advancedSettings.bannerImages.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium text-slate-700">
+                        Banner Images ({advancedSettings.bannerImages.length})
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to remove all banner images?')) {
+                            setAdvancedSettings(prev => ({ ...prev, bannerImages: [] }));
+                          }
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
+                      >
+                        <i className="fas fa-trash mr-1"></i>
+                        Clear All
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {advancedSettings.bannerImages.map((imageUrl, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-video rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-slate-300 transition-colors">
+                            <img
+                              src={imageUrl}
+                              alt={`Banner ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                              onError={(e) => {
+                                // Show placeholder if image fails to load
+                                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjRjFGNUY5Ii8+CjxwYXRoIGQ9Ik04MCA2MEw5MCA0NUwxMTAgNjVMMTMwIDQwTDE0MCA1NUwxNjAgNDBWODBIMDBWNjBIODBaIiBmaWxsPSIjQ0JEOEU4Ii8+CjxjaXJjbGUgY3g9IjcwIiBjeT0iNDAiIHI9IjEwIiBmaWxsPSIjOTA5OUE2Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2QjczODAiIGZvbnQtc2l6ZT0iMTIiPkltYWdlPC90ZXh0Pgo8L3N2Zz4K';
+                              }}
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeBannerImage(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {imageUrl.split('/').pop()?.substring(0, 20)}...
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
@@ -1032,7 +1733,7 @@ const Settings: React.FC = () => {
                 </button>
                 <button 
                   className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" 
-                  onClick={() => showSuccess('Advanced settings saved!')}
+                  onClick={saveAdvancedSettings}
                 >
                   Save
                 </button>
@@ -1109,7 +1810,23 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('advanced')}>Reset</button>
-                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={() => showSuccess('System settings saved!')}>Save</button>
+                <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveSystemSettings}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+          </>
+        ) : (
+          <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                <i className="fas fa-building text-2xl text-slate-400"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">No Property Selected</h3>
+                <p className="text-slate-500 max-w-md">
+                  Please select a property from the dropdown above to configure its settings.
+                </p>
               </div>
             </div>
           </div>

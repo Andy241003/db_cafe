@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faHotel, faHome, faLayerGroup, faPuzzlePiece, faBuilding, 
-  faImages, faChartLine, faUsers, faCog, faSignOutAlt
+  faImages, faChartLine, faUsers, faCog, faSignOutAlt, faGlobe
 } from '@fortawesome/free-solid-svg-icons';
 
 const Sidebar: React.FC = () => {
@@ -32,7 +32,8 @@ const Sidebar: React.FC = () => {
       section: 'Management',
       links: [
         { path: '/users', icon: faUsers, label: 'Users' },
-        { path: '/settings', icon: faCog, label: 'Settings' },
+        { path: '/settings', icon: faCog, label: 'Property Settings' },
+        { path: '/tenant-settings', icon: faGlobe, label: 'Tenant Settings' },
       ],
     },
   ];

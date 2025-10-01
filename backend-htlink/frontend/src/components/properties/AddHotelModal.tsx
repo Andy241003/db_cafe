@@ -1,9 +1,9 @@
 // src/components/properties/AddHotelModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RichTextEditor } from './RichTextEditor';
 import { IconSelector } from './IconSelector';
 import { ColorSelector } from './ColorSelector';
-import type { HotelFormData } from '../../types/properties';
+import type { Hotel, HotelFormData } from '../../types/properties';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave, faSpinner, faImage } from '@fortawesome/free-solid-svg-icons';
 
@@ -11,26 +11,60 @@ interface AddHotelModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: HotelFormData) => Promise<void>;
+  hotel?: Hotel | null;
+  isEditing?: boolean;
 }
 
 export const AddHotelModal: React.FC<AddHotelModalProps> = ({
   isOpen,
   onClose,
-  onSave
+  onSave,
+  hotel,
+  isEditing = false
 }) => {
   const [formData, setFormData] = useState<HotelFormData>({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    vrLink: '',
-    description: '<p>Enter a description for the new hotel here.</p>',
-    status: 'active',
-    icon: 'fa-building',
-    color: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+    name: hotel?.name || '',
+    phone: hotel?.phone || '',
+    email: hotel?.email || '',
+    address: hotel?.address || '',
+    vrLink: hotel?.vrLink || '',
+    description: hotel?.description || '<p>Enter a description for the new hotel here.</p>',
+    status: hotel?.status || 'active',
+    icon: hotel?.icon || 'fa-building',
+    color: hotel?.color || 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
   });
   const [bannerPreviews, setBannerPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Update form data when hotel prop changes (for editing)
+  useEffect(() => {
+    if (hotel && isEditing) {
+      setFormData({
+        name: hotel.name || '',
+        phone: hotel.phone || '',
+        email: hotel.email || '',
+        address: hotel.address || '',
+        vrLink: hotel.vrLink || '',
+        description: hotel.description || '<p>Enter a description for the new hotel here.</p>',
+        status: hotel.status || 'active',
+        icon: hotel.icon || 'fa-building',
+        color: hotel.color || 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+      });
+    } else if (!isEditing) {
+      // Reset form for new hotel
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        address: '',
+        vrLink: '',
+        description: '<p>Enter a description for the new hotel here.</p>',
+        status: 'active',
+        icon: 'fa-building',
+        color: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+      });
+    }
+  }, [hotel, isEditing]);
 
   const handleInputChange = (field: keyof HotelFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -75,7 +109,9 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[200] p-4">
       <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
         <header className="p-5 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800">Add New Hotel</h2>
+          <h2 className="text-lg font-bold text-slate-800">
+            {isEditing ? 'Edit Hotel' : 'Add New Hotel'}
+          </h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-200">
             <FontAwesomeIcon icon={faTimes} className="text-slate-600" />
           </button>
@@ -170,7 +206,7 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
                 className="px-5 py-2 rounded-lg font-semibold text-sm text-white bg-blue-600 flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-400"
               >
                 <FontAwesomeIcon icon={loading ? faSpinner : faSave} spin={loading} />
-                {loading ? 'Saving...' : 'Save Hotel'}
+                {loading ? 'Saving...' : (isEditing ? 'Update Hotel' : 'Save Hotel')}
               </button>
             </div>
           </footer>

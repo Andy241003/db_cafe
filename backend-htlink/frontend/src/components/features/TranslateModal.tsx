@@ -9,7 +9,7 @@ interface Post {
   locale: string;
   localeName: string;
   flagClass: string;
-  status: 'published' | 'draft';
+  status: 'published' | 'draft' | 'archived';
   updatedAt: string;
   content?: string;
 }

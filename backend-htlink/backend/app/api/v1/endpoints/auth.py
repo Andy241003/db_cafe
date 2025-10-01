@@ -31,8 +31,7 @@ router = APIRouter()
 @router.post("/login")
 def login(
     session: SessionDep,
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    tenant_code: str = "demo"
+    form_data: OAuth2PasswordRequestForm = Depends()
 ):
     """
     Login endpoint with username/password authentication
@@ -41,32 +40,34 @@ def login(
     Form data:
     - username: admin@travel.link360.vn  
     - password: admin123
-    - tenant_code: demo (or premier_admin)
     
+    Backend automatically finds the correct tenant for the user
     Returns access token for external apps to use
     """
-    # Get tenant by code
-    tenant = session.exec(
-        select(Tenant).where(Tenant.code == tenant_code)
-    ).first()
+    # Find user across all tenants
+    user = None
+    tenant = None
     
-    if not tenant:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Tenant '{tenant_code}' not found"
+    # Get all tenants and try to find user in each one
+    all_tenants = session.exec(select(Tenant)).all()
+    
+    for t in all_tenants:
+        # Try to authenticate user in this tenant
+        temp_user = crud.admin_user.authenticate(
+            db=session,
+            email=form_data.username,
+            password=form_data.password,
+            tenant_id=t.id
         )
+        
+        if temp_user:
+            user = temp_user
+            tenant = t
+            break
     
-    # Authenticate user with username/password
-    user = crud.admin_user.authenticate(
-        session, 
-        email=form_data.username, 
-        password=form_data.password,
-        tenant_id=tenant.id
-    )
-    
-    if not user:
+    if not user or not tenant:
         raise HTTPException(
-            status_code=400, 
+            status_code=401,
             detail="Incorrect username or password"
         )
     

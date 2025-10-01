@@ -66,14 +66,25 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    
     if (!formData.title || !formData.content) {
+      console.log('Validation failed - missing title or content');
       alert('Please fill in the title and content');
       return;
     }
+    
+    console.log('Form validation passed, calling onSave...');
     setLoading(true);
-    await onSave(formData);
-    setLoading(false);
-    onClose();
+    try {
+      await onSave(formData);
+      console.log('onSave completed successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error in onSave:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;

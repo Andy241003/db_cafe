@@ -19,12 +19,17 @@ export interface HotelPost {
   hotelId: string;
   title: string;
   content: string;
-  locale: 'en' | 'vi' | 'ja';
+  excerpt?: string;
+  slug?: string;
+  locale?: 'en' | 'vi' | 'ja';
   status: 'draft' | 'published';
   address?: string;
   phone?: string;
   vrLink?: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 export interface HotelFormData {
@@ -41,11 +46,17 @@ export interface HotelFormData {
 }
 
 export interface TranslationData {
-  originalAddress: string;
-  originalPhone: string;
-  originalContent: string;
-  translatedAddress: string;
-  translatedPhone: string;
-  translatedContent: string;
-  targetLanguage: 'en' | 'vi' | 'ja';
+  locale: string;
+  title: string;
+  content: string;
+  excerpt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  originalAddress?: string;
+  originalPhone?: string;
+  originalContent?: string;
+  translatedAddress?: string;
+  translatedPhone?: string;
+  translatedContent?: string;
+  targetLanguage?: 'en' | 'vi' | 'ja';
 }
