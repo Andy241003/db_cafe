@@ -13,10 +13,10 @@ interface LoginFormData {
 const Login: React.FC = () => {
   const navigate = useNavigate();
   
-  // State management for form data - auto set tenant domain
+  // State management for form data
   const [formData, setFormData] = useState<LoginFormData>({
-    email: 'admin@travel.link360.vn',
-    password: 'admin123'
+    email: '',
+    password: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
