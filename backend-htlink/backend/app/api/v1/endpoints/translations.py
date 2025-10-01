@@ -145,12 +145,17 @@ def read_post_translations(
     """
     Retrieve post translations for posts belonging to current tenant.
     """
-    from app.models import Post
-    statement = select(PostTranslation).join(Post).where(
-        Post.tenant_id == tenant_id
-    ).offset(skip).limit(limit)
-    translations = session.exec(statement).all()
-    return translations
+    try:
+        from app.models import Post
+        statement = select(PostTranslation).join(Post).where(
+            Post.tenant_id == tenant_id
+        ).offset(skip).limit(limit)
+        translations = session.exec(statement).all()
+        return translations
+    except Exception as e:
+        # Handle any errors gracefully
+        print(f"⚠️  PostTranslation error: {str(e)}", flush=True)
+        return []
 
 
 @router.post("/posts", response_model=PostTranslation)
