@@ -164,29 +164,48 @@ def create_post_translation(
     """
     Create new post translation.
     """
-    translation = PostTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
+    # Verify post belongs to current tenant
+    from app.models import Post
+    post = session.exec(select(Post).where(
+        Post.id == translation_in.post_id,
+        Post.tenant_id == tenant_id
+    )).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    translation = PostTranslation.model_validate(translation_in)
     session.add(translation)
     session.commit()
     session.refresh(translation)
     return translation
 
 
-@router.put("/posts/{translation_id}", response_model=PostTranslation)
+@router.put("/posts/{post_id}/{locale}", response_model=PostTranslation)
 def update_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    post_id: int,
+    locale: str,
     translation_in: PostTranslationUpdate,
 ) -> Any:
     """
     Update a post translation.
     """
+    # Verify post belongs to current tenant
+    from app.models import Post
+    post = session.exec(select(Post).where(
+        Post.id == post_id,
+        Post.tenant_id == tenant_id
+    )).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
     translation = session.exec(
         select(PostTranslation).where(
-            PostTranslation.id == translation_id,
-            PostTranslation.tenant_id == tenant_id
+            PostTranslation.post_id == post_id,
+            PostTranslation.locale == locale
         )
     ).first()
     if not translation:
@@ -200,21 +219,31 @@ def update_post_translation(
     return translation
 
 
-@router.delete("/posts/{translation_id}")
+@router.delete("/posts/{post_id}/{locale}")
 def delete_post_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    post_id: int,
+    locale: str,
 ) -> Any:
     """
     Delete a post translation.
     """
+    # Verify post belongs to current tenant
+    from app.models import Post
+    post = session.exec(select(Post).where(
+        Post.id == post_id,
+        Post.tenant_id == tenant_id
+    )).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
     translation = session.exec(
         select(PostTranslation).where(
-            PostTranslation.id == translation_id,
-            PostTranslation.tenant_id == tenant_id
+            PostTranslation.post_id == post_id,
+            PostTranslation.locale == locale
         )
     ).first()
     if not translation:
