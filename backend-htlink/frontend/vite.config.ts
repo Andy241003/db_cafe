@@ -1,8 +1,11 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  
+  return {
   plugins: [react()],
   server: {
     host: true,
@@ -21,7 +24,7 @@ export default defineConfig({
     minify: 'esbuild',
   },
   define: {
-    // Make environment variables available - using import.meta.env instead
-    __VITE_API_URL__: JSON.stringify(process.env.VITE_API_URL || 'http://localhost:8000'),
+    // Make environment variables available
+    'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || 'http://localhost:8000'),
   }
-})
+}});

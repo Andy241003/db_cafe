@@ -52,7 +52,7 @@ const Login: React.FC = () => {
       
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
-        const tenantResponse = await fetch(`http://localhost:8000/api/v1/tenants/${userData.tenant_id}`, {
+        const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
