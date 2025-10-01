@@ -22,10 +22,11 @@ def read_feature_translations(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve feature translations.
+    Retrieve feature translations for features belonging to current tenant.
     """
-    statement = select(FeatureTranslation).where(
-        FeatureTranslation.tenant_id == tenant_id
+    from app.models import Feature
+    statement = select(FeatureTranslation).join(Feature).where(
+        Feature.tenant_id == tenant_id
     ).offset(skip).limit(limit)
     translations = session.exec(statement).all()
     return translations
@@ -42,29 +43,48 @@ def create_feature_translation(
     """
     Create new feature translation.
     """
-    translation = FeatureTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
+    # Verify feature belongs to current tenant
+    from app.models import Feature
+    feature = session.exec(select(Feature).where(
+        Feature.id == translation_in.feature_id,
+        Feature.tenant_id == tenant_id
+    )).first()
+    if not feature:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    
+    translation = FeatureTranslation.model_validate(translation_in)
     session.add(translation)
     session.commit()
     session.refresh(translation)
     return translation
 
 
-@router.put("/features/{translation_id}", response_model=FeatureTranslation)
+@router.put("/features/{feature_id}/{locale}", response_model=FeatureTranslation)
 def update_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    feature_id: int,
+    locale: str,
     translation_in: FeatureTranslationUpdate,
 ) -> Any:
     """
     Update a feature translation.
     """
+    # Verify feature belongs to current tenant
+    from app.models import Feature
+    feature = session.exec(select(Feature).where(
+        Feature.id == feature_id,
+        Feature.tenant_id == tenant_id
+    )).first()
+    if not feature:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    
     translation = session.exec(
         select(FeatureTranslation).where(
-            FeatureTranslation.id == translation_id,
-            FeatureTranslation.tenant_id == tenant_id
+            FeatureTranslation.feature_id == feature_id,
+            FeatureTranslation.locale == locale
         )
     ).first()
     if not translation:
@@ -78,21 +98,31 @@ def update_feature_translation(
     return translation
 
 
-@router.delete("/features/{translation_id}")
+@router.delete("/features/{feature_id}/{locale}")
 def delete_feature_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    feature_id: int,
+    locale: str,
 ) -> Any:
     """
     Delete a feature translation.
     """
+    # Verify feature belongs to current tenant
+    from app.models import Feature
+    feature = session.exec(select(Feature).where(
+        Feature.id == feature_id,
+        Feature.tenant_id == tenant_id
+    )).first()
+    if not feature:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    
     translation = session.exec(
         select(FeatureTranslation).where(
-            FeatureTranslation.id == translation_id,
-            FeatureTranslation.tenant_id == tenant_id
+            FeatureTranslation.feature_id == feature_id,
+            FeatureTranslation.locale == locale
         )
     ).first()
     if not translation:
@@ -113,10 +143,11 @@ def read_post_translations(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve post translations.
+    Retrieve post translations for posts belonging to current tenant.
     """
-    statement = select(PostTranslation).where(
-        PostTranslation.tenant_id == tenant_id
+    from app.models import Post
+    statement = select(PostTranslation).join(Post).where(
+        Post.tenant_id == tenant_id
     ).offset(skip).limit(limit)
     translations = session.exec(statement).all()
     return translations
@@ -204,13 +235,19 @@ def read_feature_category_translations(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve feature category translations.
+    Retrieve feature category translations for categories belonging to current tenant.
     """
-    statement = select(FeatureCategoryTranslation).where(
-        FeatureCategoryTranslation.tenant_id == tenant_id
-    ).offset(skip).limit(limit)
-    translations = session.exec(statement).all()
-    return translations
+    try:
+        from app.models import FeatureCategory
+        statement = select(FeatureCategoryTranslation).join(FeatureCategory).where(
+            FeatureCategory.tenant_id == tenant_id
+        ).offset(skip).limit(limit)
+        translations = session.exec(statement).all()
+        return translations
+    except Exception as e:
+        # Table might not exist yet - return empty list
+        print(f"⚠️  FeatureCategoryTranslation table not found: {str(e)}", flush=True)
+        return []
 
 
 @router.post("/feature-categories", response_model=FeatureCategoryTranslation)
@@ -224,29 +261,48 @@ def create_feature_category_translation(
     """
     Create new feature category translation.
     """
-    translation = FeatureCategoryTranslation.model_validate(translation_in, update={"tenant_id": tenant_id})
+    # Verify category belongs to current tenant
+    from app.models import FeatureCategory
+    category = session.exec(select(FeatureCategory).where(
+        FeatureCategory.id == translation_in.category_id,
+        FeatureCategory.tenant_id == tenant_id
+    )).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Feature category not found")
+    
+    translation = FeatureCategoryTranslation.model_validate(translation_in)
     session.add(translation)
     session.commit()
     session.refresh(translation)
     return translation
 
 
-@router.put("/feature-categories/{translation_id}", response_model=FeatureCategoryTranslation)
+@router.put("/feature-categories/{category_id}/{locale}", response_model=FeatureCategoryTranslation)
 def update_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    category_id: int,
+    locale: str,
     translation_in: FeatureCategoryTranslationUpdate,
 ) -> Any:
     """
     Update a feature category translation.
     """
+    # Verify category belongs to current tenant
+    from app.models import FeatureCategory
+    category = session.exec(select(FeatureCategory).where(
+        FeatureCategory.id == category_id,
+        FeatureCategory.tenant_id == tenant_id
+    )).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Feature category not found")
+    
     translation = session.exec(
         select(FeatureCategoryTranslation).where(
-            FeatureCategoryTranslation.id == translation_id,
-            FeatureCategoryTranslation.tenant_id == tenant_id
+            FeatureCategoryTranslation.category_id == category_id,
+            FeatureCategoryTranslation.locale == locale
         )
     ).first()
     if not translation:
@@ -260,21 +316,31 @@ def update_feature_category_translation(
     return translation
 
 
-@router.delete("/feature-categories/{translation_id}")
+@router.delete("/feature-categories/{category_id}/{locale}")
 def delete_feature_category_translation(
     *,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
-    translation_id: int,
+    category_id: int,
+    locale: str,
 ) -> Any:
     """
     Delete a feature category translation.
     """
+    # Verify category belongs to current tenant
+    from app.models import FeatureCategory
+    category = session.exec(select(FeatureCategory).where(
+        FeatureCategory.id == category_id,
+        FeatureCategory.tenant_id == tenant_id
+    )).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Feature category not found")
+    
     translation = session.exec(
         select(FeatureCategoryTranslation).where(
-            FeatureCategoryTranslation.id == translation_id,
-            FeatureCategoryTranslation.tenant_id == tenant_id
+            FeatureCategoryTranslation.category_id == category_id,
+            FeatureCategoryTranslation.locale == locale
         )
     ).first()
     if not translation:
