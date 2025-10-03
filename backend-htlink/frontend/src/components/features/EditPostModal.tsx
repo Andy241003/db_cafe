@@ -49,7 +49,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
       });
 
     } else {
-      console.log('No post data, setting defaults');
       setPostForm({
         locale: 'en',
         title: '',
@@ -67,6 +66,36 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
   // Simplified editor mode toggle
   const toggleEditorMode = () => {
     setEditorMode(editorMode === 'visual' ? 'html' : 'visual');
+  };
+
+  // Editor content state
+  const [editorContent, setEditorContent] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+
+  // Editor utility functions
+  const formatText = (command: string) => {
+    // Simple text formatting - placeholder implementation
+    console.log('Format text:', command);
+  };
+
+  const formatHeading = (level: string) => {
+    // Simple heading formatting - placeholder implementation
+    console.log('Format heading:', level);
+  };
+
+  const insertLink = () => {
+    // Simple link insertion - placeholder implementation
+    console.log('Insert link');
+  };
+
+  const insertImage = () => {
+    // Simple image insertion - placeholder implementation
+    console.log('Insert image');
+  };
+
+  const insertTable = () => {
+    // Simple table insertion - placeholder implementation
+    console.log('Insert table');
   };
 
   // Simplified - no sync needed since we're using controlled components

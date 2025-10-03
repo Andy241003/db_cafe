@@ -43,10 +43,8 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
         vrLink: post.vrLink || ''
       };
       
-      console.log('Form data being set:', formData);
       setPostForm(formData);
     } else {
-      console.log('No post data, setting defaults');
       setPostForm({
         locale: 'en',
         title: '',

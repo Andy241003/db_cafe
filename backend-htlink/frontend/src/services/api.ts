@@ -4,7 +4,6 @@ import { getApiBaseUrl } from '../utils/api';
 
 // API Base Configuration
 const API_BASE_URL = getApiBaseUrl();
-console.log('MainAPI - Using API_BASE_URL:', API_BASE_URL);
 
 // Create axios instance
 const apiClient = axios.create({

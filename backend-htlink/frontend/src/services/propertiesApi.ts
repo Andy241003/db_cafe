@@ -4,7 +4,6 @@ import { getApiBaseUrl } from '../utils/api';
 import type { ApiProperty, ApiPropertyCreate, ApiPropertyUpdate } from '../types/properties-api';
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('PropertiesAPI - Using API_BASE_URL:', API_BASE_URL);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

@@ -41,7 +41,6 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
         status: post.status
       });
     } else {
-      console.log('No post data, setting defaults');
       setFormData({
         title: '',
         address: '',

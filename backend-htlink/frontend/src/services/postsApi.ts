@@ -3,7 +3,6 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('PostsAPI - Using API_BASE_URL:', API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -27,10 +26,6 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
-    
-    // DEBUG: Log the actual request URL being made
-    console.log('PostsAPI Request URL:', config.baseURL, config.url);
-    console.log('Full URL:', (config.baseURL || '') + (config.url || ''));
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
