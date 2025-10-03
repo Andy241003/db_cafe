@@ -85,11 +85,27 @@ const Login: React.FC = () => {
       // Step 4: Trigger auth state change using useAuth hook
       login(); // This will set isAuthenticated state and dispatch event
       
-      // Step 5: Force page refresh immediately to ensure clean state
-      console.log('🔄 Login successful, forcing page refresh to load dashboard...');
+      // Step 5: Multiple redirect attempts to ensure it works
+      console.log('🔄 Login successful, attempting redirect...');
       
-      // Always use full page refresh for production to avoid state sync issues
+      // Method 1: Immediate redirect
       window.location.href = '/';
+      
+      // Method 2: Fallback after 100ms
+      setTimeout(() => {
+        if (window.location.pathname === '/login') {
+          console.log('🔄 First redirect failed, trying again...');
+          window.location.replace('/');
+        }
+      }, 100);
+      
+      // Method 3: Force refresh if still on login page after 1 second
+      setTimeout(() => {
+        if (window.location.pathname === '/login') {
+          console.log('🔄 All redirects failed, forcing full page refresh...');
+          window.location.reload();
+        }
+      }, 1000);
       
     } catch (err: any) {
       console.error('Login failed:', err);
