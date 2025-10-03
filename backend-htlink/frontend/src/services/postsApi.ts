@@ -28,6 +28,10 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
     
+    // DEBUG: Log the actual request URL being made
+    console.log('PostsAPI Request URL:', config.baseURL, config.url);
+    console.log('Full URL:', (config.baseURL || '') + (config.url || ''));
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -1,6 +1,10 @@
 // src/utils/api.ts
 // Utility function to auto-detect API base URL based on environment
 export const getApiBaseUrl = (): string => {
+  console.log('DEBUG: getApiBaseUrl called');
+  console.log('DEBUG: VITE_API_URL =', import.meta.env.VITE_API_URL);
+  console.log('DEBUG: NODE_ENV =', import.meta.env.NODE_ENV);
+  
   // If VITE_API_URL is explicitly set, use it (HIGHEST PRIORITY)
   if (import.meta.env.VITE_API_URL) {
     console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL);

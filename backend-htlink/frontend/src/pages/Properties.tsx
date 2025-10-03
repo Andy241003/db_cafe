@@ -172,7 +172,7 @@ const Properties: React.FC = () => {
 
       <header className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Properties</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Properties (v2)</h1>
           <p className="text-sm text-slate-600 mt-1">Manage your hotel properties and their content.</p>
         </div>
         <div className="flex gap-3">
