@@ -5,7 +5,9 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const token = localStorage.getItem('access_token');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-    return !!(token && isAuth);
+    const result = !!(token && isAuth);
+    console.log('🔧 useAuth initial state:', { token: !!token, isAuth, result });
+    return result;
   });
 
   useEffect(() => {
@@ -20,7 +22,9 @@ export const useAuth = () => {
     const handleAuthChange = () => {
       const token = localStorage.getItem('access_token');
       const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-      setIsAuthenticated(!!(token && isAuth));
+      const newState = !!(token && isAuth);
+      console.log('🔧 useAuth handleAuthChange:', { token: !!token, isAuth, newState });
+      setIsAuthenticated(newState);
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -33,6 +37,7 @@ export const useAuth = () => {
   }, []);
 
   const login = () => {
+    console.log('🔧 useAuth login() called');
     setIsAuthenticated(true);
     // Dispatch custom event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));

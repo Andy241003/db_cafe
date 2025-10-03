@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import { authAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 // TypeScript interfaces for type safety
 interface LoginFormData {
@@ -12,6 +13,7 @@ interface LoginFormData {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   
   // State management for form data
   const [formData, setFormData] = useState<LoginFormData>({
@@ -82,12 +84,13 @@ const Login: React.FC = () => {
         throw tenantError;
       }
       
-      // Step 4: Trigger auth state change event
-      window.dispatchEvent(new Event('authStateChanged'));
+      // Step 4: Trigger auth state change using useAuth hook
+      login(); // This will set isAuthenticated state and dispatch event
       
-      // Step 5: Redirect to dashboard using React Router
-      // Use replace to avoid going back to login page
-      navigate('/', { replace: true });
+      // Step 5: Small delay to ensure state is updated, then redirect
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 100);
       
     } catch (err: any) {
       console.error('Login failed:', err);
