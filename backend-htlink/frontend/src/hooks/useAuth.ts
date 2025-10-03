@@ -10,31 +10,43 @@ export const useAuth = () => {
     return result;
   });
 
+  // Function to check authentication status
+  const checkAuthStatus = () => {
+    const token = localStorage.getItem('access_token');
+    const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const newState = !!(token && isAuth);
+    console.log('🔧 useAuth checkAuthStatus:', { token: !!token, isAuth, newState, currentState: isAuthenticated });
+    if (newState !== isAuthenticated) {
+      setIsAuthenticated(newState);
+    }
+    return newState;
+  };
+
   useEffect(() => {
     // Listen for storage changes (when user logs in/out in another tab)
     const handleStorageChange = () => {
-      const token = localStorage.getItem('access_token');
-      const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-      setIsAuthenticated(!!(token && isAuth));
+      checkAuthStatus();
     };
 
     // Listen for custom auth events
     const handleAuthChange = () => {
-      const token = localStorage.getItem('access_token');
-      const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-      const newState = !!(token && isAuth);
-      console.log('🔧 useAuth handleAuthChange:', { token: !!token, isAuth, newState });
-      setIsAuthenticated(newState);
+      checkAuthStatus();
     };
+
+    // Poll localStorage every 100ms to catch immediate changes
+    const pollInterval = setInterval(() => {
+      checkAuthStatus();
+    }, 100);
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthChange);
 
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authStateChanged', handleAuthChange);
     };
-  }, []);
+  }, [isAuthenticated]); // Add isAuthenticated as dependency
 
   const login = () => {
     console.log('🔧 useAuth login() called');
