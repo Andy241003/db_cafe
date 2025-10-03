@@ -1,10 +1,16 @@
 // src/utils/api.ts
 // Utility function to auto-detect API base URL based on environment
 export const getApiBaseUrl = (): string => {
-  // If VITE_API_URL is explicitly set, use it
+  // If VITE_API_URL is explicitly set, use it (HIGHEST PRIORITY)
   if (import.meta.env.VITE_API_URL) {
     console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL);
     return `${import.meta.env.VITE_API_URL}/api/v1`;
+  }
+  
+  // Check if we're in browser environment
+  if (typeof window === 'undefined') {
+    console.log('Server-side rendering detected, using default HTTPS');
+    return 'https://travel.link360.vn/api/v1';
   }
   
   // Auto-detect based on current URL
@@ -12,10 +18,17 @@ export const getApiBaseUrl = (): string => {
   
   console.log('Auto-detecting API URL - hostname:', hostname, 'protocol:', protocol);
   
-  // For production or any HTTPS site, use same origin with HTTPS
-  if (protocol === 'https:' || hostname.includes('link360.vn') || !hostname.includes('localhost')) {
+  // For production domains, always use HTTPS
+  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn')) {
+    const apiUrl = `https://${hostname}/api/v1`;
+    console.log('Using production HTTPS API URL (v3):', apiUrl);
+    return apiUrl;
+  }
+  
+  // For any HTTPS site, use same origin with HTTPS
+  if (protocol === 'https:' || !hostname.includes('localhost')) {
     const apiUrl = `${protocol}//${hostname}/api/v1`;
-    console.log('Using same-origin API URL (v2):', apiUrl);
+    console.log('Using same-origin API URL (v3):', apiUrl);
     return apiUrl;
   }
   
