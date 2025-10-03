@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, HTMLResponse
 
@@ -16,6 +17,25 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     if route.tags:
         return f"{route.tags[0]}-{route.name}"
     return route.name
+
+
+class ProxyHeadersMiddleware(BaseHTTPMiddleware):
+    """Handle proxy headers for HTTPS termination"""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Handle X-Forwarded-Proto header from nginx
+        forwarded_proto = request.headers.get("X-Forwarded-Proto")
+        if forwarded_proto == "https":
+            # Override the request scheme to HTTPS
+            request.scope["scheme"] = "https"
+            
+            # Also set the server port to 443 for proper URL generation
+            if "server" in request.scope:
+                server_host, _ = request.scope["server"]
+                request.scope["server"] = (server_host, 443)
+        
+        response = await call_next(request)
+        return response
 
 
 class AutoTenantMiddleware(BaseHTTPMiddleware):
@@ -57,6 +77,9 @@ app = FastAPI(
     }
 )
 
+
+# Add proxy headers middleware to handle HTTPS termination
+app.add_middleware(ProxyHeadersMiddleware)
 
 # Add auto-tenant middleware for API docs
 app.add_middleware(AutoTenantMiddleware)
