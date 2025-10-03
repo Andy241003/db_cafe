@@ -58,19 +58,49 @@ const TenantSettings: React.FC = () => {
   const loadTenantSettings = async () => {
     try {
       setLoading(true);
+      
+      // Check if user is authenticated and has tenant info
+      const token = localStorage.getItem('access_token');
+      const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+      const tenantCode = localStorage.getItem('tenant_code');
+      
+      if (!token || !isAuth || !tenantCode) {
+        showNotification('Please login to view tenant settings', 'error');
+        return;
+      }
+
       const response = await tenantApi.getCurrentTenant();
       const tenantData = response.data;
+      
       setSettings(tenantData);
       setFormData({
-        name: tenantData.name,
-        code: tenantData.code,
-        default_locale: tenantData.default_locale,
-        fallback_locale: tenantData.fallback_locale,
-        is_active: tenantData.is_active,
+        name: tenantData.name || '',
+        code: tenantData.code || tenantCode,
+        default_locale: tenantData.default_locale || 'en',
+        fallback_locale: tenantData.fallback_locale || 'en',
+        is_active: tenantData.is_active !== undefined ? tenantData.is_active : true,
       });
-    } catch (error) {
+      
+      // Update localStorage with fresh tenant data
+      if (tenantData.code !== tenantCode) {
+        localStorage.setItem('tenant_code', tenantData.code);
+        localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
+      }
+      
+    } catch (error: any) {
       console.error('Error loading tenant settings:', error);
-      showNotification('Failed to load tenant settings', 'error');
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to load tenant settings';
+      showNotification(errorMessage, 'error');
+      
+      // Reset form if tenant not found
+      setSettings(null);
+      setFormData({
+        name: '',
+        code: localStorage.getItem('tenant_code') || '',
+        default_locale: 'en',
+        fallback_locale: 'en',
+        is_active: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -96,6 +126,29 @@ const TenantSettings: React.FC = () => {
 
   useEffect(() => {
     loadTenantSettings();
+  }, []);
+
+  // Listen for auth state changes to reload tenant settings
+  useEffect(() => {
+    const handleAuthChange = () => {
+      // Reload tenant settings when auth state changes (e.g., tenant switch)
+      loadTenantSettings();
+    };
+
+    // Listen for tenant changes in localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tenant_code' || e.key === 'tenant_id') {
+        loadTenantSettings();
+      }
+    };
+
+    window.addEventListener('authStateChanged', handleAuthChange);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('authStateChanged', handleAuthChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   if (loading) {
@@ -146,6 +199,18 @@ const TenantSettings: React.FC = () => {
             <p className="mt-1 text-sm text-slate-500">Manage your organization settings and preferences</p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={loadTenantSettings}
+              disabled={loading}
+              className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? (
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+              ) : (
+                <i className="fas fa-sync-alt"></i>
+              )}
+              Refresh
+            </button>
             <a
               href="/settings"
               className="rounded-lg bg-slate-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 flex items-center gap-2"
@@ -153,6 +218,23 @@ const TenantSettings: React.FC = () => {
               <i className="fas fa-cog"></i>
               Property Settings
             </a>
+          </div>
+        </div>
+
+        {/* Current Tenant Info */}
+        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white text-sm">
+              <FontAwesomeIcon icon={faCode} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">
+                Current Tenant: <span className="font-mono">{localStorage.getItem('tenant_code') || 'Unknown'}</span>
+              </p>
+              <p className="text-xs text-blue-700">
+                {localStorage.getItem('tenant_name') || 'No tenant name'} • ID: {localStorage.getItem('tenant_id') || 'N/A'}
+              </p>
+            </div>
           </div>
         </div>
 

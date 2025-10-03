@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   Upload, 
   Search, 
@@ -20,8 +20,10 @@ import {
   Waves,
   Sparkles,
   Check,
-  MoreVertical
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { mediaApi, type MediaFile as ApiMediaFile } from '../services/mediaApi';
 
 interface MediaFile {
   id: string;
@@ -34,6 +36,17 @@ interface MediaFile {
   dimensions?: string;
   uploadDate: string;
   modifiedDate: string;
+  url?: string;
+  contentType?: string;
+}
+
+interface MediaStats {
+  total_files: number;
+  total_size: number;
+  images_count: number;
+  videos_count: number;
+  documents_count: number;
+  storage_used_mb: number;
 }
 
 interface IconFile {
@@ -42,80 +55,12 @@ interface IconFile {
   preview: string;
 }
 
-const initialMedia: MediaFile[] = [
-  {
-    id: '1',
-    name: 'deluxe-suite.jpg',
-    type: 'image',
-    size: '2.4 MB',
-    sizeBytes: 2.4,
-    folder: 'rooms',
-    preview: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160"%3E%3Crect width="200" height="160" fill="%23f1f5f9"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="14" fill="%2364748b"%3EDeluxe Suite%3C/text%3E%3C/svg%3E',
-    dimensions: '1920×1080',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  },
-  {
-    id: '2',
-    name: 'pool-tour.mp4',
-    type: 'video',
-    size: '8.7 MB',
-    sizeBytes: 8.7,
-    folder: 'facilities',
-    dimensions: '1280×720',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  },
-  {
-    id: '3',
-    name: 'restaurant-menu.pdf',
-    type: 'document',
-    size: '1.2 MB',
-    sizeBytes: 1.2,
-    folder: 'documents',
-    dimensions: '3 pages',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  },
-  {
-    id: '4',
-    name: 'spa-treatment.jpg',
-    type: 'image',
-    size: '3.1 MB',
-    sizeBytes: 3.1,
-    folder: 'facilities',
-    preview: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160"%3E%3Crect width="200" height="160" fill="%23f3e8ff"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="14" fill="%237c3aed"%3ESpa Treatment%3C/text%3E%3C/svg%3E',
-    dimensions: '1600×900',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  },
-  {
-    id: '5',
-    name: 'gourmet-dish.jpg',
-    type: 'image',
-    size: '1.8 MB',
-    sizeBytes: 1.8,
-    folder: 'food',
-    preview: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160"%3E%3Crect width="200" height="160" fill="%23fef3c7"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="14" fill="%23d97706"%3EGourmet Dish%3C/text%3E%3C/svg%3E',
-    dimensions: '1200×800',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  },
-  {
-    id: '6',
-    name: 'hotel-brochure.docx',
-    type: 'document',
-    size: '5.4 MB',
-    sizeBytes: 5.4,
-    folder: 'documents',
-    dimensions: '12 pages',
-    uploadDate: '3 days ago',
-    modifiedDate: '2 hours ago'
-  }
-];
-
 export default function MediaLibrary() {
-  const [media, setMedia] = useState<MediaFile[]>(initialMedia);
+  const [media, setMedia] = useState<MediaFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [stats, setStats] = useState<MediaStats | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeFilter, setActiveFilter] = useState<'all' | 'image' | 'video' | 'document'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,6 +79,111 @@ export default function MediaLibrary() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
+
+  // Convert API response to frontend format
+  const convertApiMediaFile = (apiFile: ApiMediaFile): MediaFile => {
+    const getFileType = (kind: string): 'image' | 'video' | 'document' => {
+      switch (kind) {
+        case 'IMAGE': return 'image';
+        case 'VIDEO': return 'video';
+        case 'DOCUMENT':
+        case 'AUDIO':
+        default: return 'document';
+      }
+    };
+
+    const formatFileSize = (bytes: number): string => {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    };
+
+    const getFolder = (fileKey: string): string => {
+      if (fileKey.toLowerCase().includes('room')) return 'rooms';
+      if (fileKey.toLowerCase().includes('pool') || fileKey.toLowerCase().includes('spa')) return 'facilities';
+      if (fileKey.toLowerCase().includes('food') || fileKey.toLowerCase().includes('restaurant')) return 'food';
+      return 'documents';
+    };
+
+    // Generate file URL using the API endpoint
+    const API_BASE_URL = import.meta.env.VITE_API_URL 
+      ? `${import.meta.env.VITE_API_URL}/api/v1` 
+      : 'http://localhost:8000/api/v1';
+    const fileUrl = `${API_BASE_URL}/media/${apiFile.file_key}`;
+
+    return {
+      id: apiFile.id.toString(),
+      name: apiFile.file_key.split('/').pop() || apiFile.file_key, // Extract filename from file_key
+      type: getFileType(apiFile.kind),
+      size: formatFileSize(apiFile.size_bytes),
+      sizeBytes: apiFile.size_bytes / 1024 / 1024, // Convert to MB
+      folder: getFolder(apiFile.file_key),
+      preview: fileUrl,
+      url: fileUrl,
+      contentType: apiFile.mime_type,
+      uploadDate: new Date(apiFile.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      modifiedDate: apiFile.updated_at ? new Date(apiFile.updated_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      }) : 'N/A'
+    };
+  };
+
+  // Load media files from API
+  const loadMediaFiles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const apiFiles = await mediaApi.getMediaFiles();
+      const convertedFiles = apiFiles.map(convertApiMediaFile);
+      setMedia(convertedFiles);
+    } catch (err: any) {
+      setError('Failed to load media files: ' + (err.message || 'Unknown error'));
+      console.error('Error loading media files:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load media stats
+  const loadMediaStats = async () => {
+    try {
+      // For now, calculate stats from loaded media
+      // In the future, this could be a separate API call
+      const totalFiles = media.length;
+      const totalSize = media.reduce((sum, file) => sum + file.sizeBytes, 0);
+      const imagesCount = media.filter(f => f.type === 'image').length;
+      const videosCount = media.filter(f => f.type === 'video').length;
+      const documentsCount = media.filter(f => f.type === 'document').length;
+
+      setStats({
+        total_files: totalFiles,
+        total_size: totalSize * 1024 * 1024, // Convert back to bytes
+        images_count: imagesCount,
+        videos_count: videosCount,
+        documents_count: documentsCount,
+        storage_used_mb: totalSize
+      });
+    } catch (err) {
+      console.error('Error calculating stats:', err);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadMediaFiles();
+  }, []);
+
+  // Update stats when media changes
+  useEffect(() => {
+    loadMediaStats();
+  }, [media]);
 
   const getFilteredMedia = useCallback(() => {
     return media.filter(file => {
@@ -195,10 +245,40 @@ export default function MediaLibrary() {
     }
   };
 
-  const handleFileUpload = (files: FileList | null) => {
-    if (files && files.length > 0) {
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    setError(null);
+
+    try {
       const fileArray = Array.from(files);
-      alert(`Uploading ${fileArray.length} file(s)...\n\nFiles: ${fileArray.map(f => f.name).join(', ')}\n\nIn a real implementation, these would be uploaded to your server and appear in the media library.`);
+      const uploadPromises = fileArray.map(async (file) => {
+        // Determine file kind based on mime type
+        let kind: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' = 'DOCUMENT';
+        if (file.type.startsWith('image/')) kind = 'IMAGE';
+        else if (file.type.startsWith('video/')) kind = 'VIDEO';
+        else if (file.type.startsWith('audio/')) kind = 'AUDIO';
+
+        return await mediaApi.uploadFile(file, kind);
+      });
+
+      const uploadResults = await Promise.all(uploadPromises);
+      
+      // Reload media files to show the new uploads
+      await loadMediaFiles();
+      
+      // Show success message
+      const successMessage = `Successfully uploaded ${uploadResults.length} file(s):\n${fileArray.map(f => f.name).join('\n')}`;
+      alert(successMessage);
+      
+    } catch (err: any) {
+      const errorMessage = `Failed to upload files: ${err.message || 'Unknown error'}`;
+      setError(errorMessage);
+      alert(errorMessage);
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -292,13 +372,59 @@ export default function MediaLibrary() {
     }
   };
 
-  const bulkDelete = () => {
-    if (window.confirm(`Permanently delete ${selectedFiles.size} selected files? This action cannot be undone.`)) {
-      setMedia(prev => prev.filter(file => !selectedFiles.has(file.id)));
+  const bulkDelete = async () => {
+    if (!window.confirm(`Permanently delete ${selectedFiles.size} selected files? This action cannot be undone.`)) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
+        return await mediaApi.deleteMediaFile(parseInt(fileId));
+      });
+
+      await Promise.all(deletePromises);
+      
+      // Reload media files to reflect deletions
+      await loadMediaFiles();
+      
       setSelectedFiles(new Set());
       alert(`${selectedFiles.size} files deleted successfully!`);
+      
+    } catch (err: any) {
+      const errorMessage = `Failed to delete files: ${err.message || 'Unknown error'}`;
+      setError(errorMessage);
+      alert(errorMessage);
+      console.error('Delete error:', err);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Single file delete function (for future use)
+  // const deleteFile = async (fileId: string) => {
+  //   if (!window.confirm('Permanently delete this file? This action cannot be undone.')) {
+  //     return;
+  //   }
+
+  //   setLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     await mediaApi.deleteMediaFile(parseInt(fileId));
+  //     await loadMediaFiles();
+  //     alert('File deleted successfully!');
+  //   } catch (err: any) {
+  //     const errorMessage = `Failed to delete file: ${err.message || 'Unknown error'}`;
+  //     setError(errorMessage);
+  //     alert(errorMessage);
+  //     console.error('Delete error:', err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const bulkDownload = () => {
     if (window.confirm(`Download ${selectedFiles.size} selected files as ZIP archive?`)) {
@@ -326,6 +452,30 @@ export default function MediaLibrary() {
 
       {/* Main Content */}
       <div className="p-6">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-red-700">{error}</p>
+            <button 
+              onClick={() => setError(null)}
+              className="ml-auto text-red-500 hover:text-red-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {(loading || uploading) && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+            <p className="text-blue-700">
+              {uploading ? 'Uploading files...' : 'Loading media files...'}
+            </p>
+          </div>
+        )}
+
         {/* Title and Description */}
         <div className="mb-6 flex items-center justify-between">
           {/* Text bên trái */}
@@ -347,10 +497,15 @@ export default function MediaLibrary() {
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={uploading || loading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Upload className="w-4 h-4" />
-              Upload Files
+              {uploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              {uploading ? 'Uploading...' : 'Upload Files'}
             </button>
             <input
               ref={fileInputRef}
@@ -366,23 +521,25 @@ export default function MediaLibrary() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
           <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{media.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats?.total_files || media.length}</div>
             <div className="text-xs text-gray-500 uppercase tracking-wide">Total Files</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">1.2 GB</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {stats ? `${(stats.storage_used_mb).toFixed(1)} MB` : '0 MB'}
+            </div>
             <div className="text-xs text-gray-500 uppercase tracking-wide">Storage Used</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{media.filter(f => f.type === 'image').length}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats?.images_count || media.filter(f => f.type === 'image').length}</div>
             <div className="text-xs text-gray-500 uppercase tracking-wide">Images</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{media.filter(f => f.type === 'video').length}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats?.videos_count || media.filter(f => f.type === 'video').length}</div>
             <div className="text-xs text-gray-500 uppercase tracking-wide">Videos</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{media.filter(f => f.type === 'document').length}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats?.documents_count || media.filter(f => f.type === 'document').length}</div>
             <div className="text-xs text-gray-500 uppercase tracking-wide">Documents</div>
           </div>
         </div>

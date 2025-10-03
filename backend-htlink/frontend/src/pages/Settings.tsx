@@ -191,7 +191,7 @@ const Settings: React.FC = () => {
     const timeout = setTimeout(() => {
       console.log('Auto-saving...', field, value);
     }, 2000);
-    setAutoSaveTimeout(timeout);
+    setAutoSaveTimeout(timeout as any);
   };
 
   // Show success message
@@ -844,6 +844,63 @@ const Settings: React.FC = () => {
     loadTenantData();
   }, []);
 
+  // Listen for auth state changes to reload data when tenant switches
+  useEffect(() => {
+    const loadTenantData = async () => {
+      try {
+        setLoading(true);
+        
+        // Check if user is authenticated and has tenant info
+        const token = localStorage.getItem('access_token');
+        const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+        const tenantCode = localStorage.getItem('tenant_code');
+        
+        if (!token || !isAuth || !tenantCode) {
+          console.log('User not authenticated or no tenant info');
+          return;
+        }
+
+        const response = await tenantApi.getCurrentTenant();
+        const tenant = response.data;
+        console.log('Tenant reloaded:', tenant.name);
+        
+        // Update localStorage with fresh tenant data
+        if (tenant.code !== tenantCode) {
+          localStorage.setItem('tenant_code', tenant.code);
+          localStorage.setItem('tenant_name', tenant.name || tenant.code);
+        }
+        
+        // Reload properties for the new tenant
+        await loadProperties();
+        
+      } catch (error) {
+        console.error('Error reloading tenant data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleAuthChange = () => {
+      console.log('Auth state changed in Settings, reloading data...');
+      loadTenantData();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tenant_code' || e.key === 'tenant_id') {
+        console.log('Tenant changed in localStorage, reloading data...');
+        loadTenantData();
+      }
+    };
+
+    window.addEventListener('authStateChanged', handleAuthChange);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('authStateChanged', handleAuthChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -877,12 +934,41 @@ const Settings: React.FC = () => {
 
       {/* Main Content */}
       <main className="p-6">
+        {/* Current Tenant Info */}
+        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white text-sm">
+              <i className="fas fa-code"></i>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">
+                Current Tenant: <span className="font-mono">{localStorage.getItem('tenant_code') || 'Unknown'}</span>
+              </p>
+              <p className="text-xs text-blue-700">
+                {localStorage.getItem('tenant_name') || 'No tenant name'} • ID: {localStorage.getItem('tenant_id') || 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Property Settings</h2>
             <p className="mt-1 text-sm text-slate-500">Configure your hotel property settings and preferences</p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              disabled={loading}
+              className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? (
+                <i className="fas fa-spinner fa-spin"></i>
+              ) : (
+                <i className="fas fa-sync-alt"></i>
+              )}
+              Refresh
+            </button>
             <a
               href="/tenant-settings"
               className="rounded-lg bg-slate-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 flex items-center gap-2"

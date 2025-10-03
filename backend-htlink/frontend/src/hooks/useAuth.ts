@@ -53,12 +53,26 @@ export const useAuth = () => {
 
   const logout = () => {
     setIsAuthenticated(false);
+    
+    // Clear all authentication and tenant related data
     localStorage.removeItem('access_token');
-    localStorage.setItem('isAuthenticated', 'false');
+    localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('tenant_code');
     localStorage.removeItem('tenant_id');
     localStorage.removeItem('tenant_name');
+    localStorage.removeItem('tenant_domain');
+    
+    // Clear any other potential cached data
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('tenant_') || key.startsWith('user_'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
     // Dispatch custom event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));
   };
