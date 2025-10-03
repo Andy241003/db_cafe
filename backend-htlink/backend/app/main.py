@@ -63,15 +63,14 @@ app = FastAPI(
 # Add auto-tenant middleware for API docs
 app.add_middleware(AutoTenantMiddleware)
 
-# Set all CORS enabled origins
-if settings.all_cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.all_cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Set all CORS enabled origins - Always allow for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for now
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(api_router)
 
