@@ -7,20 +7,19 @@ export const getApiBaseUrl = (): string => {
     return `${import.meta.env.VITE_API_URL}/api/v1`;
   }
   
-  // Auto-detect based on current domain
-  const hostname = window.location.hostname;
-  const protocol = window.location.protocol;
+  // Auto-detect based on current URL
+  const { protocol, hostname } = window.location;
   
   console.log('Auto-detecting API URL - hostname:', hostname, 'protocol:', protocol);
   
-  if (hostname.includes('travel.link360.vn')) {
-    // Production domain - use same protocol as frontend
+  // For production or any HTTPS site, use same origin with HTTPS
+  if (protocol === 'https:' || hostname.includes('link360.vn') || !hostname.includes('localhost')) {
     const apiUrl = `${protocol}//${hostname}/api/v1`;
-    console.log('Using production API URL:', apiUrl);
+    console.log('Using same-origin API URL (v2):', apiUrl);
     return apiUrl;
   }
   
-  // Default for development
+  // Only for localhost development
   console.log('Using development API URL: http://localhost:8000/api/v1');
   return 'http://localhost:8000/api/v1';
 };

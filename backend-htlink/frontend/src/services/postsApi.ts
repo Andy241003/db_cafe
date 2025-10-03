@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('PostsAPI - Using API_BASE_URL:', API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
