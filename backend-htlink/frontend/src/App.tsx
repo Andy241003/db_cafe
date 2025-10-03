@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth';
 
 function App() {
   const { isAuthenticated } = useAuth();
+  console.log('🔧 App.tsx isAuthenticated:', isAuthenticated);
 
   return (
     <Router>

@@ -87,10 +87,28 @@ const Login: React.FC = () => {
       // Step 4: Trigger auth state change using useAuth hook
       login(); // This will set isAuthenticated state and dispatch event
       
-      // Step 5: Small delay to ensure state is updated, then redirect
+      // Step 5: Longer delay for production environment
+      const delay = import.meta.env.PROD ? 500 : 100;
+      console.log(`🔄 Redirecting to dashboard in ${delay}ms...`);
       setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 100);
+        console.log('🔄 Executing navigation...');
+        // Force a full page refresh on production to ensure clean state
+        if (import.meta.env.PROD) {
+          console.log('🔄 Production mode: Using window.location.href');
+          window.location.href = '/';
+        } else {
+          console.log('🔄 Development mode: Using React Router navigate');
+          navigate('/', { replace: true });
+        }
+        
+        // Fallback: if navigation doesn't work after 2 seconds, force refresh
+        setTimeout(() => {
+          if (window.location.pathname === '/login') {
+            console.log('⚠️ Navigation failed, forcing page refresh...');
+            window.location.reload();
+          }
+        }, 2000);
+      }, delay);
       
     } catch (err: any) {
       console.error('Login failed:', err);
