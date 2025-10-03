@@ -25,9 +25,17 @@ def read_properties(
     """
     Retrieve properties in tenant.
     """
+    # Debug logging
+    print(f"🏨 GET /properties - tenant_id: {tenant_id}, user: {current_user.email}")
+    
     properties = crud.property.get_by_tenant(
         session, tenant_id=tenant_id, skip=skip, limit=limit
     )
+    
+    print(f"🏨 Found {len(properties)} properties for tenant {tenant_id}")
+    for prop in properties:
+        print(f"  - {prop.property_name} (ID: {prop.id})")
+    
     return properties
 
 

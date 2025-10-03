@@ -45,16 +45,25 @@ def read_posts(
     """
     Retrieve posts for tenant, optionally filtered by property, feature, or status.
     """
-    posts = crud.post.get_by_tenant_with_translations(
-        session, 
-        tenant_id=tenant_id,
-        property_id=property_id,
-        feature_id=feature_id,
-        status=status,
-        skip=skip, 
-        limit=limit
-    )
-    return posts
+    try:
+        print(f"🔍 GET /posts - tenant_id: {tenant_id}, property_id: {property_id}, feature_id: {feature_id}")
+        
+        posts = crud.post.get_by_tenant_with_translations(
+            session, 
+            tenant_id=tenant_id,
+            property_id=property_id,
+            feature_id=feature_id,
+            status=status,
+            skip=skip, 
+            limit=limit
+        )
+        
+        print(f"✅ Found {len(posts)} posts")
+        return posts
+        
+    except Exception as e:
+        print(f"❌ Error in GET /posts: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=PostWithTranslationResponse)

@@ -24,12 +24,8 @@ class AutoTenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Add default tenant header if not present (for API docs testing)
         if not request.headers.get("X-Tenant-Code"):
-            # Auto-detect tenant based on host
-            host = request.headers.get("host", "localhost")
-            if "zalominiapp.vtlink.vn" in host:
-                tenant_code = "premier_admin"
-            else:
-                tenant_code = "demo"
+            # For API docs, default to boton_blue since that's what we're testing
+            tenant_code = "boton_blue"
             
             # Create new headers dict with tenant code
             headers = dict(request.headers)
@@ -37,6 +33,8 @@ class AutoTenantMiddleware(BaseHTTPMiddleware):
             
             # Rebuild request with new headers
             request._headers.raw.append((b"x-tenant-code", tenant_code.encode()))
+            
+            print(f"🔧 AutoTenantMiddleware: Set tenant_code = {tenant_code}")
         
         response = await call_next(request)
         return response

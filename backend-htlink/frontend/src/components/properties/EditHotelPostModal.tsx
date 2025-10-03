@@ -31,6 +31,7 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
 
   useEffect(() => {
     if (post) {
+      console.log('Loading post data for edit:', post);
       setFormData({
         title: post.title,
         address: post.address || '',
@@ -40,6 +41,7 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
         status: post.status
       });
     } else {
+      console.log('No post data, setting defaults');
       setFormData({
         title: '',
         address: '',

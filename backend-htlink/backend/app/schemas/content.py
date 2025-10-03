@@ -162,7 +162,7 @@ class PostBase(BaseModel):
 
 
 class PostCreate(PostBase):
-    tenant_id: int
+    tenant_id: Optional[int] = None  # Set automatically by endpoint
     property_id: int
     feature_id: int
     created_by: Optional[int] = None
