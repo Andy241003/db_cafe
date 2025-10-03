@@ -5,9 +5,7 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const token = localStorage.getItem('access_token');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-    const result = !!(token && isAuth);
-    console.log('🔧 useAuth initial state:', { token: !!token, isAuth, result });
-    return result;
+    return !!(token && isAuth);
   });
 
   // Function to check authentication status
@@ -15,7 +13,6 @@ export const useAuth = () => {
     const token = localStorage.getItem('access_token');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
     const newState = !!(token && isAuth);
-    console.log('🔧 useAuth checkAuthStatus:', { token: !!token, isAuth, newState, currentState: isAuthenticated });
     if (newState !== isAuthenticated) {
       setIsAuthenticated(newState);
     }
@@ -49,7 +46,6 @@ export const useAuth = () => {
   }, [isAuthenticated]); // Add isAuthenticated as dependency
 
   const login = () => {
-    console.log('🔧 useAuth login() called');
     setIsAuthenticated(true);
     // Dispatch custom event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));

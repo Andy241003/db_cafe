@@ -38,8 +38,6 @@ const Login: React.FC = () => {
     setError('');
     
     try {
-      console.log('Attempting login...');
-      
       // Step 1: Login without tenant (backend will identify user's tenant)
       await authAPI.login({
         username: formData.email,
@@ -48,7 +46,6 @@ const Login: React.FC = () => {
 
       // Step 2: Get user data to determine tenant
       const userData = await authAPI.getCurrentUser();
-      console.log('Login successful:', userData);
       
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
@@ -61,14 +58,11 @@ const Login: React.FC = () => {
         
         if (tenantResponse.ok) {
           const tenantData = await tenantResponse.json();
-          console.log('Tenant data from backend:', tenantData);
           
           // Save tenant info to localStorage
           localStorage.setItem('tenant_code', tenantData.code);
           localStorage.setItem('tenant_id', userData.tenant_id.toString());
           localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
-          
-          console.log(`✅ User belongs to tenant: ${tenantData.code} (ID: ${userData.tenant_id}, Name: ${tenantData.name})`);
         } else if (tenantResponse.status === 404) {
           console.error('❌ Tenant not found! User assigned to deleted tenant.');
           throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);
@@ -86,15 +80,12 @@ const Login: React.FC = () => {
       login(); // This will set isAuthenticated state and dispatch event
       
       // Step 5: Multiple redirect attempts to ensure it works
-      console.log('🔄 Login successful, attempting redirect...');
-      
       // Method 1: Immediate redirect
       window.location.href = '/';
       
       // Method 2: Fallback after 100ms
       setTimeout(() => {
         if (window.location.pathname === '/login') {
-          console.log('🔄 First redirect failed, trying again...');
           window.location.replace('/');
         }
       }, 100);
@@ -102,7 +93,6 @@ const Login: React.FC = () => {
       // Method 3: Force refresh if still on login page after 1 second
       setTimeout(() => {
         if (window.location.pathname === '/login') {
-          console.log('🔄 All redirects failed, forcing full page refresh...');
           window.location.reload();
         }
       }, 1000);

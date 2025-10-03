@@ -3,16 +3,13 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
-import AuthDebugger from './components/AuthDebugger';
 
 function App() {
   // Direct localStorage check, bypass useAuth hook
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     const token = localStorage.getItem('access_token');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-    const result = !!(token && isAuth);
-    console.log('🔧 App.tsx initial auth check:', { token: !!token, isAuth, result });
-    return result;
+    return !!(token && isAuth);
   });
 
   // Poll localStorage every 500ms for changes
@@ -23,13 +20,6 @@ function App() {
       const newState = !!(token && isAuth);
       
       if (newState !== isAuthenticated) {
-        console.log('🔧 App.tsx auth state changed:', { 
-          from: isAuthenticated, 
-          to: newState, 
-          token: !!token, 
-          isAuth,
-          pathname: window.location.pathname 
-        });
         setIsAuthenticated(newState);
       }
     };
@@ -40,15 +30,13 @@ function App() {
     // Poll every 500ms
     const interval = setInterval(checkAuth, 500);
 
-    // Also listen for storage events
+    // Listen for storage events
     const handleStorageChange = () => {
-      console.log('🔧 App.tsx storage event triggered');
       checkAuth();
     };
 
     // Listen for custom auth events
     const handleAuthChange = () => {
-      console.log('🔧 App.tsx authStateChanged event triggered');
       checkAuth();
     };
 
@@ -62,12 +50,9 @@ function App() {
     };
   }, [isAuthenticated]);
 
-  console.log('🔧 App.tsx render - isAuthenticated:', isAuthenticated, 'pathname:', window.location.pathname);
-
   return (
     <Router>
       <div className="App">
-        <AuthDebugger />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route 

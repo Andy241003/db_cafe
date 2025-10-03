@@ -52,18 +52,6 @@ const Users: React.FC = () => {
         // Check authentication
         const token = localStorage.getItem('access_token');
         const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-        const tenantCode = localStorage.getItem('tenant_code');
-        
-        console.log('🔍 Debug Info:', { 
-          token: token?.substring(0, 20) + '...', 
-          isAuth, 
-          tenantCode,
-          localStorage: {
-            tenant_code: localStorage.getItem('tenant_code'),
-            tenant_id: localStorage.getItem('tenant_id'),
-            currentUser: localStorage.getItem('currentUser')
-          }
-        });
         
         if (!token || !isAuth) {
           setError('Not authenticated. Please login to view users.');
@@ -72,12 +60,7 @@ const Users: React.FC = () => {
         }
         
         // Get current user info first
-        console.log('📡 Getting current user info...');
         const currentUserInfo = await usersApi.getCurrentUser();
-        console.log('👤 Current user:', currentUserInfo);
-        console.log('👤 User tenant_id:', currentUserInfo.tenant_id);
-        console.log('👤 User role:', currentUserInfo.role);
-        
         const currentUserConverted = convertApiUser(currentUserInfo);
         setCurrentUser(currentUserConverted);
         
@@ -86,19 +69,11 @@ const Users: React.FC = () => {
         const currentTenantCode = localStorage.getItem('tenant_code');
         
         if (currentTenantCode !== correctTenantCode) {
-          console.log('🔄 Updating tenant:', { 
-            current: currentTenantCode, 
-            correct: correctTenantCode,
-            userTenantId: currentUserInfo.tenant_id 
-          });
           localStorage.setItem('tenant_code', correctTenantCode);
           localStorage.setItem('tenant_id', currentUserInfo.tenant_id.toString());
         }
         
         // Check permissions
-        console.log('🔐 Checking permissions for role:', currentUserConverted.role);
-        console.log('🔐 canManageUsers result:', canManageUsers(currentUserConverted.role));
-        
         if (!canManageUsers(currentUserConverted.role)) {
           setError(`Access denied. Your role (${currentUserConverted.role.toUpperCase()}) cannot manage users. Only OWNER and ADMIN can view users.`);
           setLoading(false);
@@ -106,9 +81,7 @@ const Users: React.FC = () => {
         }
         
         // Load users
-        console.log('📋 Loading users list...');
         const apiUsers = await usersApi.getUsers();
-        console.log('📋 Received users:', apiUsers);
         
         const frontendUsers = apiUsers.map(convertApiUser);
         setUsers(frontendUsers);
@@ -298,47 +271,6 @@ const Users: React.FC = () => {
           >
             <FontAwesomeIcon icon={faUserPlus} />
             Add User
-          </button>
-          
-          {/* Debug button - remove in production */}
-          <button 
-            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200" 
-            onClick={async () => {
-              console.log('🧪 Testing create user API...');
-              try {
-                const tenantId = localStorage.getItem('tenant_id');
-                if (!tenantId) {
-                  alert('No tenant_id found in localStorage');
-                  return;
-                }
-                
-                const testUser = {
-                  email: `test${Date.now()}@example.com`,
-                  password: 'TestPass123!',
-                  full_name: 'Test User',
-                  role: 'VIEWER' as const,
-                  is_active: true,
-                  tenant_id: parseInt(tenantId) // Add required tenant_id
-                };
-                console.log('📤 Sending user data:', { ...testUser, password: '[HIDDEN]' });
-                
-                const result = await usersApi.createUser(testUser);
-                console.log('✅ Test user created:', result);
-                alert('Test user created successfully!');
-                // Refresh users list
-                const apiUsers = await usersApi.getUsers();
-                const frontendUsers = apiUsers.map(convertApiUser);
-                setUsers(frontendUsers);
-              } catch (error: any) {
-                console.error('❌ Test failed:', error);
-                if (error.response && error.response.data) {
-                  console.error('📋 Validation errors:', error.response.data.detail);
-                  alert(`Validation error: ${JSON.stringify(error.response.data.detail, null, 2)}`);
-                }
-              }
-            }}
-          >
-            🧪 Test API
           </button>
         </div>
       </div>
