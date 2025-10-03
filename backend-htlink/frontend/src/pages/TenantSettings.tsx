@@ -221,23 +221,6 @@ const TenantSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Current Tenant Info */}
-        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white text-sm">
-              <FontAwesomeIcon icon={faCode} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">
-                Current Tenant: <span className="font-mono">{localStorage.getItem('tenant_code') || 'Unknown'}</span>
-              </p>
-              <p className="text-xs text-blue-700">
-                {localStorage.getItem('tenant_name') || 'No tenant name'} • ID: {localStorage.getItem('tenant_id') || 'N/A'}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Main Settings Content */}
         <div className="grid gap-6">
           <div className="rounded-xl border border-slate-200 bg-white p-6">

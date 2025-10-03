@@ -1,5 +1,5 @@
 // Login.tsx - Updated to use Backend API
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { authAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -21,6 +21,12 @@ const Login: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+
+  // Auto clear localStorage when entering login page to prevent cache issues
+  useEffect(() => {
+    console.log('🔴 Login page: Auto clearing localStorage');
+    localStorage.clear();
+  }, []);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,10 +52,14 @@ const Login: React.FC = () => {
 
       // Step 2: Get user data to determine tenant
       const userData = await authAPI.getCurrentUser();
+      console.log('🔍 Login Debug - User Data:', userData);
       
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
-        const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`, {
+        const tenantUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`;
+        console.log('🔍 Login Debug - Fetching tenant from:', tenantUrl);
+        
+        const tenantResponse = await fetch(tenantUrl, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
@@ -58,11 +68,18 @@ const Login: React.FC = () => {
         
         if (tenantResponse.ok) {
           const tenantData = await tenantResponse.json();
+          console.log('🔍 Login Debug - Tenant Data:', tenantData);
           
           // Save tenant info to localStorage
           localStorage.setItem('tenant_code', tenantData.code);
           localStorage.setItem('tenant_id', userData.tenant_id.toString());
           localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
+          
+          console.log('🔍 Login Debug - Saved to localStorage:', {
+            tenant_code: tenantData.code,
+            tenant_id: userData.tenant_id,
+            tenant_name: tenantData.name
+          });
         } else if (tenantResponse.status === 404) {
           console.error('❌ Tenant not found! User assigned to deleted tenant.');
           throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);

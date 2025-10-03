@@ -30,12 +30,6 @@ mediaApiClient.interceptors.request.use(
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
     
-    console.log('🔍 MediaAPI Headers:', {
-      token: token?.substring(0, 20) + '...',
-      tenantCode: tenantCode,
-      allHeaders: config.headers
-    });
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

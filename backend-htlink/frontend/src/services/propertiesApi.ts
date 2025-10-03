@@ -12,15 +12,23 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
-// Auto-detect tenant code based on domain
+// Get tenant code from localStorage
 const getTenantCode = (): string => {
-  const savedTenant = localStorage.getItem('tenant_domain');
-  if (savedTenant) return savedTenant;
+  // Primary: get from tenant_code (set by login)
+  const tenantCode = localStorage.getItem('tenant_code');
+  if (tenantCode) return tenantCode;
   
+  // Fallback: get from tenant_domain (legacy)
+  const tenantDomain = localStorage.getItem('tenant_domain');
+  if (tenantDomain) return tenantDomain;
+  
+  // Last resort: domain-based detection
   const hostname = window.location.hostname;
   if (hostname.includes('zalominiapp.vtlink.vn')) {
     return 'premier_admin';
   }
+  
+  // Default fallback
   return 'demo';
 };
 
@@ -29,6 +37,22 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
+    
+    // Debug log for ALL API calls to see headers
+    console.log('� API Request:', {
+      url: config.url,
+      method: config.method?.toUpperCase(),
+      tenantCode: tenantCode,
+      headers: {
+        'X-Tenant-Code': tenantCode,
+        'Authorization': token ? 'Bearer [TOKEN]' : 'None'
+      },
+      localStorage: {
+        tenant_code: localStorage.getItem('tenant_code'),
+        tenant_id: localStorage.getItem('tenant_id'),
+        tenant_name: localStorage.getItem('tenant_name')
+      }
+    });
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

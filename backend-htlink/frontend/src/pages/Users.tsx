@@ -64,13 +64,28 @@ const Users: React.FC = () => {
         const currentUserConverted = convertApiUser(currentUserInfo);
         setCurrentUser(currentUserConverted);
         
-        // IMPORTANT: Update tenant info based on current user
-        const correctTenantCode = currentUserInfo.tenant_id === 1 ? 'demo' : 'premier_admin';
-        const currentTenantCode = localStorage.getItem('tenant_code');
-        
-        if (currentTenantCode !== correctTenantCode) {
-          localStorage.setItem('tenant_code', correctTenantCode);
-          localStorage.setItem('tenant_id', currentUserInfo.tenant_id.toString());
+        // IMPORTANT: Get tenant info from API instead of hardcoding
+        try {
+          const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${currentUserInfo.tenant_id}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (tenantResponse.ok) {
+            const tenantData = await tenantResponse.json();
+            const correctTenantCode = tenantData.code;
+            const currentTenantCode = localStorage.getItem('tenant_code');
+            
+            if (currentTenantCode !== correctTenantCode) {
+              localStorage.setItem('tenant_code', correctTenantCode);
+              localStorage.setItem('tenant_id', currentUserInfo.tenant_id.toString());
+              localStorage.setItem('tenant_name', tenantData.name || correctTenantCode);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching tenant data:', error);
         }
         
         // Check permissions
