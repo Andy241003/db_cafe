@@ -5,6 +5,49 @@ import { postsApi } from '../services/postsApi';
 import { transformApiPropertyToUI, transformUIToApiPropertyCreate, transformUIToApiPropertyUpdate } from '../types/properties-api';
 import type { Hotel, HotelFormData, HotelPost, TranslationData } from '../types/properties';
 
+// Helper function to transform API post to UI format
+const transformApiPostToUI = (apiPost: any, hotelId: string): HotelPost => {
+  // Handle both array and object format for translations
+  let translation: any = { title: '', content: '', content_html: '', locale: 'en' };
+  
+  if (apiPost.translations) {
+    if (Array.isArray(apiPost.translations) && apiPost.translations.length > 0) {
+      // Array format
+      translation = apiPost.translations[0];
+    } else if (typeof apiPost.translations === 'object' && !Array.isArray(apiPost.translations)) {
+      // Object format - use the translations object directly
+      translation = apiPost.translations;
+    }
+  }
+  
+  // Also check if translation data is directly on the post object (flattened format)
+  if (!translation.title && apiPost.title) {
+    translation.title = apiPost.title;
+  }
+  if (!translation.content_html && apiPost.content_html) {
+    translation.content_html = apiPost.content_html;
+  }
+  if (!translation.locale && apiPost.locale) {
+    translation.locale = apiPost.locale;
+  }
+  
+  return {
+    id: apiPost.id,
+    title: translation.title || 'Untitled',
+    content: translation.content_html || translation.content || '',
+    excerpt: (translation.content_html || translation.content || '').replace(/<[^>]*>/g, '').substring(0, 150) + '...',
+    status: apiPost.status.toLowerCase() as 'published' | 'draft',
+    hotelId: hotelId,
+    locale: (translation.locale as 'en' | 'vi' | 'ja') || 'en',
+    slug: apiPost.slug,
+    address: '',
+    phone: '',
+    vrLink: '',
+    createdAt: apiPost.created_at,
+    updatedAt: apiPost.updated_at || undefined
+  };
+};
+
 export const usePropertiesApi = () => {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,24 +70,7 @@ export const usePropertiesApi = () => {
           try {
             const apiPosts = await postsApi.getPostsByProperty(parseInt(hotel.id));
             // Transform API posts to UI format (API returns flat structure with translation data)
-            const posts: HotelPost[] = apiPosts.map(apiPost => ({
-              id: apiPost.id,
-              title: (apiPost as any).title || 'Untitled',
-              content: (apiPost as any).content_html || '',
-              excerpt: ((apiPost as any).content_html || '').replace(/<[^>]*>/g, '').substring(0, 150) + '...',
-              author: `User ${apiPost.created_by}`,
-              publishDate: new Date(apiPost.created_at).toLocaleDateString(),
-              status: apiPost.status.toLowerCase() as 'published' | 'draft',
-              hotelId: hotel.id,
-              locale: ((apiPost as any).locale as 'en' | 'vi' | 'ja') || 'en',
-              slug: apiPost.slug,
-              // Add missing fields that EditModal expects
-              address: '',
-              phone: '',
-              vrLink: '',
-              createdAt: apiPost.created_at,
-              updatedAt: apiPost.updated_at || undefined
-            }));
+            const posts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotel.id));
             return { ...hotel, posts };
           } catch (error) {
             console.error(`Error loading posts for hotel ${hotel.id}:`, error);
@@ -97,7 +123,9 @@ export const usePropertiesApi = () => {
       const newProperty = await propertiesApi.createProperty(apiData);
       const newHotel = transformApiPropertyToUI(newProperty);
       
-      setHotels(prev => [...prev, newHotel]);
+      // Reload all properties to ensure we get any auto-created posts
+      await loadProperties();
+      
       return newHotel;
     } catch (error) {
       console.error('Error creating hotel:', error);
@@ -139,63 +167,89 @@ export const usePropertiesApi = () => {
     }
   };
 
-  // Post management functions (Mock implementation for now)
+  // Post management functions
   const createHotelPost = async (hotelId: string, postData: any) => {
     console.log('=== Creating post ===');
     console.log('Hotel ID:', hotelId);
     console.log('Post data:', postData);
-    console.log('Current hotels before update:', hotels.map(h => ({ id: h.id, name: h.name, postsCount: h.posts.length })));
     
-    // Mock implementation - create post locally
-    const newPost: HotelPost = {
-      id: Date.now(), // Simple ID generation
-      hotelId: hotelId,
-      title: postData.title || 'New Post',
-      content: postData.content || 'Content goes here...',
-      excerpt: postData.excerpt,
-      slug: postData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'new-post',
-      status: postData.status || 'draft',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      metaTitle: postData.metaTitle,
-      metaDescription: postData.metaDescription,
-    };
-    
-    console.log('New post created:', newPost);
-    
-    // Update local state - add post to the correct hotel
-    setHotels(prev => {
-      const updated = prev.map(hotel => {
-        if (hotel.id === hotelId) {
-          console.log(`Found hotel ${hotel.name}, adding post to ${hotel.posts.length} existing posts`);
-          return {
-            ...hotel,
-            posts: [...hotel.posts, newPost]
-          };
-        }
-        return hotel;
-      });
+    try {
+      // Prepare data for API
+      const apiPostData = {
+        property_id: parseInt(hotelId),
+        feature_id: 1, // Default feature ID - you may want to make this configurable
+        slug: postData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'new-post',
+        status: (postData.status || 'draft').toUpperCase() as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
+        title: postData.title || 'New Post',
+        content_html: postData.content || 'Content goes here...', // Changed from 'content' to 'content_html'
+        locale: 'en', // Default locale
+        pinned: true, // Default value from schema
+      };
       
-      console.log('Hotels after update:', updated.map(h => ({ id: h.id, name: h.name, postsCount: h.posts.length })));
-      return updated;
-    });
-    
-    console.log('=== Post creation completed ===');
-    return newPost;
+      console.log('Creating post via API:', apiPostData);
+      
+      // Create post via API
+      const createdPost = await postsApi.createPost(apiPostData);
+      console.log('Post created successfully:', createdPost);
+      
+      // Reload posts for this specific hotel to get fresh data
+      try {
+        const apiPosts = await postsApi.getPostsByProperty(parseInt(hotelId));
+        
+        // Update the posts for this hotel in the state
+        setHotels(prev => prev.map(hotel => {
+          if (hotel.id === hotelId) {
+            const updatedPosts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotelId));
+            
+            console.log(`Updated hotel ${hotel.name} with ${updatedPosts.length} posts`);
+            return { ...hotel, posts: updatedPosts };
+          }
+          return hotel;
+        }));
+        
+        console.log('=== Post creation completed ===');
+        return createdPost;
+      } catch (reloadError) {
+        console.error('Error reloading posts after creation:', reloadError);
+        // Fallback: reload all data if post reload fails
+        await loadProperties();
+        return createdPost;
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      if (error instanceof Error && 'response' in error) {
+        const axiosError = error as any;
+        console.error('Response data:', axiosError.response?.data);
+        console.error('Response status:', axiosError.response?.status);
+        console.error('Request data was:', JSON.stringify({
+          property_id: parseInt(hotelId),
+          feature_id: 1,
+          title: postData.title,
+          content_html: postData.content
+        }));
+      }
+      throw error;
+    }
   };
 
   const updateHotelPost = async (postData: HotelPost) => {
     console.log('Updating post:', postData);
     
+    // Prepare update data
+    const updateData = {
+      slug: postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-'),
+      status: postData.status.toUpperCase() as 'DRAFT' | 'PUBLISHED',
+      title: postData.title,
+      content_html: postData.content,
+      locale: postData.locale || 'en'
+    };
+    
     try {
-      // Call API to update post basic fields
-      const updateData = {
-        slug: postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-'),
-        status: postData.status.toUpperCase() as 'DRAFT' | 'PUBLISHED'
-      };
+      
+      console.log('Updating post via API with data:', updateData);
       
       // Update the post via API
-      const updatedPost = await postsApi.updatePost(postData.id, updateData as any);
+      const updatedPost = await postsApi.updatePost(postData.id, updateData);
       console.log('Post updated successfully:', updatedPost);
       
       // Reload posts for this specific hotel only
@@ -207,23 +261,7 @@ export const usePropertiesApi = () => {
         // Update only the posts for this hotel in the state
         setHotels(prev => prev.map(hotel => {
           if (hotel.id === hotelId) {
-            const updatedPosts: HotelPost[] = apiPosts.map(apiPost => ({
-              id: apiPost.id,
-              title: (apiPost as any).title || 'Untitled',
-              content: (apiPost as any).content_html || '',
-              excerpt: ((apiPost as any).content_html || '').replace(/<[^>]*>/g, '').substring(0, 150) + '...',
-              author: `User ${apiPost.created_by}`,
-              publishDate: new Date(apiPost.created_at).toLocaleDateString(),
-              status: apiPost.status.toLowerCase() as 'published' | 'draft',
-              hotelId: hotel.id,
-              locale: ((apiPost as any).locale as 'en' | 'vi' | 'ja') || 'en',
-              slug: apiPost.slug,
-              address: '',
-              phone: '',
-              vrLink: '',
-              createdAt: apiPost.created_at,
-              updatedAt: apiPost.updated_at || undefined
-            }));
+            const updatedPosts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotelId));
             
             console.log('Updated hotel posts:', updatedPosts);
             return { ...hotel, posts: updatedPosts };
@@ -239,6 +277,15 @@ export const usePropertiesApi = () => {
       }
     } catch (error) {
       console.error('Error updating post:', error);
+      if (error instanceof Error && 'response' in error) {
+        const axiosError = error as any;
+        console.error('Response data:', axiosError.response?.data);
+        if (axiosError.response?.data?.detail) {
+          console.error('Detailed errors:', axiosError.response.data.detail);
+        }
+        console.error('Response status:', axiosError.response?.status);
+        console.error('Update data was:', updateData);
+      }
       throw error;
     }
   };

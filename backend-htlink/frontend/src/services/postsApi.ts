@@ -48,7 +48,7 @@ export interface ApiPost {
   property_id?: number;
   feature_id?: number;
   slug: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   cover_media_id?: number;
   created_by: number;
   created_at: string;
@@ -84,14 +84,16 @@ export interface ApiPostWithTranslation {
 }
 
 export interface ApiPostCreate {
-  property_id?: number;
-  feature_id?: number;
+  property_id: number;  // Changed from optional to required to match backend
+  feature_id: number;   // Changed from optional to required to match backend
   slug: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   cover_media_id?: number;
+  pinned?: boolean;     // Added to match backend schema
+  locale?: string;      // Added to match backend schema
   // Translation data for primary locale
   title: string;
-  content: string;
+  content_html: string; // Changed from 'content' to 'content_html' to match backend
   excerpt?: string;
   meta_title?: string;
   meta_description?: string;
@@ -104,8 +106,14 @@ export interface ApiPostUpdate {
   property_id?: number;
   feature_id?: number;
   slug?: string;
-  status?: 'draft' | 'published' | 'archived';
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   cover_media_id?: number;
+  pinned?: boolean;
+  published_at?: string;
+  // Translation fields for updating content
+  title?: string;
+  content_html?: string;
+  locale?: string;
 }
 
 export interface ApiPostTranslationCreate {
@@ -137,7 +145,7 @@ class PostsApiService {
    */
   async getPostsByProperty(propertyId: number, options?: {
     featureId?: number;
-    status?: 'draft' | 'published' | 'archived';
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
     skip?: number;
     limit?: number;
   }): Promise<ApiPostWithTranslation[]> {
@@ -159,7 +167,7 @@ class PostsApiService {
   async getPosts(options?: {
     propertyId?: number;
     featureId?: number;
-    status?: 'draft' | 'published' | 'archived';
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
     skip?: number;
     limit?: number;
   }): Promise<ApiPostWithTranslation[]> {
