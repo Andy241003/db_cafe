@@ -182,16 +182,23 @@ def delete_user(
     """
     Delete a user. Only owners can delete users.
     """
+    print(f"🗑️ DELETE USER: current_user_role={current_user.role.lower()}, current_user_tenant_id={current_user.tenant_id}, header_tenant_id={tenant_id}")
+    
     # Only owners can delete users (case-insensitive)
     if current_user.role.lower() != "owner":
+        print(f"❌ DELETE USER: Role check failed - {current_user.role.lower()} != owner")
         raise HTTPException(status_code=403, detail="Only owners can delete users")
     
     user = crud.admin_user.get(session, id=user_id)
     if not user:
+        print(f"❌ DELETE USER: User {user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
+    
+    print(f"🗑️ DELETE USER: target_user_id={user_id}, target_user_tenant_id={user.tenant_id}")
     
     # Ensure user belongs to the same tenant
     if user.tenant_id != tenant_id:
+        print(f"❌ DELETE USER: Tenant mismatch - target_user_tenant_id={user.tenant_id} != header_tenant_id={tenant_id}")
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
     # Cannot delete yourself
