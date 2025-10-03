@@ -4,6 +4,7 @@ from .crud_content import (
     feature, feature_translation, property_category, property_feature,
     post, post_translation, media_file, post_media, event, setting
 )
+from . import property_posts
 
 # For backwards compatibility, also import the old single crud functions
 def create_user(session, user_create):
@@ -20,5 +21,6 @@ __all__ = [
     "property", "feature_category", "feature_category_translation",
     "feature", "feature_translation", "property_category", "property_feature",
     "post", "post_translation", "media_file", "post_media", "event", "setting",
+    "property_posts",
     "create_user", "create_admin_user"
 ]

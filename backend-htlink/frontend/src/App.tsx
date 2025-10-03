@@ -2,9 +2,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
-import { isAuthenticated } from './services/api';
+import { useAuth } from './hooks/useAuth';
 
 function App() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Router>
       <div className="App">
@@ -12,7 +14,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route 
             path="/" 
-            element={isAuthenticated() ? <MainLayout /> : <Navigate to="/login" replace />} 
+            element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" replace />} 
           />
           <Route path="/*" element={<MainLayout />} />
         </Routes>

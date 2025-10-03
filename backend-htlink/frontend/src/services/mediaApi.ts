@@ -98,7 +98,7 @@ class MediaApiService {
       formData.append('alt_text', altText);
     }
     
-    // Convert frontend kind to backend format
+    // Convert frontend kind to backend format (backend expects lowercase)
     const kindMapping: Record<string, string> = {
       'IMAGE': 'image',
       'VIDEO': 'video', 
@@ -117,7 +117,7 @@ class MediaApiService {
 
     // Generate URL based on file_key (this should match your actual file serving setup)
     const mediaFile = response.data;
-    const generatedUrl = `${API_BASE_URL}/media/files/${mediaFile.file_key}`;
+    const generatedUrl = `${API_BASE_URL}/media/${mediaFile.file_key}`;
     
     return {
       ...mediaFile,

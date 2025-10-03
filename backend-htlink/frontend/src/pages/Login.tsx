@@ -82,8 +82,12 @@ const Login: React.FC = () => {
         throw tenantError;
       }
       
-      // Step 4: Redirect to dashboard using React Router
-      navigate('/');
+      // Step 4: Trigger auth state change event
+      window.dispatchEvent(new Event('authStateChanged'));
+      
+      // Step 5: Redirect to dashboard using React Router
+      // Use replace to avoid going back to login page
+      navigate('/', { replace: true });
       
     } catch (err: any) {
       console.error('Login failed:', err);

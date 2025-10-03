@@ -239,7 +239,7 @@ class PostTranslationResponse(PostTranslationBase):
 
 # Media File schemas
 class MediaFileBase(BaseModel):
-    kind: MediaKind
+    kind: str  # Temporarily use str instead of MediaKind enum
     mime_type: Optional[str] = Field(None, max_length=120)
     file_key: str = Field(max_length=255)
     width: Optional[int] = None

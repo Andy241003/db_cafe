@@ -276,7 +276,7 @@ class MediaFile(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id")
     uploader_id: Optional[int] = Field(foreign_key="admin_users.id")
-    kind: MediaKind
+    kind: str  # Temporarily use str instead of MediaKind enum
     mime_type: Optional[str] = Field(max_length=120)
     file_key: str = Field(max_length=255)
     width: Optional[int] = None
@@ -501,6 +501,16 @@ class AnalyticsSummary(SQLModel, table=True):
     # Relationships
     tenant: Tenant = Relationship(back_populates="analytics_summaries")
 
+# Import property posts models
+from app.models.property_posts import (
+    PropertyPost, 
+    PropertyPostTranslation,
+    PropertyPostCreate,
+    PropertyPostUpdate,
+    PropertyPostRead,
+    PropertyPostTranslationRead
+)
+
 # Import all models to ensure they are registered
 __all__ = [
     "Plan", "Tenant", "Locale", "AdminUser", "Property",
@@ -512,6 +522,10 @@ __all__ = [
     "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
     # Analytics models
     "ActivityType", "PageView", "ActivityLog", "AnalyticsSummary",
+    # Property posts models
+    "PropertyPost", "PropertyPostTranslation",
+    "PropertyPostCreate", "PropertyPostUpdate", "PropertyPostRead", "PropertyPostTranslationRead",
+    # Schema models
     "AdminUserCreate", "AdminUserUpdate",
     "LocaleCreate", "LocaleUpdate",
     "FeatureTranslationCreate", "FeatureTranslationUpdate",
