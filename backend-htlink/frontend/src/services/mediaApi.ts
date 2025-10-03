@@ -1,10 +1,8 @@
 // src/services/mediaApi.ts
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/api';
 
-// Use the same API client setup as other services
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api/v1` 
-  : 'http://localhost:8000/api/v1';
+const API_BASE_URL = getApiBaseUrl();
 
 export const mediaApiClient = axios.create({
   baseURL: API_BASE_URL,
