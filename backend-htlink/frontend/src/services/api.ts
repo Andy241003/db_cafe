@@ -1,10 +1,10 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
+import { getApiBaseUrl } from '../utils/api';
 
 // API Base Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api/v1` 
-  : 'http://localhost:8000/api/v1';
+const API_BASE_URL = getApiBaseUrl();
+console.log('MainAPI - Using API_BASE_URL:', API_BASE_URL);
 
 // Create axios instance
 const apiClient = axios.create({

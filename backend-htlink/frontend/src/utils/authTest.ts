@@ -14,8 +14,11 @@ export const testAuth = () => {
   console.log('Setting tenant code:', tenantCode);
   localStorage.setItem('tenant_domain', tenantCode);
   
-  // Test API call
-  return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/test-token`, {
+  // Test API call - use same origin for production
+  const apiUrl = import.meta.env.VITE_API_URL || 
+    (window.location.protocol === 'https:' ? `${window.location.protocol}//${window.location.hostname}` : 'http://localhost:8000');
+  
+  return fetch(`${apiUrl}/api/v1/auth/test-token`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
