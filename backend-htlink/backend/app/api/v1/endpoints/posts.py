@@ -80,8 +80,8 @@ def create_post(
     if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    # Ensure the post is being created in the correct tenant
-    post_in.tenant_id = tenant_id
+    # Ensure the post is being created in the user's tenant
+    post_in.tenant_id = current_user.tenant_id
     post_in.created_by = current_user.id
     
     post = crud.post.create(session, obj_in=post_in)
@@ -122,22 +122,15 @@ def update_post(
     """
     Update post. Editors and above can update posts.
     """
-    print(f"✏️  UPDATE POST: user_role={current_user.role.upper()}, user_tenant_id={current_user.tenant_id}")
-    
     if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
-        print(f"❌ UPDATE POST: Role check failed - {current_user.role.upper()} not in [OWNER, ADMIN, EDITOR]")
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
     if not post:
-        print(f"❌ UPDATE POST: Post {post_id} not found")
         raise HTTPException(status_code=404, detail="Post not found")
-    
-    print(f"✏️  UPDATE POST: post_id={post_id}, post_tenant_id={post.tenant_id}, user_tenant_id={current_user.tenant_id}")
     
     # Check if user has access to this post's tenant
     if current_user.tenant_id != post.tenant_id:
-        print(f"❌ UPDATE POST: Tenant mismatch - user_tenant_id={current_user.tenant_id} != post_tenant_id={post.tenant_id}")
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.update(session, db_obj=post, obj_in=post_in)
@@ -157,22 +150,15 @@ def delete_post(
     """
     Delete post. Editors and above can delete posts.
     """
-    print(f"🗑️  DELETE POST: user_role={current_user.role.upper()}, user_tenant_id={current_user.tenant_id}")
-    
     if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
-        print(f"❌ DELETE POST: Role check failed - {current_user.role.upper()} not in [OWNER, ADMIN, EDITOR]")
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
     if not post:
-        print(f"❌ DELETE POST: Post {post_id} not found")
         raise HTTPException(status_code=404, detail="Post not found")
-    
-    print(f"🗑️  DELETE POST: post_id={post_id}, post_tenant_id={post.tenant_id}, user_tenant_id={current_user.tenant_id}")
     
     # Check if user has access to this post's tenant
     if current_user.tenant_id != post.tenant_id:
-        print(f"❌ DELETE POST: Tenant mismatch - user_tenant_id={current_user.tenant_id} != post_tenant_id={post.tenant_id}")
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     crud.post.remove(session, id=post_id)

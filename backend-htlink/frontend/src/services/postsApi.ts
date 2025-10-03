@@ -11,7 +11,8 @@ const apiClient = axios.create({
 
 // Auto-detect tenant code based on domain
 const getTenantCode = (): string => {
-  const savedTenant = localStorage.getItem('tenant_domain');
+  // First try tenant_code (used by login), then tenant_domain (backup)
+  const savedTenant = localStorage.getItem('tenant_code') || localStorage.getItem('tenant_domain');
   if (savedTenant) return savedTenant;
   
   const hostname = window.location.hostname;
