@@ -4,7 +4,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, MediaFile
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -52,3 +52,24 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.commit()
     session.refresh(db_item)
     return db_item
+
+
+# Media File CRUD operations
+class MediaFileCRUD:
+    def get(self, db: Session, id: int) -> MediaFile | None:
+        statement = select(MediaFile).where(MediaFile.id == id)
+        return db.exec(statement).first()
+    
+    def get_by_tenant(self, db: Session, tenant_id: int, skip: int = 0, limit: int = 100) -> list[MediaFile]:
+        statement = select(MediaFile).where(MediaFile.tenant_id == tenant_id).offset(skip).limit(limit)
+        return list(db.exec(statement))
+    
+    def remove(self, db: Session, id: int) -> MediaFile | None:
+        statement = select(MediaFile).where(MediaFile.id == id)
+        media_file = db.exec(statement).first()
+        if media_file:
+            db.delete(media_file)
+            db.commit()
+        return media_file
+
+media_file = MediaFileCRUD()

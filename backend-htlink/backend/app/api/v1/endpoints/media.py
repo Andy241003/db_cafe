@@ -7,6 +7,7 @@ from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import MediaFile
 from app.schemas import MediaFileResponse, MediaFileCreate
 from app import crud
+from app.crud import media_file
 import sys
 
 print(" MEDIA.PY FILE LOADED!", flush=True, file=sys.stderr)
@@ -43,11 +44,20 @@ async def upload_media_file(
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
     
-    # Validate file type
-    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    # Validate file type and auto-detect kind
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.pdf', '.doc', '.docx', '.txt'}
     file_ext = Path(file.filename).suffix.lower()
     if file_ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Invalid file type")
+    
+    # Auto-detect kind from file type if not provided
+    if not kind:
+        if file_ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp'}:
+            kind = "image"
+        elif file_ext in {'.mp4', '.mov', '.avi'}:
+            kind = "video"
+        else:
+            kind = "file"  # Use "file" instead of "document"
     
     try:
         # Generate unique filename
@@ -61,8 +71,7 @@ async def upload_media_file(
             f.write(content)
         
         # Create database record  
-        # Use string directly since schema now accepts str
-        kind_value = kind or "image"  # default to "image"
+        kind_value = kind
             
         media_data = MediaFileCreate(
             file_key=file_key,
@@ -126,7 +135,7 @@ def read_media_files(
     limit: int = 100,
 ) -> Any:
     """Get media files for current tenant"""
-    media_files = crud.media_file.get_by_tenant(
+    media_files = media_file.get_by_tenant(
         db=session, tenant_id=tenant_id, skip=skip, limit=limit
     )
     return media_files
@@ -148,3 +157,153 @@ async def serve_media_file(file_key: str):
     response.headers["Access-Control-Allow-Headers"] = "*"
     
     return response
+
+
+@router.get("/{media_id}/download")
+async def download_media_file(
+    media_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    """Download media file by ID with proper headers"""
+    # Get media file from database
+    media_file_obj = media_file.get(db=session, id=media_id)
+    if not media_file_obj:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    
+    # Check tenant access
+    if media_file_obj.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if physical file exists
+    file_path = UPLOAD_DIR / media_file_obj.file_key
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Physical file not found")
+    
+    from fastapi.responses import FileResponse
+    
+    # Get original filename from file_key or create a proper filename
+    file_extension = Path(media_file_obj.file_key).suffix
+    filename = f"download_{media_file_obj.id}{file_extension}"
+    
+    # For images, force download by using octet-stream
+    # This prevents browser from trying to display the image inline
+    if media_file_obj.mime_type and media_file_obj.mime_type.startswith('image/'):
+        media_type = 'application/octet-stream'
+    else:
+        media_type = media_file_obj.mime_type or 'application/octet-stream'
+    
+    # Create response with download headers
+    response = FileResponse(
+        file_path,
+        filename=filename,
+        media_type=media_type
+    )
+    
+    # Force download instead of inline display for all files
+    response.headers["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+    
+    # Add CORS headers
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+    
+    return response
+
+
+@router.put("/{media_id}")
+async def update_media_file(
+    media_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    alt_text: Optional[str] = None,
+    kind: Optional[str] = None,
+):
+    """Update media file information"""
+    # Check permissions
+    allowed_roles = ["OWNER", "ADMIN", "EDITOR"]
+    if current_user.role.upper() not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Get media file
+    media_file_obj = media_file.get(db=session, id=media_id)
+    if not media_file_obj:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    
+    # Check tenant access
+    if media_file_obj.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Validate kind if provided
+    if kind:
+        valid_kinds = ["image", "video", "file", "icon"]
+        if kind not in valid_kinds:
+            raise HTTPException(status_code=400, detail=f"Invalid kind. Must be one of: {', '.join(valid_kinds)}")
+    
+    try:
+        # Update fields
+        if alt_text is not None:
+            media_file_obj.alt_text = alt_text
+        if kind is not None:
+            media_file_obj.kind = kind
+        
+        session.commit()
+        session.refresh(media_file_obj)
+        
+        return {
+            "id": media_file_obj.id,
+            "tenant_id": media_file_obj.tenant_id,
+            "uploader_id": media_file_obj.uploader_id,
+            "kind": media_file_obj.kind,
+            "mime_type": media_file_obj.mime_type,
+            "file_key": media_file_obj.file_key,
+            "size_bytes": media_file_obj.size_bytes,
+            "alt_text": media_file_obj.alt_text,
+            "created_at": media_file_obj.created_at.isoformat(),
+            "updated_at": media_file_obj.updated_at.isoformat() if media_file_obj.updated_at else None
+        }
+        
+    except Exception as e:
+        print(f"❌ Update error: {str(e)}", flush=True, file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+
+
+@router.delete("/{media_id}")
+async def delete_media_file(
+    media_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    """Delete media file"""
+    # Check permissions
+    allowed_roles = ["OWNER", "ADMIN", "EDITOR"]
+    if current_user.role.upper() not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Get media file
+    media_file_obj = media_file.get(db=session, id=media_id)
+    if not media_file_obj:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    
+    # Check tenant access
+    if media_file_obj.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        # Delete physical file
+        file_path = UPLOAD_DIR / media_file_obj.file_key
+        if file_path.exists():
+            file_path.unlink()
+        
+        # Delete from database
+        media_file.remove(db=session, id=media_id)
+        
+        return {"message": "Media file deleted successfully"}
+        
+    except Exception as e:
+        print(f"❌ Delete error: {str(e)}", flush=True, file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")

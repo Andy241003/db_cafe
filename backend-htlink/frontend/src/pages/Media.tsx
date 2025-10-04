@@ -23,6 +23,9 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
+import { Upload as AntUpload, Button, message, Popconfirm, Space, Table, Modal } from 'antd';
+import { UploadOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
 import { mediaApi, type MediaFile as ApiMediaFile } from '../services/mediaApi';
 
 interface MediaFile {
@@ -69,6 +72,12 @@ export default function MediaLibrary() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [currentMediaFile, setCurrentMediaFile] = useState<MediaFile | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingFile, setEditingFile] = useState<MediaFile | null>(null);
+  const [editForm, setEditForm] = useState<{altText: string; kind: 'image' | 'video' | 'document'}>({
+    altText: '',
+    kind: 'image'
+  });
   const [icons, setIcons] = useState<IconFile[]>([
     { id: '1', name: 'wifi.png', preview: 'wifi' },
     { id: '2', name: 'pool.svg', preview: 'waves' },
@@ -83,11 +92,12 @@ export default function MediaLibrary() {
   // Convert API response to frontend format
   const convertApiMediaFile = (apiFile: ApiMediaFile): MediaFile => {
     const getFileType = (kind: string): 'image' | 'video' | 'document' => {
-      switch (kind) {
-        case 'IMAGE': return 'image';
-        case 'VIDEO': return 'video';
-        case 'DOCUMENT':
-        case 'AUDIO':
+      switch (kind.toLowerCase()) {
+        case 'image': return 'image';
+        case 'video': return 'video';
+        case 'file':
+        case 'document':
+        case 'audio':
         default: return 'document';
       }
     };
@@ -254,11 +264,11 @@ export default function MediaLibrary() {
     try {
       const fileArray = Array.from(files);
       const uploadPromises = fileArray.map(async (file) => {
-        // Determine file kind based on mime type
-        let kind: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' = 'DOCUMENT';
-        if (file.type.startsWith('image/')) kind = 'IMAGE';
-        else if (file.type.startsWith('video/')) kind = 'VIDEO';
-        else if (file.type.startsWith('audio/')) kind = 'AUDIO';
+        // Determine file kind based on mime type - use lowercase to match backend
+        let kind: 'image' | 'video' | 'file' = 'file';
+        if (file.type.startsWith('image/')) kind = 'image';
+        else if (file.type.startsWith('video/')) kind = 'video';
+        // All other files use 'file' kind
 
         return await mediaApi.uploadFile(file, kind);
       });
@@ -349,19 +359,46 @@ export default function MediaLibrary() {
     setIsModalOpen(true);
   };
 
-  const downloadMedia = (fileName: string) => {
-    alert(`Downloading ${fileName}...\n\nIn a real implementation, this would trigger a file download.`);
+  const downloadMedia = async (file: MediaFile) => {
+    try {
+      console.log(`🔽 Download request for file:`, file);
+      
+      // Always use API download for better control
+      if (file.id && !isNaN(Number(file.id))) {
+        console.log(`📋 Using API download for file ID: ${file.id}`);
+        await mediaApi.downloadMediaFile(Number(file.id), file.name);
+        message.success(`Started downloading ${file.name}`);
+      } else {
+        // Fallback: show alert for mock files
+        console.log(`⚠️ Mock file download:`, file);
+        message.info(`${file.name} is a demo file - download not available`);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(`Failed to download ${file.name}. Please try again.`);
+    }
   };
 
-  const deleteMedia = (fileId: string, fileName: string) => {
-    if (window.confirm(`Are you sure you want to delete ${fileName}? This action cannot be undone.`)) {
+  const deleteMedia = async (fileId: string, fileName: string) => {
+    try {
+      setLoading(true);
+      // Call API to delete file
+      await mediaApi.deleteMediaFile(parseInt(fileId));
+      
+      // Update UI after successful deletion
       setMedia(prev => prev.filter(file => file.id !== fileId));
       setSelectedFiles(prev => {
         const newSet = new Set(prev);
         newSet.delete(fileId);
         return newSet;
       });
-      alert(`${fileName} deleted successfully!`);
+      
+      message.success(`${fileName} deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      message.error(`Failed to delete ${fileName}. Please try again.`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -373,10 +410,6 @@ export default function MediaLibrary() {
   };
 
   const bulkDelete = async () => {
-    if (!window.confirm(`Permanently delete ${selectedFiles.size} selected files? This action cannot be undone.`)) {
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -390,13 +423,14 @@ export default function MediaLibrary() {
       // Reload media files to reflect deletions
       await loadMediaFiles();
       
+      const deletedCount = selectedFiles.size;
       setSelectedFiles(new Set());
-      alert(`${selectedFiles.size} files deleted successfully!`);
+      message.success(`${deletedCount} files deleted successfully!`);
       
     } catch (err: any) {
       const errorMessage = `Failed to delete files: ${err.message || 'Unknown error'}`;
       setError(errorMessage);
-      alert(errorMessage);
+      message.error(errorMessage);
       console.error('Delete error:', err);
     } finally {
       setLoading(false);
@@ -426,10 +460,26 @@ export default function MediaLibrary() {
   //   }
   // };
 
-  const bulkDownload = () => {
-    if (window.confirm(`Download ${selectedFiles.size} selected files as ZIP archive?`)) {
-      alert(`Downloading ${selectedFiles.size} files...\n\nIn a real implementation, this would create a ZIP archive with all selected files.`);
+  const bulkDownload = async () => {
+    if (!window.confirm(`Download ${selectedFiles.size} selected files?`)) {
+      return;
+    }
+
+    const selectedFilesArray = media.filter(file => selectedFiles.has(file.id));
+    
+    try {
+      // Download each file individually
+      for (const file of selectedFilesArray) {
+        await downloadMedia(file);
+        // Small delay between downloads to avoid overwhelming the browser
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       setSelectedFiles(new Set());
+      alert(`Successfully started download of ${selectedFilesArray.length} files.`);
+    } catch (error) {
+      console.error('Bulk download error:', error);
+      alert('Some files failed to download. Please try again.');
     }
   };
 
@@ -443,6 +493,49 @@ export default function MediaLibrary() {
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentMediaFile(null);
+  };
+
+  const openEditModal = (file: MediaFile) => {
+    setEditingFile(file);
+    setEditForm({
+      altText: file.contentType || '', // Use contentType as alt text initially
+      kind: file.type
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingFile(null);
+    setEditForm({ altText: '', kind: 'image' });
+  };
+
+  const handleUpdateFile = async () => {
+    if (!editingFile) return;
+    
+    try {
+      setLoading(true);
+      
+      // Convert frontend kind to backend format
+      const backendKind = editForm.kind === 'document' ? 'file' : editForm.kind;
+      
+      await mediaApi.updateMediaFile(Number(editingFile.id), {
+        alt_text: editForm.altText,
+        kind: backendKind as 'image' | 'video' | 'file'
+      });
+
+      // Reload media files to reflect changes
+      await loadMediaFiles();
+      
+      message.success('File details updated successfully!');
+      closeEditModal();
+      
+    } catch (error) {
+      console.error('Error updating file:', error);
+      message.error('Failed to update file details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -665,13 +758,21 @@ export default function MediaLibrary() {
                 <Download className="w-3 h-3 inline mr-1" />
                 Download
               </button>
-              <button
-                onClick={bulkDelete}
-                className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-md text-xs font-medium hover:bg-white/30 transition-colors"
+              <Popconfirm
+                title="Delete Multiple Files"
+                description={`Are you sure you want to permanently delete ${selectedFiles.size} selected files? This action cannot be undone.`}
+                onConfirm={bulkDelete}
+                okText="Yes, Delete All"
+                cancelText="Cancel"
+                okType="danger"
               >
-                <Trash2 className="w-3 h-3 inline mr-1" />
-                Delete
-              </button>
+                <button
+                  className="px-3 py-1.5 bg-white/20 border border-white/30 rounded-md text-xs font-medium hover:bg-white/30 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3 inline mr-1" />
+                  Delete
+                </button>
+              </Popconfirm>
             </div>
           </div>
         )}
@@ -719,19 +820,27 @@ export default function MediaLibrary() {
                     <Eye className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={() => downloadMedia(file.name)}
+                    onClick={() => downloadMedia(file)}
                     className="p-1 text-white hover:bg-white/20 rounded"
                     title="Download"
                   >
                     <Download className="w-3 h-3" />
                   </button>
-                  <button
-                    onClick={() => deleteMedia(file.id, file.name)}
-                    className="p-1 text-white hover:bg-white/20 rounded"
-                    title="Delete"
+                  <Popconfirm
+                    title="Delete File"
+                    description={`Are you sure you want to delete "${file.name}"? This action cannot be undone.`}
+                    onConfirm={() => deleteMedia(file.id, file.name)}
+                    okText="Yes, Delete"
+                    cancelText="Cancel"
+                    okType="danger"
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                    <button
+                      className="p-1 text-white hover:bg-white/20 rounded"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </Popconfirm>
                 </div>
 
                 {/* Preview */}
@@ -817,7 +926,7 @@ export default function MediaLibrary() {
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => downloadMedia(file.name)}
+                    onClick={() => downloadMedia(file)}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                   >
                     <Download className="w-4 h-4" />
@@ -959,16 +1068,14 @@ export default function MediaLibrary() {
             {/* Modal Actions */}
             <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
               <button
-                onClick={() => downloadMedia(currentMediaFile.name)}
+                onClick={() => downloadMedia(currentMediaFile)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Download
               </button>
               <button
-                onClick={() => {
-                  alert(`Editing details for ${currentMediaFile.name}...\n\nThis would open a form to edit file name, alt text, description, etc.`);
-                }}
+                onClick={() => openEditModal(currentMediaFile)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <FileText className="w-4 h-4" />
@@ -983,6 +1090,89 @@ export default function MediaLibrary() {
               >
                 <Check className="w-4 h-4" />
                 Use in Content
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingFile && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeEditModal();
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-gray-900">Edit File Details</h3>
+              <button
+                onClick={closeEditModal}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  File Name
+                </label>
+                <input
+                  type="text"
+                  value={editingFile.name}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">File name cannot be changed</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alt Text / Description
+                </label>
+                <textarea
+                  value={editForm.altText}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, altText: e.target.value }))}
+                  placeholder="Enter alt text or description for this file..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  File Type
+                </label>
+                <select
+                  value={editForm.kind}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, kind: e.target.value as 'image' | 'video' | 'document' }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                  <option value="document">Document</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={closeEditModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateFile}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Updating...' : 'Update'}
               </button>
             </div>
           </div>

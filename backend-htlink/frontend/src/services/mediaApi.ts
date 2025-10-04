@@ -57,7 +57,7 @@ export interface MediaFile {
   id: number;
   tenant_id: number;
   uploader_id: number;
-  kind: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO';
+  kind: 'image' | 'video' | 'file';
   mime_type: string;
   file_key: string;
   size_bytes: number;
@@ -80,7 +80,7 @@ class MediaApiService {
    */
   async uploadFile(
     file: File, 
-    kind: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' = 'IMAGE',
+    kind: 'image' | 'video' | 'file' = 'image',
     altText?: string
   ): Promise<UploadResponse> {
     const formData = new FormData();
@@ -90,14 +90,8 @@ class MediaApiService {
       formData.append('alt_text', altText);
     }
     
-    // Convert frontend kind to backend format (backend expects lowercase)
-    const kindMapping: Record<string, string> = {
-      'IMAGE': 'image',
-      'VIDEO': 'video', 
-      'DOCUMENT': 'file',
-      'AUDIO': 'file' // Backend doesn't have audio, use file
-    };
-    const backendKind = kindMapping[kind] || 'file';
+    // Use kind directly since backend now expects lowercase
+    const backendKind = kind;
     console.log('🔄 Converting kind:', kind, '→', backendKind);
 
     // Kind goes in query params, not form data - BACK TO ORIGINAL
@@ -122,7 +116,7 @@ class MediaApiService {
    */
   async uploadFiles(
     files: File[], 
-    kind: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' = 'IMAGE'
+    kind: 'image' | 'video' | 'file' = 'image'
   ): Promise<UploadResponse[]> {
     console.log('🔄 Uploading', files.length, 'files with kind:', kind);
     const uploadPromises = files.map(file => this.uploadFile(file, kind));
@@ -133,7 +127,7 @@ class MediaApiService {
    * Get all media files
    */
   async getMediaFiles(
-    kind?: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO',
+    kind?: 'image' | 'video' | 'file',
     skip = 0,
     limit = 100
   ): Promise<MediaFile[]> {
@@ -158,7 +152,102 @@ class MediaApiService {
    * Delete media file
    */
   async deleteMediaFile(mediaId: number): Promise<void> {
-    await mediaApiClient.delete(`/media/${mediaId}`);
+    try {
+      await mediaApiClient.delete(`/media/${mediaId}`);
+    } catch (error) {
+      console.error('Delete API error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download media file
+   */
+  async downloadMediaFile(mediaId: number, filename: string): Promise<void> {
+    try {
+      console.log(`🔽 Downloading file ID: ${mediaId}, filename: ${filename}`);
+      
+      const response = await mediaApiClient.get(`/media/${mediaId}/download`, {
+        responseType: 'blob',
+        timeout: 30000, // 30 second timeout for large files
+      });
+      
+      console.log(`📦 Received blob:`, response.data);
+      console.log(`📋 Content type:`, response.headers['content-type']);
+      console.log(`📏 File size:`, response.data.size);
+      
+      // Create blob with proper content type
+      const contentType = response.headers['content-type'] || 'application/octet-stream';
+      const blob = new Blob([response.data], { type: contentType });
+      
+      // Get filename from Content-Disposition header if available
+      const contentDisposition = response.headers['content-disposition'];
+      let downloadFilename = filename;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      console.log(`💾 Downloading as: ${downloadFilename}`);
+      
+      // Create blob URL and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = downloadFilename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      console.error('Download API error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update media file information
+   */
+  async updateMediaFile(
+    mediaId: number,
+    updates: {
+      alt_text?: string;
+      kind?: 'image' | 'video' | 'file';
+    }
+  ): Promise<MediaFile> {
+    const params = new URLSearchParams();
+    if (updates.alt_text !== undefined) {
+      params.append('alt_text', updates.alt_text);
+    }
+    if (updates.kind) {
+      params.append('kind', updates.kind);
+    }
+
+    const response = await mediaApiClient.put(`/media/${mediaId}?${params.toString()}`);
+    return response.data;
+  }
+
+  /**
+   * Get media file URL for direct access
+   */
+  getMediaFileUrl(mediaId: number): string {
+    const token = localStorage.getItem('access_token');
+    const tenantCode = getTenantCode();
+    const baseUrl = `${API_BASE_URL}/media/${mediaId}/download`;
+    
+    // Add auth params to URL for direct access
+    const params = new URLSearchParams();
+    if (token) params.append('token', token);
+    if (tenantCode) params.append('tenant', tenantCode);
+    
+    return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
   }
 }
 
