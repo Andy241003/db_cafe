@@ -75,10 +75,6 @@ class Tenant(SQLModel, table=True):
     posts: List["Post"] = Relationship(back_populates="tenant")
     media_files: List["MediaFile"] = Relationship(back_populates="tenant")
     events: List["Event"] = Relationship(back_populates="tenant")
-    # Analytics relationships
-    page_views: List["PageView"] = Relationship(back_populates="tenant")
-    activity_logs: List["ActivityLog"] = Relationship(back_populates="tenant")
-    analytics_summaries: List["AnalyticsSummary"] = Relationship(back_populates="tenant")
 
 
 # Locale model
@@ -106,9 +102,6 @@ class AdminUser(SQLModel, table=True):
     
     # Relationships
     tenant: Tenant = Relationship(back_populates="admin_users")
-    # Analytics relationships
-    page_views: List["PageView"] = Relationship(back_populates="user")
-    activity_logs: List["ActivityLog"] = Relationship(back_populates="user")
 
 
 # Property model
@@ -159,6 +152,7 @@ class Property(SQLModel, table=True):
     timezone: Optional[str] = Field(max_length=60)
     default_locale: str = Field(max_length=10)
     settings_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    tracking_key: Optional[str] = Field(max_length=64, unique=True)  # For analytics tracking
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
@@ -302,15 +296,11 @@ class PostMedia(SQLModel, table=True):
 class Event(SQLModel, table=True):
     __tablename__ = "events"
     
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     tenant_id: int = Field(foreign_key="tenants.id")
-    property_id: int = Field(foreign_key="properties.id")
-    category_id: Optional[int] = Field(foreign_key="feature_categories.id")
-    feature_id: Optional[int] = Field(foreign_key="features.id")
-    post_id: Optional[int] = Field(foreign_key="posts.id")
-    locale: Optional[str] = Field(max_length=10)
-    event_type: EventType
-    device: Optional[DeviceType] = None
+    property_id: int = Field(foreign_key="properties.id") 
+    event_type: EventType = Field(sa_column=Column(Enum("page_view", "click", "share", name="eventtype")))
+    device: Optional[DeviceType] = Field(default=None, sa_column=Column(Enum("desktop", "tablet", "mobile", name="devicetype")))
     user_agent: Optional[str] = Field(max_length=255)
     ip_hash: Optional[str] = Field(max_length=64)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -430,56 +420,64 @@ class PropertyCategoryUpdate(SQLModel):
 class ActivityType(str, enum.Enum):
     LOGIN = "login"
     LOGOUT = "logout"
+
     CREATE_CATEGORY = "create_category"
     UPDATE_CATEGORY = "update_category"
     DELETE_CATEGORY = "delete_category"
+
     CREATE_FEATURE = "create_feature"
     UPDATE_FEATURE = "update_feature"
     DELETE_FEATURE = "delete_feature"
+
     UPLOAD_MEDIA = "upload_media"
     DELETE_MEDIA = "delete_media"
+
     CREATE_USER = "create_user"
     UPDATE_USER = "update_user"
     DELETE_USER = "delete_user"
+
+    CREATE_POST = "create_post"
+    UPDATE_POST = "update_post"
+    DELETE_POST = "delete_post"
+
+    CREATE_PROPERTY = "create_property"
+    UPDATE_PROPERTY = "update_property" 
+    DELETE_PROPERTY = "delete_property"
+
+    USER_CREATE_SETTINGS = "user_create_settings"
+    USER_UPDATE_SETTINGS = "user_update_settings"
+    USER_DELETE_SETTINGS = "user_delete_settings"
+
+    # System events 
+
     SYSTEM_UPDATE = "system_update"
 
-class PageView(SQLModel, table=True):
-    """Track page views for analytics"""
-    __tablename__ = "page_views"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
-    page_path: str = Field(max_length=255)
-    ip_address: Optional[str] = Field(default=None, max_length=45)
-    user_agent: Optional[str] = Field(default=None, max_length=500)
-    referrer: Optional[str] = Field(default=None, max_length=500)
-    session_id: Optional[str] = Field(default=None, max_length=100)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="page_views")
-    user: Optional[AdminUser] = Relationship(back_populates="page_views")
+# PageView model not needed - using Event model for analytics tracking
+# class AnalyticsPageView(SQLModel, table=True):
+#     """Track page views for analytics"""
+#     __tablename__ = "page_views"
+#     
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     tenant_id: int = Field(foreign_key="tenants.id")
+#     user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
+#     path: str = Field(max_length=255)
+#     ip_address: Optional[str] = Field(default=None, max_length=45)
+#     user_agent: Optional[str] = Field(default=None, max_length=500)
+#     referrer: Optional[str] = Field(default=None, max_length=500)
+#     session_id: Optional[str] = Field(default=None, max_length=100)
+#     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ActivityLog(SQLModel, table=True):
     """Track user activities for audit trail"""
     __tablename__ = "activity_logs"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
-    activity_type: ActivityType
-    entity_type: Optional[str] = Field(default=None, max_length=50)  # category, feature, user, etc.
-    entity_id: Optional[int] = Field(default=None)
-    description: str = Field(max_length=500)
-    extra_data: Optional[str] = Field(default=None)  # JSON string for extra data
-    ip_address: Optional[str] = Field(default=None, max_length=45)
-    user_agent: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="activity_logs")
-    user: Optional[AdminUser] = Relationship(back_populates="activity_logs")
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    activity_type: ActivityType = Field(
+        sa_column=Column("activity_type", SQLModel.metadata.tables.get("activity_logs"), nullable=False)
+    )
+    details: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 class AnalyticsSummary(SQLModel, table=True):
     """Daily/Monthly analytics summary for performance"""
@@ -487,21 +485,13 @@ class AnalyticsSummary(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id")
-    date: datetime = Field(index=True)
+    date: datetime = Field(sa_column=Column(DateTime, index=True))
     period_type: str = Field(max_length=10)  # daily, monthly
     total_page_views: int = Field(default=0)
     unique_visitors: int = Field(default=0)
     total_activities: int = Field(default=0)
-    categories_created: int = Field(default=0)
-    features_created: int = Field(default=0)
-    users_active: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default=None)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="analytics_summaries")
-
-# Import property posts models
+    updated_at: Optional[datetime] = Field(default=None)# Import property posts models
 from app.models.property_posts import (
     PropertyPost, 
     PropertyPostTranslation,
@@ -521,7 +511,7 @@ __all__ = [
     "Event", "Setting",
     "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
     # Analytics models
-    "ActivityType", "PageView", "ActivityLog", "AnalyticsSummary",
+    "ActivityType", "ActivityLog", "AnalyticsSummary",
     # Property posts models
     "PropertyPost", "PropertyPostTranslation",
     "PropertyPostCreate", "PropertyPostUpdate", "PropertyPostRead", "PropertyPostTranslationRead",
@@ -532,5 +522,7 @@ __all__ = [
     "PostTranslationCreate", "PostTranslationUpdate",
     "FeatureCategoryTranslationCreate", "FeatureCategoryTranslationUpdate",
     "FeatureCategoryCreate", "FeatureCategoryUpdate",
-    "PropertyCategoryCreate", "PropertyCategoryUpdate"
+    "PropertyCategoryCreate", "PropertyCategoryUpdate",
+    # Analytics models
+    "ActivityLog", "AnalyticsSummary", "ActivityType"
 ]

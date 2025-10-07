@@ -14,9 +14,9 @@ class UserRole(str, PythonEnum):
 
 
 class PostStatus(str, PythonEnum):
-    DRAFT = "draft"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
 
 
 class EventType(str, PythonEnum):

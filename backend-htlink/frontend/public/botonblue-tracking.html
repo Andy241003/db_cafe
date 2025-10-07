@@ -1,0 +1,105 @@
+<!-- 
+  Tracking Script for Boton Blue Resort (botonblue.trip360.vn)
+  Add this to the <head> section of your website
+-->
+<script>
+(function() {
+  'use strict';
+  
+  const CONFIG = {
+    API_BASE_URL: 'http://localhost:8000/api/v1/analytics', // Change to production URL
+    TRACKING_KEY: 'botonblue-tracking-key',
+    DEBUG: false
+  };
+
+  const log = (...args) => CONFIG.DEBUG && console.log('[Analytics]', ...args);
+
+  const getDeviceType = () => {
+    const width = window.innerWidth;
+    return width <= 768 ? 'mobile' : width <= 1024 ? 'tablet' : 'desktop';
+  };
+
+  const getSessionId = () => {
+    let sessionId = sessionStorage.getItem('hotel_analytics_session');
+    if (!sessionId) {
+      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      sessionStorage.setItem('hotel_analytics_session', sessionId);
+    }
+    return sessionId;
+  };
+
+  const trackEvent = async (eventType, data = {}) => {
+    try {
+      const eventData = {
+        tracking_key: CONFIG.TRACKING_KEY,
+        event_type: eventType,
+        device: getDeviceType(),
+        user_agent: navigator.userAgent,
+        url: window.location.href,
+        referrer: document.referrer || undefined,
+        page_title: document.title,
+        session_id: getSessionId(),
+        timestamp: new Date().toISOString(),
+        ...data
+      };
+
+      log('Tracking:', eventType, eventData);
+
+      const response = await fetch(`${CONFIG.API_BASE_URL}/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        log('Success:', result);
+        return result;
+      }
+    } catch (error) {
+      console.error('Analytics error:', error);
+    }
+  };
+
+  // Auto-track page views
+  const trackPageView = () => trackEvent('page_view', {
+    viewport_width: window.innerWidth,
+    viewport_height: window.innerHeight,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    language: navigator.language
+  });
+
+  // Track clicks
+  document.addEventListener('click', (e) => {
+    const element = e.target.closest('a, button');
+    if (element) {
+      trackEvent('click', {
+        element_tag: element.tagName.toLowerCase(),
+        element_text: element.textContent?.trim().substring(0, 100) || '',
+        element_href: element.href || '',
+        element_id: element.id || ''
+      });
+    }
+  });
+
+  // Track form submissions
+  document.addEventListener('submit', (e) => {
+    if (e.target.tagName === 'FORM') {
+      trackEvent('form_submit', {
+        form_id: e.target.id || '',
+        form_action: e.target.action || ''
+      });
+    }
+  });
+
+  // Initialize
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', trackPageView);
+  } else {
+    trackPageView();
+  }
+
+  // Expose global function
+  window.HotelAnalytics = { track: trackEvent };
+})();
+</script>

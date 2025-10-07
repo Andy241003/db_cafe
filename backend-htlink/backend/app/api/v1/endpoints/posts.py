@@ -67,6 +67,7 @@ def read_posts(
 
 
 @router.post("/", response_model=PostWithTranslationResponse)
+@router.post("", response_model=PostWithTranslationResponse)
 def create_post(
     *,
     session: SessionDep,

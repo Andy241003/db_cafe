@@ -77,6 +77,9 @@ app = FastAPI(
     }
 )
 
+# Set max file size to 100MB
+app.router.max_request_size = 100 * 1024 * 1024  # 100MB in bytes
+
 
 # Add proxy headers middleware to handle HTTPS termination
 app.add_middleware(ProxyHeadersMiddleware)
@@ -85,9 +88,15 @@ app.add_middleware(ProxyHeadersMiddleware)
 app.add_middleware(AutoTenantMiddleware)
 
 # Set all CORS enabled origins - Always allow for development
+# Restrict CORS origins for development: allow the local frontend dev server(s)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

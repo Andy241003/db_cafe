@@ -50,6 +50,13 @@ export const HotelItem: React.FC<HotelItemProps> = ({
   const statusClass = hotel.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   const statusText = hotel.status === 'active' ? 'Active' : 'Inactive';
 
+  // Tạo link visit site
+  const visitUrl = hotel.website_url && hotel.website_url.trim() !== ''
+    ? hotel.website_url
+    : hotel.code
+      ? `https://${hotel.code}.trip360.vn`
+      : '';
+
   return (
     <div className="border-b border-slate-200 last:border-b-0">
       <div 
@@ -80,12 +87,23 @@ export const HotelItem: React.FC<HotelItemProps> = ({
                   VR Tour
                 </a>
               )}
+              {visitUrl && (
+                <a
+                  href={visitUrl}
+                  className="flex items-center gap-1.5 text-blue-600 hover:underline ml-2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Visit Site"
+                  onClick={e => e.stopPropagation()}
+                >
+                  🌐 Visit Site
+                </a>
+              )}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClass}`}>{statusText}</span>
-          
           {/* Hotel Actions */}
           <div className="flex items-center gap-2">
             <button
@@ -109,7 +127,6 @@ export const HotelItem: React.FC<HotelItemProps> = ({
               <FontAwesomeIcon icon={faTrash} size="sm" />
             </button>
           </div>
-          
           <FontAwesomeIcon 
             icon={faChevronDown} 
             className={`text-slate-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 

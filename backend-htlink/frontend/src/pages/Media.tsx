@@ -85,6 +85,7 @@ export default function MediaLibrary() {
     { id: '4', name: 'spa.png', preview: 'sparkles' },
     { id: '5', name: 'parking.svg', preview: 'car' }
   ]);
+  const [folders, setFolders] = useState<string[]>(['rooms', 'facilities', 'food', 'documents']);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
@@ -122,15 +123,19 @@ export default function MediaLibrary() {
       ? `${import.meta.env.VITE_API_URL}/api/v1` 
       : 'http://localhost:8000/api/v1';
     const fileUrl = `${API_BASE_URL}/media/${apiFile.file_key}`;
+    
+    // For videos, we don't want to use the file URL as preview to avoid loading full video
+    const fileType = getFileType(apiFile.kind);
+    const preview = fileType === 'image' ? fileUrl : undefined;
 
     return {
       id: apiFile.id.toString(),
       name: apiFile.file_key.split('/').pop() || apiFile.file_key, // Extract filename from file_key
-      type: getFileType(apiFile.kind),
+      type: fileType,
       size: formatFileSize(apiFile.size_bytes),
       sizeBytes: apiFile.size_bytes / 1024 / 1024, // Convert to MB
       folder: getFolder(apiFile.file_key),
-      preview: fileUrl,
+      preview: preview,
       url: fileUrl,
       contentType: apiFile.mime_type,
       uploadDate: new Date(apiFile.created_at).toLocaleDateString('en-US', {
@@ -258,11 +263,25 @@ export default function MediaLibrary() {
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
+    // Check file size limit (100MB per file)
+    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    const fileArray = Array.from(files);
+    const oversizedFiles = fileArray.filter(file => file.size > maxSize);
+    
+    if (oversizedFiles.length > 0) {
+      const oversizedFileNames = oversizedFiles.map(file => 
+        `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`
+      ).join('\n');
+      const errorMessage = `Following files exceed 100MB limit:\n${oversizedFileNames}`;
+      setError(errorMessage);
+      message.error(errorMessage);
+      return;
+    }
+
     setUploading(true);
     setError(null);
 
     try {
-      const fileArray = Array.from(files);
       const uploadPromises = fileArray.map(async (file) => {
         // Determine file kind based on mime type - use lowercase to match backend
         let kind: 'image' | 'video' | 'file' = 'file';
@@ -279,13 +298,13 @@ export default function MediaLibrary() {
       await loadMediaFiles();
       
       // Show success message
-      const successMessage = `Successfully uploaded ${uploadResults.length} file(s):\n${fileArray.map(f => f.name).join('\n')}`;
-      alert(successMessage);
+      const successMessage = `Successfully uploaded ${uploadResults.length} file(s)`;
+      message.success(successMessage);
       
     } catch (err: any) {
       const errorMessage = `Failed to upload files: ${err.message || 'Unknown error'}`;
       setError(errorMessage);
-      alert(errorMessage);
+      message.error(errorMessage);
       console.error('Upload error:', err);
     } finally {
       setUploading(false);
@@ -486,8 +505,33 @@ export default function MediaLibrary() {
   const createFolder = () => {
     const folderName = window.prompt('Enter folder name:');
     if (folderName && folderName.trim()) {
-      alert(`Creating folder "${folderName}"...\n\nIn a real implementation, this would create a new folder and update the folder filter options.`);
+      const cleanFolderName = folderName.trim().toLowerCase().replace(/\s+/g, '-');
+      if (folders.includes(cleanFolderName)) {
+        message.error(`Folder "${cleanFolderName}" already exists!`);
+        return;
+      }
+      setFolders(prev => [...prev, cleanFolderName]);
+      message.success(`Folder "${cleanFolderName}" created successfully!`);
     }
+  };
+
+  const deleteFolder = (folderName: string) => {
+    // Check if folder has files
+    const filesInFolder = media.filter(file => file.folder === folderName);
+    if (filesInFolder.length > 0) {
+      message.error(`Cannot delete folder "${folderName}" - it contains ${filesInFolder.length} file(s). Please delete or move the files first.`);
+      return;
+    }
+
+    // Remove folder from list
+    setFolders(prev => prev.filter(f => f !== folderName));
+    
+    // Reset folder filter if we deleted the currently selected folder
+    if (folderFilter === folderName) {
+      setFolderFilter('');
+    }
+    
+    message.success(`Folder "${folderName}" deleted successfully!`);
   };
 
   const closeModal = () => {
@@ -696,17 +740,47 @@ export default function MediaLibrary() {
               />
             </div>
 
-            <select
-              value={folderFilter}
-              onChange={(e) => setFolderFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Folders</option>
-              <option value="rooms">Room Photos</option>
-              <option value="facilities">Facilities</option>
-              <option value="food">Food & Beverage</option>
-              <option value="documents">Documents</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={folderFilter}
+                onChange={(e) => setFolderFilter(e.target.value)}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Folders</option>
+                {folders.map(folder => (
+                  <option key={folder} value={folder}>
+                    {folder.charAt(0).toUpperCase() + folder.slice(1).replace('-', ' ')}
+                  </option>
+                ))}
+              </select>
+              
+              {/* Folder management buttons */}
+              <button
+                onClick={createFolder}
+                className="p-2.5 text-green-600 hover:bg-green-50 border border-green-200 rounded-lg transition-colors"
+                title="Create New Folder"
+              >
+                <FolderPlus className="w-4 h-4" />
+              </button>
+              
+              {folderFilter && (
+                <Popconfirm
+                  title="Delete Folder"
+                  description={`Are you sure you want to delete folder "${folderFilter}"? This will only work if the folder is empty.`}
+                  onConfirm={() => deleteFolder(folderFilter)}
+                  okText="Yes, Delete"
+                  cancelText="Cancel"
+                  okType="danger"
+                >
+                  <button
+                    className="p-2.5 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                    title={`Delete folder "${folderFilter}"`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </Popconfirm>
+              )}
+            </div>
 
             <select
               value={sizeFilter}
@@ -845,12 +919,23 @@ export default function MediaLibrary() {
 
                 {/* Preview */}
                 <div className="w-full h-40 bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {file.preview ? (
+                  {file.type === 'image' && file.preview ? (
                     <img
                       src={file.preview}
                       alt={file.name}
                       className="w-full h-full object-cover"
                     />
+                  ) : file.type === 'video' && file.preview ? (
+                    <div className="relative w-full h-full">
+                      <img
+                        src={file.preview}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
                   ) : (
                     getFileIcon(file.type, 'lg')
                   )}
@@ -903,8 +988,15 @@ export default function MediaLibrary() {
                 </div>
                 <div className="col-span-2 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {file.preview ? (
+                    {file.type === 'image' && file.preview ? (
                       <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
+                    ) : file.type === 'video' && file.preview ? (
+                      <div className="relative w-full h-full">
+                        <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play className="w-2 h-2 text-white" />
+                        </div>
+                      </div>
                     ) : (
                       getFileIcon(file.type, 'sm')
                     )}
@@ -1014,12 +1106,24 @@ export default function MediaLibrary() {
 
             {/* Modal Preview */}
             <div className="text-center mb-5">
-              {currentMediaFile.preview ? (
+              {currentMediaFile.type === 'image' && currentMediaFile.preview ? (
                 <img
                   src={currentMediaFile.preview}
                   alt={currentMediaFile.name}
                   className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
                 />
+              ) : currentMediaFile.type === 'video' && currentMediaFile.url ? (
+                <video
+                  controls
+                  className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                  preload="metadata"
+                >
+                  <source src={currentMediaFile.url} type={currentMediaFile.contentType || 'video/mp4'} />
+                  <div className="bg-gray-100 p-10 rounded-lg">
+                    <Play className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">Your browser does not support video playback</p>
+                  </div>
+                </video>
               ) : currentMediaFile.type === 'video' ? (
                 <div className="bg-gray-100 p-10 rounded-lg">
                   <Play className="w-12 h-12 mx-auto text-gray-400 mb-4" />

@@ -148,7 +148,8 @@ export function transformUIToApiPropertyCreate(uiData: any): ApiPropertyCreate {
     address: uiData.address,
     phone_number: uiData.phone,
     email: uiData.email,
-    website_url: uiData.website_url,
+    // If website_url not provided, generate from code: https://{code}.trip360.vn
+    website_url: uiData.website_url || `https://${(uiData.code || generatePropertyCode(uiData.name)).toLowerCase()}.trip360.vn`,
     primary_color: uiData.color,
     default_locale: 'en',
     is_active: uiData.status === 'active'

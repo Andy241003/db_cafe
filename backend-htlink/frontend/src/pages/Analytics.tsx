@@ -4,6 +4,14 @@ import Chart from "chart.js/auto";
 import type { Chart as ChartJS } from "chart.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDownload, faArrowUp, faArrowDown, faCalendar, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { useAnalytics } from "../hooks/useAnalytics";
+// import { usePageTracking } from "../hooks/usePageTracking";
+import LoadingSpinner from "../components/analytics/LoadingSpinner";
+import ErrorMessage from "../components/analytics/ErrorMessage";
+import RealTimeStats from "../components/analytics/RealTimeStats";
+import ApiStatus from "../components/analytics/ApiStatus";
+import DebugPanel from "../components/analytics/DebugPanel";
+import { testAnalyticsAPI, setupAuth, clearAuth } from "../utils/apiTest";
 
 // DateRange interface
 export interface DateRange {
@@ -295,6 +303,7 @@ const Analytics: React.FC = () => {
   // UI state (filters)
   const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "90d">("30d");
   const [flowFilter, setFlowFilter] = useState<"all" | "new" | "returning">("all");
+  const [isExporting, setIsExporting] = useState(false);
   
   // Date range state
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange>({
@@ -304,32 +313,50 @@ const Analytics: React.FC = () => {
     period: 'month'
   });
   
-  // Mock data - in a real app, this would come from an API
-  const [stats] = useState({
-    pageViews: { value: "24,847", change: "+18.5%", positive: true },
-    uniqueVisitors: { value: "8,423", change: "+12.3%", positive: true },
-    avgSession: { value: "3m 42s", change: "+8.2%", positive: true },
-    bounceRate: { value: "28.3%", change: "-5.4%", positive: false },
-    featureClicks: { value: "15,673", change: "+24.1%", positive: true },
-    vrTourViews: { value: "1,847", change: "+31.7%", positive: true },
-  });
+  // Use analytics hook
+  const { data, loading, error, refreshData, exportData, realTimeStats, isApiConnected, lastUpdate } = useAnalytics(selectedDateRange, timeFilter);
+  
+  // Track page view - DISABLED to prevent double counting
+  // usePageTracking('/analytics');
+  
+  // Set demo tenant for development
+  useEffect(() => {
+    if (!localStorage.getItem('tenant_id')) {
+      localStorage.setItem('tenant_id', 'demo');
+    }
+  }, []);
+
+  // Handle export
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+      await exportData('xlsx');
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Create charts
   useEffect(() => {
+    if (!data) return;
+
     // destroy any existing charts
     pageViewsChartRef.current?.destroy();
     trafficChartRef.current?.destroy();
 
     // Page Views chart
-    if (pageViewsCanvasRef.current) {
+    if (pageViewsCanvasRef.current && data.chartData) {
       pageViewsChartRef.current = new Chart(pageViewsCanvasRef.current, {
         type: "line",
         data: {
-          labels: ["Dec 1", "Dec 3", "Dec 5", "Dec 7", "Dec 9", "Dec 11", "Dec 13", "Dec 15"],
+          labels: data.chartData.labels,
           datasets: [
             {
               label: "Page Views",
-              data: [1200, 1450, 1300, 1800, 1600, 2100, 1950, 2300].slice(0, timeFilter === '7d' ? 4 : 8),
+              data: data.chartData.pageViews,
               borderColor: "#3b82f6",
               backgroundColor: "rgba(59,130,246,0.12)",
               fill: true,
@@ -337,7 +364,7 @@ const Analytics: React.FC = () => {
             },
             {
               label: "Unique Visitors",
-              data: [800, 950, 850, 1200, 1050, 1400, 1300, 1500].slice(0, timeFilter === '7d' ? 4 : 8),
+              data: data.chartData.uniqueVisitors,
               borderColor: "#10b981",
               backgroundColor: "rgba(16,185,129,0.08)",
               fill: false,
@@ -359,14 +386,14 @@ const Analytics: React.FC = () => {
     }
 
     // Traffic sources doughnut chart
-    if (trafficCanvasRef.current) {
+    if (trafficCanvasRef.current && data.trafficSources) {
       trafficChartRef.current = new Chart(trafficCanvasRef.current, {
         type: "doughnut",
         data: {
-          labels: ["QR Code Scan", "Direct Link", "Social Media", "Search", "Referral"],
+          labels: data.trafficSources.map(source => source.name),
           datasets: [{
-            data: [45, 25, 15, 10, 5],
-            backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"],
+            data: data.trafficSources.map(source => source.value),
+            backgroundColor: data.trafficSources.map(source => source.color),
             borderWidth: 0,
           }],
         },
@@ -383,12 +410,52 @@ const Analytics: React.FC = () => {
       pageViewsChartRef.current?.destroy();
       trafficChartRef.current?.destroy();
     };
-  }, [timeFilter, selectedDateRange]);
+  }, [data, timeFilter]);
 
-  const exportData = () => {
-    console.log('Exporting data for range:', selectedDateRange);
-    alert(`Exporting data for ${selectedDateRange.label}`);
-  };
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen font-sans">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">Analytics Overview</h2>
+            <p className="text-gray-600 mt-1">Key metrics and performance insights</p>
+          </div>
+        </div>
+        <LoadingSpinner size="large" text="Loading analytics data..." />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen font-sans">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">Analytics Overview</h2>
+            <p className="text-gray-600 mt-1">Key metrics and performance insights</p>
+          </div>
+        </div>
+        <ErrorMessage message={error} onRetry={refreshData} />
+      </div>
+    );
+  }
+
+  // Show data (if available)
+  if (!data) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen font-sans">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">Analytics Overview</h2>
+            <p className="text-gray-600 mt-1">Key metrics and performance insights</p>
+          </div>
+        </div>
+        <div className="text-center text-gray-500 mt-12">No data available</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen font-sans">
@@ -403,18 +470,29 @@ const Analytics: React.FC = () => {
             onRangeChange={setSelectedDateRange}
           />
           <button 
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors" 
-            onClick={exportData}
+            className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`} 
+            onClick={handleExportData}
+            disabled={isExporting}
           >
             <FontAwesomeIcon icon={faDownload} />
-            Export
+            {isExporting ? 'Exporting...' : 'Export'}
           </button>
         </div>
       </div>
 
+      {/* Real-time stats */}
+      {realTimeStats && (
+        <div className="mb-6">
+          <RealTimeStats 
+            activeUsers={realTimeStats.activeUsers} 
+            currentPageViews={realTimeStats.currentPageViews} 
+          />
+        </div>
+      )}
+
       {/* Top stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5 mb-8">
-        {Object.entries(stats).map(([key, stat]) => (
+        {Object.entries(data.stats).map(([key, stat]) => (
           <div key={key} className="bg-white p-5 rounded-xl shadow-sm flex flex-col">
             <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
             <div className="text-sm text-gray-500 mt-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
@@ -468,26 +546,13 @@ const Analytics: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-blue-600 hover:underline cursor-pointer">Welcome to Tabi Tower</td>
-                <td className="p-3 text-right font-medium text-gray-800">4,523</td>
-                <td className="p-3 text-right text-green-600">+15.2%</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-blue-600 hover:underline cursor-pointer">Hotel Amenities</td>
-                <td className="p-3 text-right font-medium text-gray-800">3,847</td>
-                <td className="p-3 text-right text-green-600">+8.7%</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-blue-600 hover:underline cursor-pointer">Restaurant & Dining</td>
-                <td className="p-3 text-right font-medium text-gray-800">2,954</td>
-                <td className="p-3 text-right text-green-600">+22.1%</td>
-              </tr>
-              <tr>
-                <td className="p-3 text-blue-600 hover:underline cursor-pointer">Spa & Wellness</td>
-                <td className="p-3 text-right font-medium text-gray-800">2,673</td>
-                <td className="p-3 text-right text-red-600">-5.3%</td>
-              </tr>
+              {data.popularPages.map((page, index) => (
+                <tr key={index} className={`border-b border-gray-100 ${index === data.popularPages.length - 1 ? 'border-b-0' : ''}`}>
+                  <td className="p-3 text-blue-600 hover:underline cursor-pointer">{page.page}</td>
+                  <td className="p-3 text-right font-medium text-gray-800">{page.views.toLocaleString()}</td>
+                  <td className={`p-3 text-right ${page.trendPositive ? 'text-green-600' : 'text-red-600'}`}>{page.trend}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -506,26 +571,13 @@ const Analytics: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="p-3">WiFi Information</td>
-                <td className="p-3 text-right font-medium text-gray-800">1,847</td>
-                <td className="p-3 text-right text-gray-500">12.4%</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3">Room Service Menu</td>
-                <td className="p-3 text-right font-medium text-gray-800">1,623</td>
-                <td className="p-3 text-right text-gray-500">10.8%</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3">Pool Schedule</td>
-                <td className="p-3 text-right font-medium text-gray-800">1,354</td>
-                <td className="p-3 text-right text-gray-500">9.1%</td>
-              </tr>
-              <tr>
-                <td className="p-3">Concierge Contact</td>
-                <td className="p-3 text-right font-medium text-gray-800">1,267</td>
-                <td className="p-3 text-right text-gray-500">8.5%</td>
-              </tr>
+              {data.popularFeatures.map((feature, index) => (
+                <tr key={index} className={`border-b border-gray-100 ${index === data.popularFeatures.length - 1 ? 'border-b-0' : ''}`}>
+                  <td className="p-3">{feature.feature}</td>
+                  <td className="p-3 text-right font-medium text-gray-800">{feature.clicks.toLocaleString()}</td>
+                  <td className="p-3 text-right text-gray-500">{feature.ctr}%</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -548,12 +600,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
         <div className="space-y-3">
-          {[
-            { num: 1, title: "Landing Page", desc: "Initial hotel information page", users: "8,423", conversion: "100.0%" },
-            { num: 2, title: "Feature Navigation", desc: "Users browse hotel features", users: "6,847", conversion: "81.3%" },
-            { num: 3, title: "Service Details", desc: "View specific service information", users: "4,923", conversion: "58.4%" },
-            { num: 4, title: "Contact/Action", desc: "Contact hotel or use services", users: "2,847", conversion: "33.8%" },
-          ].map(step => (
+          {data.userFlow.map(step => (
             <div key={step.num} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-4">
                 <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">{step.num}</div>
@@ -563,13 +610,25 @@ const Analytics: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-gray-800">{step.users}</div>
-                <div className="text-xs text-gray-500">{step.conversion}</div>
+                <div className="font-bold text-gray-800">{step.users.toLocaleString()}</div>
+                <div className="text-xs text-gray-500">{step.conversion.toFixed(1)}%</div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* API Status Indicator */}
+      <ApiStatus isConnected={isApiConnected} lastUpdate={lastUpdate || undefined} />
+      
+      {/* Debug Panel (Development Only) */}
+      {import.meta.env.DEV && (
+        <DebugPanel
+          onTestApi={testAnalyticsAPI}
+          onSetupAuth={setupAuth}
+          onClearAuth={clearAuth}
+        />
+      )}
     </div>
   );
 };

@@ -156,7 +156,7 @@ class PostsApiService {
       limit: (options?.limit || 100).toString(),
     });
 
-    const response = await apiClient.get(`/posts?${params}`);
+    const response = await apiClient.get(`/posts/?${params}`);
     return response.data;
   }
 
@@ -178,7 +178,7 @@ class PostsApiService {
       limit: (options?.limit || 100).toString(),
     });
 
-    const response = await apiClient.get(`/posts?${params}`);
+    const response = await apiClient.get(`/posts/?${params}`);
     return response.data;
   }
 

@@ -14,7 +14,7 @@ print(" MEDIA.PY FILE LOADED!", flush=True, file=sys.stderr)
 router = APIRouter()
 
 # Create upload directory
-UPLOAD_DIR = Path("/app/uploads")
+UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.post("/upload")
@@ -44,6 +44,12 @@ async def upload_media_file(
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
     
+    # Check file size (100MB limit)
+    content = await file.read()
+    max_size = 100 * 1024 * 1024  # 100MB in bytes
+    if len(content) > max_size:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 100MB, got {len(content)/1024/1024:.1f}MB")
+    
     # Validate file type and auto-detect kind
     allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.pdf', '.doc', '.docx', '.txt'}
     file_ext = Path(file.filename).suffix.lower()
@@ -64,9 +70,8 @@ async def upload_media_file(
         file_key = f"{uuid.uuid4()}{file_ext}"
         file_path = UPLOAD_DIR / file_key
         
-        # Save file
+        # Save file (content already read for size validation)
         print(f"💾 Saving file to: {file_path}", flush=True, file=sys.stderr)
-        content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
         

@@ -6,6 +6,9 @@ export interface Hotel {
   email?: string;
   address: string;
   vrLink?: string;
+  // backend API provides these fields; include them for UI usage
+  code?: string;
+  website_url?: string;
   icon: string;
   color: string;
   status: 'active' | 'inactive';

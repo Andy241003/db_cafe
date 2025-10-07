@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, 
   faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag, 
-  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink
+  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink,faTv, faUsers, faSignInAlt, faHotTub, faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import { useCategories } from '../../hooks/useCategories';
 
@@ -61,14 +61,27 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
   });
 
   const icons = [
-    { icon: faStar, name: 'star' }, { icon: faSwimmingPool, name: 'swimming-pool' }, 
-    { icon: faUtensils, name: 'utensils' }, { icon: faWifi, name: 'wifi' }, 
-    { icon: faCar, name: 'car' }, { icon: faSpa, name: 'spa' },
-    { icon: faDumbbell, name: 'dumbbell' }, { icon: faCocktail, name: 'cocktail' }, 
-    { icon: faBed, name: 'bed' }, { icon: faConciergeBell, name: 'concierge-bell' }, 
-    { icon: faCoffee, name: 'coffee' }, { icon: faGamepad, name: 'gamepad' }, 
-    { icon: faShoppingBag, name: 'shopping-bag' }, { icon: faTaxi, name: 'taxi' }, 
-    { icon: faCrown, name: 'crown' }, { icon: faUmbrellaBeach, name: 'umbrella-beach' }
+    { icon: faStar, name: 'star' }, 
+    { icon: faSwimmingPool, name: 'swimming-pool' }, 
+    { icon: faUtensils, name: 'utensils' }, 
+    { icon: faWifi, name: 'wifi' }, 
+    { icon: faCar, name: 'car' }, 
+    { icon: faSpa, name: 'spa' },
+    { icon: faDumbbell, name: 'dumbbell' }, 
+    { icon: faCocktail, name: 'cocktail' }, 
+    { icon: faBed, name: 'bed' }, 
+    { icon: faConciergeBell, name: 'concierge-bell' }, 
+    { icon: faCoffee, name: 'coffee' }, 
+    { icon: faGamepad, name: 'gamepad' }, 
+    { icon: faShoppingBag, name: 'shopping-bag' }, 
+    { icon: faTaxi, name: 'taxi' }, 
+    { icon: faCrown, name: 'crown' }, 
+    { icon: faUmbrellaBeach, name: 'umbrella-beach' },
+    { icon: faTv, name: 'tv' }, 
+    { icon: faUsers, name: 'users' }, 
+    { icon: faSignInAlt, name: 'checkin' }, 
+    { icon: faHotTub, name: 'hot-tub-person' }, 
+    { icon: faInfoCircle, name: 'info-circle' } // mặc định hoặc fallback
   ];
 
   const colors = [

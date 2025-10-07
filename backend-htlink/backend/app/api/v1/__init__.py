@@ -3,12 +3,13 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, plans, tenants, users, properties, features, features_test, posts, media,
     categories, events, settings, utils, locales, translations, property_categories,
-    analytics, test_upload, property_posts
+    analytics, test_upload, property_posts, activity_logs
 )
 
 api_router = APIRouter()
 api_router.include_router(utils.router, prefix="/utils", tags=["utils"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(activity_logs.router, prefix="/activity-logs", tags=["activity-logs"])
 api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 api_router.include_router(tenants.router, prefix="/tenants", tags=["tenants"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
