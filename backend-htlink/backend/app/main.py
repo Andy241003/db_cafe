@@ -82,11 +82,8 @@ app.router.max_request_size = 100 * 1024 * 1024  # 100MB in bytes
 
 
 # Add proxy headers middleware to handle HTTPS termination
-app.add_middleware(ProxyHeadersMiddleware)
 
 # Add auto-tenant middleware for API docs
-app.add_middleware(AutoTenantMiddleware)
-
 # Set all CORS enabled origins - Always allow for development
 """
 Configure CORS origins from settings. The config exposes `all_cors_origins` which
@@ -121,7 +118,6 @@ else:
         allowed_origins = [
             "https://travel.link360.vn",
             "https://botonblue.trip360.vn",
-            "https://*.trip360.vn",
         ]
 
 app.add_middleware(
@@ -131,6 +127,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add proxy headers middleware to handle HTTPS termination
+app.add_middleware(ProxyHeadersMiddleware)
+
+# Add auto-tenant middleware for API docs
+app.add_middleware(AutoTenantMiddleware)
 
 app.include_router(api_router)
 
