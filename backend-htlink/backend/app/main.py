@@ -88,15 +88,45 @@ app.add_middleware(ProxyHeadersMiddleware)
 app.add_middleware(AutoTenantMiddleware)
 
 # Set all CORS enabled origins - Always allow for development
-# Restrict CORS origins for development: allow the local frontend dev server(s)
+"""
+Configure CORS origins from settings. The config exposes `all_cors_origins` which
+combines BACKEND_CORS_ORIGINS and FRONTEND_HOST. For local development we allow
+the common localhost ports. If nothing is configured, fall back to the
+production hostnames commonly used by this project so frontends like
+https://travel.link360.vn and https://botonblue.trip360.vn are allowed.
+"""
+
+# Use configured origins when available
+default_dev_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+configured_origins = []
+try:
+    configured_origins = getattr(settings, "all_cors_origins", []) or []
+except Exception:
+    configured_origins = []
+
+if configured_origins:
+    allowed_origins = configured_origins
+else:
+    # If running locally, fall back to the common local dev origins
+    if getattr(settings, "ENVIRONMENT", "local") == "local":
+        allowed_origins = default_dev_origins
+    else:
+        # Minimal safe fallback for production deployments used by this project
+        allowed_origins = [
+            "https://travel.link360.vn",
+            "https://botonblue.trip360.vn",
+            "https://*.trip360.vn",
+        ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
