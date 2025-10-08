@@ -60,43 +60,17 @@ const Dashboard: React.FC = () => {
           };
         }
 
-        // Try to get real activity data, fallback to mock data
-        let recentActivities;
-        try {
-          recentActivities = await analyticsAPI.getRecentActivities(10);
-        } catch (activityError) {
-          console.warn('Activity API not available, using fallback data:', activityError);
-          recentActivities = [
-            {
-              id: "1",
-              type: "create_feature",
-              text: 'New feature "WiFi Information" was added to Services category',
-              time: "2 hours ago",
-              user_name: "Admin User",
-              icon: "fas fa-plus",
-              iconBg: "#eff6ff",
-              iconColor: "#2563eb",
-            },
-            {
-              id: "2",
-              type: "update_category",
-              text: 'Category "Services" was updated with new translations',
-              time: "4 hours ago",
-              user_name: "Editor User",
-              icon: "fas fa-edit",
-              iconBg: "#f0fdf4",
-              iconColor: "#16a34a",
-            }
-          ];
-        }
+        // Get recent activity data
+        const recentActivities = await analyticsAPI.getRecentActivities(5);
 
-        console.log('Dashboard: Data loaded successfully', { 
-          categories: categories.length, 
+        console.log('Dashboard: Data loaded successfully', {
+          categories: categories.length,
           features: features.length,
           stats: dashboardStats,
-          activities: recentActivities.length
+          activities: recentActivities.length,
+          activitiesData: recentActivities
         });
-        
+
         setStats({
           totalCategories: categories.length,
           activeFeatures: features.length,
@@ -105,7 +79,8 @@ const Dashboard: React.FC = () => {
           newCategoriesThisMonth: dashboardStats.categories_this_month,
           featuresAddedThisWeek: dashboardStats.features_this_month
         });
-        
+
+        console.log('Dashboard: Setting activities state with', recentActivities.length, 'items');
         setActivities(recentActivities);
         setLoading(false);
       } catch (error) {
@@ -250,26 +225,49 @@ const Dashboard: React.FC = () => {
       <section className="p-6 bg-white border border-slate-200 rounded-xl">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
-          <button className="text-sm text-blue-600 hover:text-blue-700">View all</button>
+          <button
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            onClick={() => navigate("/activities")}
+          >
+            View all
+          </button>
         </div>
         <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start gap-4">
-              <div
-                className="flex items-center justify-center w-10 h-10 rounded-full"
-                style={{
-                  background: activity.iconBg,
-                  color: activity.iconColor,
-                }}
-              >
-                <i className={activity.icon}></i>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm text-slate-700">{activity.text}</div>
-                <div className="text-xs text-slate-400">{activity.time}</div>
-              </div>
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">
+              <i className="fas fa-spinner fa-spin mr-2"></i>
+              Loading activities...
             </div>
-          ))}
+          ) : activities.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              No recent activities found
+            </div>
+          ) : (
+            activities.map((activity) => (
+              <div key={activity.id} className="flex items-start gap-4">
+                <div
+                  className="flex items-center justify-center w-10 h-10 rounded-full"
+                  style={{
+                    background: activity.iconBg,
+                    color: activity.iconColor,
+                  }}
+                >
+                  <i className={activity.icon}></i>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm text-slate-700">{activity.text}</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <i className="fas fa-user"></i>
+                      {activity.user_name}
+                    </span>
+                    <span>•</span>
+                    <span>{activity.time}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </div>

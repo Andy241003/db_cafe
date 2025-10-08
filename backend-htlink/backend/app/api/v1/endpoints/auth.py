@@ -6,10 +6,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlmodel import select
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, get_current_user, CurrentUser
 from app.core import security
 from app.core.config import settings
 from app.models import AdminUser, Tenant
+from app.models.activity_log import ActivityType
+from app.utils.activity_logger import log_activity
 from app import crud
 
 
@@ -84,6 +86,18 @@ def login(
         expires_delta=access_token_expires
     )
     
+    # Log successful login
+    log_activity(
+        db=session,
+        tenant_id=tenant.id,
+        activity_type=ActivityType.LOGIN,
+        details={
+            "message": f"User {user.email} logged in",
+            "user_id": user.id,
+            "username": user.email
+        }
+    )
+    
     # Return token with user info
     return {
         "access_token": access_token,
@@ -139,3 +153,31 @@ def auto_generate_token_for_docs(
     )
     
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post("/logout")
+def logout(
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    """
+    Logout endpoint - logs the logout activity
+    
+    POST /api/v1/auth/logout
+    Requires valid authentication token
+    """
+    # Log logout activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.LOGOUT,
+        details={
+            "message": f"User {current_user.email} logged out",
+            "user_id": current_user.id,
+            "username": current_user.email
+        }
+    )
+    
+    # In a stateless JWT system, logout is handled client-side by discarding the token
+    # No server-side session cleanup needed
+    return {"message": "Successfully logged out"}

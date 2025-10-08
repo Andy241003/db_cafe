@@ -89,17 +89,12 @@ app.add_middleware(AutoTenantMiddleware)
 
 # Set all CORS enabled origins - Always allow for development
 # Restrict CORS origins for development: allow the local frontend dev server(s)
+print(f"🌐 CORS Origins: {settings.all_cors_origins}", flush=True)
+print(f"🌐 BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
+print(f"🌐 FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://travel.link360.vn",
-        "https://botonblue.trip360.vn",
-        "https://*.trip360.vn",
-    ],
+    allow_origins=settings.all_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

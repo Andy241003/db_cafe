@@ -15,6 +15,10 @@ export interface Hotel {
   posts: HotelPost[];
   bannerImages?: FileList | string[];
   description?: string;
+  // Map fields
+  googleMapUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface HotelPost {
@@ -46,6 +50,10 @@ export interface HotelFormData {
   icon: string;
   color: string;
   bannerImages?: FileList;
+  // Map fields
+  googleMapUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface TranslationData {

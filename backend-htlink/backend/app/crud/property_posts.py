@@ -160,8 +160,12 @@ def get_property_posts_by_locale(
             "status": post.status,
             "created_at": post.created_at,
             "updated_at": post.updated_at,
+            "title": translation.title,
+            "slug": translation.slug,
+            "short_description": translation.short_description,
             "content": translation.content,
+            "thumbnail_url": translation.thumbnail_url,
             "locale": translation.locale
         })
-    
+
     return posts

@@ -24,8 +24,8 @@ def parse_cors(v: Any) -> list[str] | str:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Use top level .env file (one level above ./backend/)
-        env_file="../.env",
+        # Read from environment variables (injected by Docker)
+        # env_file is not needed when using docker-compose env_file
         env_ignore_empty=True,
         extra="ignore",
     )

@@ -185,32 +185,47 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
 
     def create(self, db: Session, *, obj_in: PostCreate) -> Post:
         """Create post with translation"""
+        print(f"🔍 DEBUG: Creating post with data: {obj_in.dict()}", flush=True)
+
         # Extract translation fields
         translation_data = {
             'locale': obj_in.locale,
             'title': obj_in.title,
             'content_html': obj_in.content_html
         }
-        
+
+        print(f"🔍 DEBUG: Translation data: {translation_data}", flush=True)
+
         # Create post data without translation fields
         post_data = obj_in.dict(exclude={'locale', 'title', 'content_html'})
-        
+
+        print(f"🔍 DEBUG: Post data: {post_data}", flush=True)
+
         try:
             # Create post
             db_post = Post(**post_data)
             db.add(db_post)
             db.flush()  # Get post.id without committing
-            
+
+            print(f"✅ DEBUG: Post created with ID: {db_post.id}", flush=True)
+
             # Create translation
             translation_data['post_id'] = db_post.id
+            print(f"🔍 DEBUG: Creating translation with data: {translation_data}", flush=True)
+
             db_translation = PostTranslation(**translation_data)
             db.add(db_translation)
-            
+
             db.commit()
             db.refresh(db_post)
+
+            print(f"✅ DEBUG: Post and translation created successfully!", flush=True)
             return db_post
-            
+
         except Exception as e:
+            print(f"❌ DEBUG: Error creating post: {str(e)}", flush=True)
+            import traceback
+            print(f"❌ DEBUG: Traceback: {traceback.format_exc()}", flush=True)
             db.rollback()
             raise HTTPException(status_code=400, detail=f"Error creating post: {str(e)}")
 

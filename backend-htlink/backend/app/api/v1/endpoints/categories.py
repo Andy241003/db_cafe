@@ -6,8 +6,10 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from app.core.db import get_db
+from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import FeatureCategory, FeatureCategoryTranslation
+from app.models.activity_log import ActivityType
+from app.utils.activity_logger import log_activity
 from app.schemas.content import (
     FeatureCategoryCreate, FeatureCategoryUpdate, FeatureCategoryResponse,
     FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
@@ -19,7 +21,7 @@ router = APIRouter()
 @router.get("/", response_model=List[FeatureCategoryResponse])
 def list_categories(
     *,
-    db: Session = Depends(get_db),
+    db: SessionDep,
     tenant_id: int = 0,  # 0 for system categories
     skip: int = 0,
     limit: int = 100
@@ -33,7 +35,7 @@ def list_categories(
 
 
 @router.get("/system", response_model=List[FeatureCategoryResponse])
-def list_system_categories(*, db: Session = Depends(get_db)):
+def list_system_categories(*, db: SessionDep):
     """List system-wide feature categories"""
     statement = select(FeatureCategory).where(
         FeatureCategory.tenant_id == 0,
@@ -44,7 +46,7 @@ def list_system_categories(*, db: Session = Depends(get_db)):
 
 
 @router.get("/{category_id}", response_model=FeatureCategoryResponse)
-def get_category(*, db: Session = Depends(get_db), category_id: int):
+def get_category(*, db: SessionDep, category_id: int):
     """Get feature category by ID"""
     category = db.get(FeatureCategory, category_id)
     if not category:
@@ -54,20 +56,48 @@ def get_category(*, db: Session = Depends(get_db), category_id: int):
 
 @router.post("/", response_model=FeatureCategoryResponse)
 def create_category(
-    *, db: Session = Depends(get_db), category_in: FeatureCategoryCreate
+    *,
+    db: SessionDep,
+    current_user: CurrentUser,
+    category_in: FeatureCategoryCreate
 ):
     """Create new feature category"""
+    print(f"🔥 CREATE_CATEGORY called by {current_user.email}")
     category = FeatureCategory(**category_in.model_dump())
     db.add(category)
     db.commit()
     db.refresh(category)
+    print(f"✅ Category created: {category.slug} (ID: {category.id})")
+
+    # Log activity
+    try:
+        print(f"📝 Logging activity for category {category.slug}...")
+        log_activity(
+            db=db,
+            tenant_id=current_user.tenant_id,
+            activity_type=ActivityType.CREATE_CATEGORY,
+            details={
+                "message": f"Category '{category.slug}' created by {current_user.email}",
+                "category_id": category.id,
+                "category_slug": category.slug,
+                "user_id": current_user.id,
+                "username": current_user.email
+            }
+        )
+        print(f"✅ Activity logged successfully")
+    except Exception as e:
+        print(f"❌ Error logging activity: {e}")
+        import traceback
+        traceback.print_exc()
+
     return category
 
 
 @router.put("/{category_id}", response_model=FeatureCategoryResponse)
 def update_category(
     *,
-    db: Session = Depends(get_db),
+    db: SessionDep,
+    current_user: CurrentUser,
     category_id: int,
     category_in: FeatureCategoryUpdate
 ):
@@ -75,33 +105,72 @@ def update_category(
     category = db.get(FeatureCategory, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
+
     update_data = category_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(category, field, value)
-    
+
     db.add(category)
     db.commit()
     db.refresh(category)
+
+    # Log activity
+    log_activity(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.UPDATE_CATEGORY,
+        details={
+            "message": f"Category '{category.slug}' updated by {current_user.email}",
+            "category_id": category.id,
+            "category_slug": category.slug,
+            "updated_fields": list(update_data.keys()),
+            "user_id": current_user.id,
+            "username": current_user.email
+        }
+    )
+
     return category
 
 
 @router.delete("/{category_id}")
-def delete_category(*, db: Session = Depends(get_db), category_id: int):
+def delete_category(
+    *,
+    db: SessionDep,
+    current_user: CurrentUser,
+    category_id: int
+):
     """Delete feature category"""
     category = db.get(FeatureCategory, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
+
+    # Store info before deletion
+    category_slug = category.slug
+
     db.delete(category)
     db.commit()
+
+    # Log activity
+    log_activity(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.DELETE_CATEGORY,
+        details={
+            "message": f"Category '{category_slug}' deleted by {current_user.email}",
+            "category_id": category_id,
+            "category_slug": category_slug,
+            "user_id": current_user.id,
+            "username": current_user.email
+        }
+    )
+
     return {"message": "Category deleted successfully"}
 
 
 # Category Translations endpoints
 @router.get("/{category_id}/translations")
 def get_category_translations(
-    *, db: Session = Depends(get_db), category_id: int
+    *, db: SessionDep, category_id: int
 ):
     """Get all translations for a category"""
     statement = select(FeatureCategoryTranslation).where(
@@ -114,7 +183,7 @@ def get_category_translations(
 @router.post("/{category_id}/translations")
 def create_category_translation(
     *,
-    db: Session = Depends(get_db),
+    db: SessionDep,
     category_id: int,
     translation_in: FeatureCategoryTranslationCreate
 ):
@@ -137,7 +206,7 @@ def create_category_translation(
 @router.put("/{category_id}/translations/{locale}")
 def update_category_translation(
     *,
-    db: Session = Depends(get_db),
+    db: SessionDep,
     category_id: int,
     locale: str,
     translation_in: FeatureCategoryTranslationUpdate

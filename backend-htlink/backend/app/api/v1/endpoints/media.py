@@ -5,9 +5,11 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import MediaFile
+from app.models.activity_log import ActivityType
 from app.schemas import MediaFileResponse, MediaFileCreate
 from app import crud
 from app.crud import media_file
+from app.utils.decorators.track_activity import track_activity
 import sys
 
 print(" MEDIA.PY FILE LOADED!", flush=True, file=sys.stderr)
@@ -18,6 +20,7 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.post("/upload")
+@track_activity(ActivityType.UPLOAD_MEDIA, message_template="Media file '{file.filename}' uploaded by {current_user.email}")
 async def upload_media_file(
     request: Request,
     session: SessionDep,
@@ -219,6 +222,7 @@ async def download_media_file(
 
 
 @router.put("/{media_id}")
+@track_activity(ActivityType.UPDATE_MEDIA, message_template="Media file updated by {current_user.email}")
 async def update_media_file(
     media_id: int,
     session: SessionDep,
@@ -277,6 +281,7 @@ async def update_media_file(
 
 
 @router.delete("/{media_id}")
+@track_activity(ActivityType.DELETE_MEDIA, message_template="Media file deleted by {current_user.email}")
 async def delete_media_file(
     media_id: int,
     session: SessionDep,

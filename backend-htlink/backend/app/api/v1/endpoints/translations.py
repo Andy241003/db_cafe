@@ -8,6 +8,8 @@ from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
 from app.models import FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate
 from app.models import PostTranslation, PostTranslationCreate, PostTranslationUpdate
 from app.models import FeatureCategoryTranslation, FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
+from app.models.activity_log import ActivityType
+from app.utils.decorators.track_activity import track_activity
 
 router = APIRouter()
 
@@ -33,6 +35,7 @@ def read_feature_translations(
 
 
 @router.post("/features", response_model=FeatureTranslation)
+@track_activity(ActivityType.CREATE_TRANSLATION, message_template="Feature translation created by {current_user.email}")
 def create_feature_translation(
     *,
     session: SessionDep,
@@ -60,6 +63,7 @@ def create_feature_translation(
 
 
 @router.put("/features/{feature_id}/{locale}", response_model=FeatureTranslation)
+@track_activity(ActivityType.UPDATE_TRANSLATION, message_template="Feature translation updated by {current_user.email}")
 def update_feature_translation(
     *,
     session: SessionDep,
@@ -99,6 +103,7 @@ def update_feature_translation(
 
 
 @router.delete("/features/{feature_id}/{locale}")
+@track_activity(ActivityType.DELETE_TRANSLATION, message_template="Feature translation deleted by {current_user.email}")
 def delete_feature_translation(
     *,
     session: SessionDep,
@@ -159,6 +164,7 @@ def read_post_translations(
 
 
 @router.post("/posts", response_model=PostTranslation)
+@track_activity(ActivityType.CREATE_TRANSLATION, message_template="Post translation created by {current_user.email}")
 def create_post_translation(
     *,
     session: SessionDep,
@@ -186,6 +192,7 @@ def create_post_translation(
 
 
 @router.put("/posts/{post_id}/{locale}", response_model=PostTranslation)
+@track_activity(ActivityType.UPDATE_TRANSLATION, message_template="Post translation updated by {current_user.email}")
 def update_post_translation(
     *,
     session: SessionDep,
@@ -225,6 +232,7 @@ def update_post_translation(
 
 
 @router.delete("/posts/{post_id}/{locale}")
+@track_activity(ActivityType.DELETE_TRANSLATION, message_template="Post translation deleted by {current_user.email}")
 def delete_post_translation(
     *,
     session: SessionDep,
@@ -285,6 +293,7 @@ def read_feature_category_translations(
 
 
 @router.post("/feature-categories", response_model=FeatureCategoryTranslation)
+@track_activity(ActivityType.CREATE_TRANSLATION, message_template="Feature category translation created by {current_user.email}")
 def create_feature_category_translation(
     *,
     session: SessionDep,
@@ -312,6 +321,7 @@ def create_feature_category_translation(
 
 
 @router.put("/feature-categories/{category_id}/{locale}", response_model=FeatureCategoryTranslation)
+@track_activity(ActivityType.UPDATE_TRANSLATION, message_template="Feature category translation updated by {current_user.email}")
 def update_feature_category_translation(
     *,
     session: SessionDep,
@@ -351,6 +361,7 @@ def update_feature_category_translation(
 
 
 @router.delete("/feature-categories/{category_id}/{locale}")
+@track_activity(ActivityType.DELETE_TRANSLATION, message_template="Feature category translation deleted by {current_user.email}")
 def delete_feature_category_translation(
     *,
     session: SessionDep,

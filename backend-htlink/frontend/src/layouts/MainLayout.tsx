@@ -13,6 +13,7 @@ import Features from '../pages/Features';
 import Properties from '../pages/Properties';
 import Media from '../pages/Media';
 import Analytics from '../pages/Analytics';
+import Activities from '../pages/Activities';
 
 const MainLayout: React.FC = () => {
   const location = useLocation();
@@ -45,6 +46,8 @@ const MainLayout: React.FC = () => {
         return { title: 'Media Library', breadcrumb: 'Content / Media Library' };
       case '/analytics':
         return { title: 'Analytics', breadcrumb: 'Content / Analytics' };
+      case '/activities':
+        return { title: 'Activity Log', breadcrumb: 'Management / Activity Log' };
       default:
         return { title: 'Dashboard', breadcrumb: 'Home / Dashboard' };
     }
@@ -83,6 +86,7 @@ const MainLayout: React.FC = () => {
             <Route path="/properties/*" element={<Properties />} />
             <Route path="/media" element={<Media />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/activities" element={<Activities />} />
           </Routes>
           <Outlet />
         </main>

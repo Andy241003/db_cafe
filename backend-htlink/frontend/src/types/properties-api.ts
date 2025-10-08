@@ -129,8 +129,12 @@ export function transformApiPropertyToUI(apiProperty: ApiProperty) {
     status: (apiProperty.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
     code: apiProperty.code,
     slogan: apiProperty.slogan,
-    banner_images: apiProperty.banner_images || [],
+    bannerImages: apiProperty.banner_images || [],
     website_url: apiProperty.website_url,
+    // Map fields
+    googleMapUrl: apiProperty.google_map_url,
+    latitude: apiProperty.latitude,
+    longitude: apiProperty.longitude,
     posts: [] // Posts will be loaded separately
   };
 }
@@ -150,6 +154,10 @@ export function transformUIToApiPropertyCreate(uiData: any): ApiPropertyCreate {
     email: uiData.email,
     // If website_url not provided, generate from code: https://{code}.trip360.vn
     website_url: uiData.website_url || `https://${(uiData.code || generatePropertyCode(uiData.name)).toLowerCase()}.trip360.vn`,
+    // Map fields
+    google_map_url: uiData.googleMapUrl,
+    latitude: uiData.latitude,
+    longitude: uiData.longitude,
     primary_color: uiData.color,
     default_locale: 'en',
     is_active: uiData.status === 'active'
@@ -177,6 +185,11 @@ export function transformUIToApiPropertyUpdate(uiData: any): ApiPropertyUpdate {
   if (uiData.email) updateData.email = uiData.email;
   if (uiData.color) updateData.primary_color = uiData.color;
   if (uiData.status !== undefined) updateData.is_active = uiData.status === 'active';
+  
+  // Map fields
+  if (uiData.googleMapUrl !== undefined) updateData.google_map_url = uiData.googleMapUrl;
+  if (uiData.latitude !== undefined) updateData.latitude = uiData.latitude;
+  if (uiData.longitude !== undefined) updateData.longitude = uiData.longitude;
   
   // Don't send code to avoid conflicts - backend will keep existing code
   

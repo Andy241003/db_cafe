@@ -26,19 +26,24 @@ class PropertyPost(PropertyPostBase, table=True):
 class PropertyPostTranslationBase(SQLModel):
     post_id: int = Field(foreign_key="property_posts.id")
     locale: str = Field(max_length=10)
+    title: str = Field(max_length=255)
+    slug: str = Field(max_length=255)
+    short_description: Optional[str] = Field(default=None, max_length=512)
     content: Optional[str] = Field(default=None)
+    thumbnail_url: Optional[str] = Field(default=None, max_length=255)
 
 
 class PropertyPostTranslation(PropertyPostTranslationBase, table=True):
     __tablename__ = "property_post_translations"
-    
+
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
-    
-    # Composite primary key
-    post_id: int = Field(foreign_key="property_posts.id", primary_key=True)
-    locale: str = Field(max_length=10, primary_key=True)
-    
+
+    # Override to remove primary_key constraint (id is the primary key)
+    post_id: int = Field(foreign_key="property_posts.id")
+    locale: str = Field(max_length=10)
+
     # Relationships
     post: Optional[PropertyPost] = Relationship(back_populates="translations")
 

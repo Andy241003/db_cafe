@@ -396,8 +396,47 @@ export const analyticsAPI = {
   },
 
   getRecentActivities: async (limit: number = 10): Promise<ActivityItem[]> => {
-    const response = await apiClient.get(`/analytics/recent-activities?limit=${limit}`);
-    return response.data;
+    try {
+      // Try authenticated endpoint first
+      const response = await apiClient.get(`/activity-logs/?limit=${limit}&days=7`);
+      // Handle both array and object with 'value' key
+      const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
+      console.log('✅ getRecentActivities: Loaded', logs.length, 'activities from authenticated endpoint');
+      return transformActivityLogs(logs);
+    } catch (error) {
+      try {
+        // Fallback to public endpoint
+        const response = await apiClient.get(`/activity-logs/public?limit=${limit}&days=7&tenant_id=1`);
+        const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
+        console.log('✅ getRecentActivities: Loaded', logs.length, 'activities from public endpoint');
+        return transformActivityLogs(logs);
+      } catch (publicError) {
+        console.warn('Activity logs API not available, using mock data');
+        return getMockActivities(limit);
+      }
+    }
+  },
+
+  getAllActivities: async (limit: number = 50, days: number = 30): Promise<ActivityItem[]> => {
+    try {
+      // Try authenticated endpoint first
+      const response = await apiClient.get(`/activity-logs/?limit=${limit}&days=${days}`);
+      // Handle both array and object with 'value' key
+      const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
+      console.log('✅ getAllActivities: Loaded', logs.length, 'activities from authenticated endpoint');
+      return transformActivityLogs(logs);
+    } catch (error) {
+      try {
+        // Fallback to public endpoint
+        const response = await apiClient.get(`/activity-logs/public?limit=${limit}&days=${days}&tenant_id=1`);
+        const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
+        console.log('✅ getAllActivities: Loaded', logs.length, 'activities from public endpoint');
+        return transformActivityLogs(logs);
+      } catch (publicError) {
+        console.warn('Activity logs API not available, using mock data');
+        return getMockActivities(limit);
+      }
+    }
   }
 };
 
@@ -409,6 +448,233 @@ const getSessionId = (): string => {
     sessionStorage.setItem('session_id', sessionId);
   }
   return sessionId;
+};
+
+// Helper function to transform activity logs from backend
+const transformActivityLogs = (logs: any[]): ActivityItem[] => {
+  console.log('🔄 transformActivityLogs: Processing', logs.length, 'logs');
+  return logs.map(log => {
+    const details = log.details || {};
+    const activityType = log.activity_type;
+    const username = details.username || 'System User';
+    const createdAt = new Date(log.created_at);
+
+    console.log('📝 Processing log:', { id: log.id, activityType, details });
+
+    // Calculate relative time
+    const now = new Date();
+    const diffMs = now.getTime() - createdAt.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    let timeAgo: string;
+    if (diffHours < 1) {
+      timeAgo = 'Just now';
+    } else if (diffHours < 24) {
+      timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else {
+      timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    }
+
+    // Generate activity text based on type
+    let text = details.message || `${activityType.replace('_', ' ')} performed`;
+    let icon = 'fas fa-info-circle';
+    let iconBg = '#f3f4f6';
+    let iconColor = '#6b7280';
+
+    // Customize based on activity type
+    switch (activityType) {
+      case 'create_feature':
+        text = details.message || `New feature "${details.feature_name || 'Unknown'}" was added`;
+        icon = 'fas fa-plus';
+        iconBg = '#eff6ff';
+        iconColor = '#2563eb';
+        break;
+      case 'update_feature':
+        text = details.message || `Feature "${details.feature_name || 'Unknown'}" was updated`;
+        icon = 'fas fa-edit';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'delete_feature':
+        text = details.message || `Feature "${details.feature_name || 'Unknown'}" was deleted`;
+        icon = 'fas fa-trash';
+        iconBg = '#fef2f2';
+        iconColor = '#dc2626';
+        break;
+      case 'create_category':
+        text = details.message || `New category "${details.category_slug || 'Unknown'}" was created`;
+        icon = 'fas fa-folder-plus';
+        iconBg = '#eff6ff';
+        iconColor = '#2563eb';
+        break;
+      case 'update_category':
+        text = details.message || `Category "${details.category_slug || 'Unknown'}" was updated`;
+        icon = 'fas fa-folder-open';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'delete_category':
+        text = details.message || `Category "${details.category_slug || 'Unknown'}" was deleted`;
+        icon = 'fas fa-trash';
+        iconBg = '#fef2f2';
+        iconColor = '#dc2626';
+        break;
+      case 'create_post':
+        text = details.message || `New post "${details.post_in?.title || details.post_title || 'Unknown'}" was created`;
+        icon = 'fas fa-file-alt';
+        iconBg = '#eff6ff';
+        iconColor = '#2563eb';
+        break;
+      case 'update_post':
+        text = details.message || `Post "${details.post_in?.title || details.post_title || 'Unknown'}" was updated`;
+        icon = 'fas fa-edit';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'delete_post':
+        text = details.message || `Post "${details.post_title || 'Unknown'}" was deleted`;
+        icon = 'fas fa-trash';
+        iconBg = '#fef2f2';
+        iconColor = '#dc2626';
+        break;
+      case 'publish_post':
+        text = details.message || `Post "${details.post_title || 'Unknown'}" was published`;
+        icon = 'fas fa-bullhorn';
+        iconBg = '#ecfdf5';
+        iconColor = '#10b981';
+        break;
+      case 'create_property':
+        text = details.message || `New property "${details.property_name || 'Unknown'}" was created`;
+        icon = 'fas fa-building';
+        iconBg = '#eff6ff';
+        iconColor = '#2563eb';
+        break;
+      case 'update_property':
+        text = details.message || `Property "${details.property_name || 'Unknown'}" was updated`;
+        icon = 'fas fa-edit';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'delete_property':
+        text = details.message || `Property was deleted`;
+        icon = 'fas fa-trash';
+        iconBg = '#fef2f2';
+        iconColor = '#dc2626';
+        break;
+      case 'create_user':
+        text = details.message || `New user "${details.user_email || 'Unknown'}" was created`;
+        icon = 'fas fa-user-plus';
+        iconBg = '#eff6ff';
+        iconColor = '#2563eb';
+        break;
+      case 'update_user':
+        text = details.message || `User "${details.user_email || 'Unknown'}" was updated`;
+        icon = 'fas fa-user-edit';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'delete_user':
+        text = details.message || `User was deleted`;
+        icon = 'fas fa-user-times';
+        iconBg = '#fef2f2';
+        iconColor = '#dc2626';
+        break;
+      case 'upload_media':
+        text = details.message || `New media "${details.filename || 'file'}" was uploaded`;
+        icon = 'fas fa-upload';
+        iconBg = '#f0f9ff';
+        iconColor = '#0369a1';
+        break;
+      case 'login':
+        text = details.message || `User logged in`;
+        icon = 'fas fa-sign-in-alt';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
+        break;
+      case 'logout':
+        text = details.message || `User logged out`;
+        icon = 'fas fa-sign-out-alt';
+        iconBg = '#fef3c7';
+        iconColor = '#d97706';
+        break;
+      default:
+        // Use message from backend if available
+        text = details.message || `Activity: ${activityType}`;
+        icon = 'fas fa-info-circle';
+        iconBg = '#f3f4f6';
+        iconColor = '#6b7280';
+    }
+
+    return {
+      id: log.id.toString(),
+      type: activityType,
+      text,
+      time: timeAgo,
+      user_name: username,
+      icon,
+      iconBg,
+      iconColor,
+    };
+  });
+};
+
+// Mock activities for fallback
+const getMockActivities = (limit: number): ActivityItem[] => {
+  const mockActivities: ActivityItem[] = [
+    {
+      id: "1",
+      type: "create_feature",
+      text: 'New feature "WiFi Information" was added to Services category',
+      time: "2 hours ago",
+      user_name: "Admin User",
+      icon: "fas fa-plus",
+      iconBg: "#eff6ff",
+      iconColor: "#2563eb",
+    },
+    {
+      id: "2",
+      type: "update_category",
+      text: 'Category "Services" was updated with new translations',
+      time: "4 hours ago",
+      user_name: "Editor User",
+      icon: "fas fa-edit",
+      iconBg: "#f0fdf4",
+      iconColor: "#16a34a",
+    },
+    {
+      id: "3",
+      type: "create_post",
+      text: 'New post "Hotel Amenities Guide" was created',
+      time: "1 day ago",
+      user_name: "Content Manager",
+      icon: "fas fa-file-alt",
+      iconBg: "#eff6ff",
+      iconColor: "#2563eb",
+    },
+    {
+      id: "4",
+      type: "upload_media",
+      text: 'New image "hotel-lobby.jpg" was uploaded',
+      time: "2 days ago",
+      user_name: "Editor User",
+      icon: "fas fa-upload",
+      iconBg: "#f0f9ff",
+      iconColor: "#0369a1",
+    },
+    {
+      id: "5",
+      type: "publish_post",
+      text: 'Post "Welcome to our hotel" was published',
+      time: "3 days ago",
+      user_name: "Admin User",
+      icon: "fas fa-bullhorn",
+      iconBg: "#ecfdf5",
+      iconColor: "#10b981",
+    }
+  ];
+
+  return mockActivities.slice(0, limit);
 };
 
 // Default export

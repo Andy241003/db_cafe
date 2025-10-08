@@ -263,12 +263,15 @@ const Settings: React.FC = () => {
 
     try {
       const propertyUpdateData = {
+        primary_color: brandingSettings.primaryColor,
+        secondary_color: brandingSettings.secondaryColor,
+        logo_url: brandingSettings.logoUrl,
         settings_json: {
           ...selectedProperty.settings_json,
           branding: brandingSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Branding settings saved successfully!');
       await loadProperties();
@@ -290,12 +293,20 @@ const Settings: React.FC = () => {
         phone_number: contactSettings.phoneNumber,
         email: contactSettings.emailAddress,
         website_url: contactSettings.websiteUrl,
+        district: contactSettings.district,
+        city: contactSettings.city,
+        country: contactSettings.country,
+        postal_code: contactSettings.postalCode,
+        latitude: contactSettings.latitude ? parseFloat(contactSettings.latitude) : undefined,
+        longitude: contactSettings.longitude ? parseFloat(contactSettings.longitude) : undefined,
+        google_map_url: contactSettings.googleMapUrl,
+        zalo_oa_id: contactSettings.zaloOaId,
         settings_json: {
           ...selectedProperty.settings_json,
           contact: contactSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Contact settings saved successfully!');
       await loadProperties();
@@ -338,12 +349,19 @@ const Settings: React.FC = () => {
     try {
       const propertyUpdateData = {
         is_active: advancedSettings.propertyActive,
+        intro_video_url: advancedSettings.introVideoUrl,
+        vr360_url: advancedSettings.vr360Url,
+        banner_images: advancedSettings.bannerImages,
         settings_json: {
           ...selectedProperty.settings_json,
-          advanced: advancedSettings
+          advanced: {
+            autoLanguageDetection: advancedSettings.autoLanguageDetection,
+            analyticsTracking: advancedSettings.analyticsTracking,
+            cacheSystem: advancedSettings.cacheSystem
+          }
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Advanced settings saved successfully!');
       await loadProperties();
@@ -362,17 +380,15 @@ const Settings: React.FC = () => {
 
     try {
       const propertyUpdateData = {
+        copyright_text: brandingSettings.copyrightText,
+        terms_url: brandingSettings.termsUrl,
+        privacy_url: brandingSettings.privacyUrl,
         settings_json: {
           ...selectedProperty.settings_json,
-          branding: {
-            ...brandingSettings,
-            copyrightText: brandingSettings.copyrightText,
-            termsUrl: brandingSettings.termsUrl,
-            privacyUrl: brandingSettings.privacyUrl
-          }
+          branding: brandingSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Legal settings saved successfully!');
       await loadProperties();
@@ -382,7 +398,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Save Regional settings  
+  // Save Regional settings
   const saveRegionalSettings = async () => {
     if (!selectedProperty || !selectedPropertyId) {
       showSuccess('Please select a property first.');
@@ -393,14 +409,10 @@ const Settings: React.FC = () => {
       const propertyUpdateData = {
         settings_json: {
           ...selectedProperty.settings_json,
-          localization: {
-            ...localizationSettings,
-            timezone: localizationSettings.timezone,
-            dateFormat: localizationSettings.dateFormat
-          }
+          localization: localizationSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Regional settings saved successfully!');
       await loadProperties();
@@ -419,17 +431,19 @@ const Settings: React.FC = () => {
 
     try {
       const propertyUpdateData = {
+        district: contactSettings.district,
+        city: contactSettings.city,
+        country: contactSettings.country,
+        postal_code: contactSettings.postalCode,
+        latitude: contactSettings.latitude ? parseFloat(contactSettings.latitude) : undefined,
+        longitude: contactSettings.longitude ? parseFloat(contactSettings.longitude) : undefined,
+        google_map_url: contactSettings.googleMapUrl,
         settings_json: {
           ...selectedProperty.settings_json,
-          contact: {
-            ...contactSettings,
-            latitude: contactSettings.latitude,
-            longitude: contactSettings.longitude,
-            googleMapUrl: contactSettings.googleMapUrl
-          }
+          contact: contactSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Location settings saved successfully!');
       await loadProperties();
@@ -448,19 +462,17 @@ const Settings: React.FC = () => {
 
     try {
       const propertyUpdateData = {
+        facebook_url: contactSettings.facebookUrl,
+        instagram_url: contactSettings.instagramUrl,
+        youtube_url: contactSettings.youtubeUrl,
+        tiktok_url: contactSettings.tiktokUrl,
+        zalo_oa_id: contactSettings.zaloOaId,
         settings_json: {
           ...selectedProperty.settings_json,
-          contact: {
-            ...contactSettings,
-            facebookUrl: contactSettings.facebookUrl,
-            instagramUrl: contactSettings.instagramUrl,
-            youtubeUrl: contactSettings.youtubeUrl,
-            tiktokUrl: contactSettings.tiktokUrl,
-            zaloOaId: contactSettings.zaloOaId
-          }
+          contact: contactSettings
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Social media settings saved successfully!');
       await loadProperties();
@@ -483,33 +495,80 @@ const Settings: React.FC = () => {
     }
 
     try {
-      // Update property data with current form values
+      // Update property data with current form values - save to property fields
       const propertyUpdateData = {
+        // General settings
         property_name: generalSettings.propertyName,
         code: generalSettings.propertyCode,
         slogan: generalSettings.propertySlogan,
         description: generalSettings.propertyDescription,
+
+        // Contact settings - save to property fields
         address: contactSettings.address,
         phone_number: contactSettings.phoneNumber,
         email: contactSettings.emailAddress,
         website_url: contactSettings.websiteUrl,
-        is_active: advancedSettings.propertyActive,
+        district: contactSettings.district,
+        city: contactSettings.city,
+        country: contactSettings.country,
+        postal_code: contactSettings.postalCode,
+        latitude: contactSettings.latitude ? parseFloat(contactSettings.latitude) : undefined,
+        longitude: contactSettings.longitude ? parseFloat(contactSettings.longitude) : undefined,
+        google_map_url: contactSettings.googleMapUrl,
+        zalo_oa_id: contactSettings.zaloOaId,
+        facebook_url: contactSettings.facebookUrl,
+        instagram_url: contactSettings.instagramUrl,
+        youtube_url: contactSettings.youtubeUrl,
+        tiktok_url: contactSettings.tiktokUrl,
+
+        // Localization settings
         default_locale: localizationSettings.defaultLanguage,
-        // Store additional settings in metadata or custom fields if needed
+
+        // Advanced settings - save to property fields
+        is_active: advancedSettings.propertyActive,
+        intro_video_url: advancedSettings.introVideoUrl,
+        vr360_url: advancedSettings.vr360Url,
+        banner_images: advancedSettings.bannerImages,
+
+        // Legal & Footer - save to property fields
+        copyright_text: brandingSettings.copyrightText,
+        terms_url: brandingSettings.termsUrl,
+        privacy_url: brandingSettings.privacyUrl,
+
+        // Branding colors - save to property fields
+        primary_color: brandingSettings.primaryColor,
+        secondary_color: brandingSettings.secondaryColor,
+        logo_url: brandingSettings.logoUrl,
+
+        // Store remaining settings in settings_json
         settings_json: {
-          branding: brandingSettings,
-          contact: contactSettings,
-          localization: localizationSettings,
-          advanced: advancedSettings
+          ...selectedProperty.settings_json,
+          branding: {
+            primaryColor: brandingSettings.primaryColor,
+            secondaryColor: brandingSettings.secondaryColor,
+            logoUrl: brandingSettings.logoUrl
+          },
+          localization: {
+            defaultLanguage: localizationSettings.defaultLanguage,
+            fallbackLanguage: localizationSettings.fallbackLanguage,
+            supportedLanguages: localizationSettings.supportedLanguages,
+            dateFormat: localizationSettings.dateFormat,
+            timezone: localizationSettings.timezone
+          },
+          advanced: {
+            autoLanguageDetection: advancedSettings.autoLanguageDetection,
+            analyticsTracking: advancedSettings.analyticsTracking,
+            cacheSystem: advancedSettings.cacheSystem
+          }
         }
       };
-      
+
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
-      showSuccess('Property settings saved successfully!');
-      
+      showSuccess('All settings saved successfully!');
+
       // Reload properties to get updated info
       await loadProperties();
-      
+
     } catch (error) {
       console.error('Error saving property settings:', error);
       showSuccess('Failed to save property settings. Please try again.');
@@ -629,26 +688,25 @@ const Settings: React.FC = () => {
       privacyUrl: brandingData.privacyUrl || 'https://example.com/privacy'
     }));
     
-    // Update Contact Settings
-    const contactData = (property as any).settings_json?.contact || {};
+    // Update Contact Settings - Read from property fields directly
     setContactSettings(prev => ({
       ...prev,
       address: property.address || '',
-      district: contactData.district || '',
-      city: contactData.city || '',
-      country: contactData.country || '',
-      postalCode: contactData.postalCode || '',
-      latitude: contactData.latitude || '',
-      longitude: contactData.longitude || '',
-      googleMapUrl: contactData.googleMapUrl || '',
+      district: property.district || '',
+      city: property.city || '',
+      country: property.country || '',
+      postalCode: property.postal_code || '',
+      latitude: property.latitude?.toString() || '',
+      longitude: property.longitude?.toString() || '',
+      googleMapUrl: property.google_map_url || '',
       phoneNumber: property.phone_number || '',
       emailAddress: property.email || '',
       websiteUrl: property.website_url || '',
-      zaloOaId: contactData.zaloOaId || '',
-      facebookUrl: contactData.facebookUrl || '',
-      instagramUrl: contactData.instagramUrl || '',
-      youtubeUrl: contactData.youtubeUrl || '',
-      tiktokUrl: contactData.tiktokUrl || ''
+      zaloOaId: property.zalo_oa_id || '',
+      facebookUrl: property.facebook_url || '',
+      instagramUrl: property.instagram_url || '',
+      youtubeUrl: property.youtube_url || '',
+      tiktokUrl: property.tiktok_url || ''
     }));
     
     // Update Localization Settings
@@ -662,17 +720,17 @@ const Settings: React.FC = () => {
       dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
     }));
     
-    // Update Advanced Settings
+    // Update Advanced Settings - Read from property fields directly
     const advancedData = (property as any).settings_json?.advanced || {};
     setAdvancedSettings(prev => ({
       ...prev,
       propertyActive: property.is_active,
-      bannerImages: advancedData.bannerImages || [],
-      maintenanceMode: advancedData.maintenanceMode || false,
-      debugMode: advancedData.debugMode || false,
-      cacheEnabled: advancedData.cacheEnabled || true,
-      analyticsEnabled: advancedData.analyticsEnabled || true,
-      notificationsEnabled: advancedData.notificationsEnabled || true
+      introVideoUrl: property.intro_video_url || '',
+      vr360Url: property.vr360_url || '',
+      bannerImages: property.banner_images || [],
+      autoLanguageDetection: advancedData.autoLanguageDetection ?? true,
+      analyticsTracking: advancedData.analyticsTracking ?? true,
+      cacheSystem: advancedData.cacheSystem ?? true
     }));
     
     console.log('✅ All settings updated with property data');
@@ -736,7 +794,7 @@ const Settings: React.FC = () => {
       }
       
       // Upload files using real API
-      const uploadResults = await mediaApi.uploadFiles(validFiles, 'IMAGE');
+      const uploadResults = await mediaApi.uploadFiles(validFiles, 'image');
       console.log('✅ Upload results:', uploadResults);
       
       // Extract URLs from upload results

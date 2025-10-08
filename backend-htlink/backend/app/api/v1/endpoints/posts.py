@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Post, PostStatus
+from app.models.activity_log import ActivityType
+from app.utils.decorators.track_activity import track_activity
 from app.schemas import PostCreate, PostResponse, PostUpdate, PostWithTranslationResponse
 
 router = APIRouter()
@@ -68,6 +70,7 @@ def read_posts(
 
 @router.post("/", response_model=PostWithTranslationResponse)
 @router.post("", response_model=PostWithTranslationResponse)
+@track_activity(ActivityType.CREATE_POST, message_template="Post '{post_in.title}' created by {current_user.email}")
 def create_post(
     *,
     session: SessionDep,
@@ -113,6 +116,7 @@ def read_post(
 
 
 @router.put("/{post_id}", response_model=PostWithTranslationResponse)
+@track_activity(ActivityType.UPDATE_POST, message_template="Post updated by {current_user.email}")
 def update_post(
     *,
     session: SessionDep,
@@ -142,6 +146,7 @@ def update_post(
 
 
 @router.delete("/{post_id}")
+@track_activity(ActivityType.DELETE_POST, message_template="Post deleted by {current_user.email}")
 def delete_post(
     *,
     session: SessionDep,
@@ -167,6 +172,7 @@ def delete_post(
 
 
 @router.post("/{post_id}/publish", response_model=PostResponse)
+@track_activity(ActivityType.PUBLISH_POST, message_template="Post published by {current_user.email}")
 def publish_post(
     *,
     session: SessionDep,
@@ -196,6 +202,7 @@ def publish_post(
 
 
 @router.post("/{post_id}/archive", response_model=PostResponse)
+@track_activity(ActivityType.ARCHIVE_POST, message_template="Post archived by {current_user.email}")
 def archive_post(
     *,
     session: SessionDep,

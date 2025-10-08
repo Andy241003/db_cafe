@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, TenantUser, get_tenant_from_header
 from app.models import AdminUser
+from app.models.activity_log import ActivityType
+from app.utils.decorators.track_activity import track_activity
 from app.schemas import (
     AdminUserCreate, AdminUserResponse, AdminUserUpdate, 
     AdminUserPasswordUpdate
@@ -93,6 +95,7 @@ def read_users(
 
 
 @router.post("/", response_model=AdminUserResponse)
+@track_activity(ActivityType.CREATE_USER, message_template="User '{user_in.email}' created by {current_user.email}")
 def create_user(
     *,
     session: SessionDep,
@@ -115,6 +118,7 @@ def create_user(
 
 
 @router.put("/{user_id}", response_model=AdminUserResponse)
+@track_activity(ActivityType.UPDATE_USER, message_template="User updated by {current_user.email}")
 def update_user(
     *,
     session: SessionDep,
@@ -172,6 +176,7 @@ def read_user(
 
 
 @router.delete("/{user_id}")
+@track_activity(ActivityType.DELETE_USER, message_template="User deleted by {current_user.email}")
 def delete_user(
     *,
     session: SessionDep,

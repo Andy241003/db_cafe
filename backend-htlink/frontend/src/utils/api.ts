@@ -6,6 +6,13 @@ export const getApiBaseUrl = (): string => {
     return `${import.meta.env.VITE_API_URL}/api/v1`;
   }
   
+  // During Vite development, prefer local backend on port 8000 so requests
+  // don't accidentally go to the frontend dev server origin (e.g. :5173).
+  // This avoids calls like http://localhost:5173/api/v1/... which return 500/405.
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8000/api/v1';
+  }
+
   // Check if we're in browser environment
   if (typeof window === 'undefined') {
     return 'https://travel.link360.vn/api/v1';

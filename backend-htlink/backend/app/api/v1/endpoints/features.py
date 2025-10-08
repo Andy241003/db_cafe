@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Feature, FeatureCategory
+from app.models.activity_log import ActivityType
+from app.utils.decorators.track_activity import track_activity
 from app.schemas import (
-    FeatureCategoryCreate, 
-    FeatureCategoryResponse, 
+    FeatureCategoryCreate,
+    FeatureCategoryResponse,
     FeatureCategoryUpdate,
     FeatureCreate,
     FeatureResponse,
@@ -131,6 +133,7 @@ def create_feature_test(
     return feature
 
 @router.post("/", response_model=FeatureResponse)
+@track_activity(ActivityType.CREATE_FEATURE, message_template="Feature '{feature_in.title}' created by {current_user.email}")
 def create_feature(
     *,
     session: SessionDep,
@@ -167,6 +170,7 @@ def read_feature(
 
 
 @router.put("/{feature_id}", response_model=FeatureResponse)
+@track_activity(ActivityType.UPDATE_FEATURE, message_template="Feature updated by {current_user.email}")
 def update_feature(
     *,
     session: SessionDep,
@@ -191,6 +195,7 @@ def update_feature(
 
 
 @router.delete("/{feature_id}")
+@track_activity(ActivityType.DELETE_FEATURE, message_template="Feature deleted by {current_user.email}")
 def delete_feature(
     *,
     session: SessionDep,

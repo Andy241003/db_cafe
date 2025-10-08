@@ -600,4 +600,106 @@ async def track_simple(session: SessionDep, request: SimpleTrackingRequest):
     except Exception as e:
         return {"error": str(e)}
 
+class DashboardStatsResponse(BaseModel):
+    total_page_views: int = 0
+    page_views_growth: float = 0.0
+    unique_visitors: int = 0
+    categories_this_month: int = 0
+    features_this_month: int = 0
+    period_days: int = 30
+
+@router.get("/dashboard-stats", response_model=DashboardStatsResponse)
+async def get_dashboard_stats(
+    session: SessionDep,
+    days: int = 30,
+    current_user: AdminUser = Depends(get_current_active_superuser)
+):
+    """Get dashboard statistics for the current tenant"""
+    try:
+        tenant_id = current_user.tenant_id
+        period_start = datetime.utcnow() - timedelta(days=days)
+        previous_period_start = datetime.utcnow() - timedelta(days=days*2)
+        previous_period_end = datetime.utcnow() - timedelta(days=days)
+
+        # Get page views for current period
+        current_views = session.exec(
+            select(func.count(Event.id)).where(
+                and_(
+                    Event.tenant_id == tenant_id,
+                    Event.event_type == EventType.PAGE_VIEW,
+                    Event.created_at >= period_start
+                )
+            )
+        ).first() or 0
+
+        # Get page views for previous period
+        previous_views = session.exec(
+            select(func.count(Event.id)).where(
+                and_(
+                    Event.tenant_id == tenant_id,
+                    Event.event_type == EventType.PAGE_VIEW,
+                    Event.created_at >= previous_period_start,
+                    Event.created_at < previous_period_end
+                )
+            )
+        ).first() or 0
+
+        # Calculate growth percentage
+        page_views_growth = 0.0
+        if previous_views > 0:
+            page_views_growth = ((current_views - previous_views) / previous_views) * 100
+
+        # Get unique visitors (approximated by unique IPs)
+        unique_visitors = session.exec(
+            select(func.count(distinct(Event.ip_hash))).where(
+                and_(
+                    Event.tenant_id == tenant_id,
+                    Event.created_at >= period_start
+                )
+            )
+        ).first() or 0
+
+        # Get categories created this month
+        month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        categories_this_month = session.exec(
+            select(func.count(ActivityLog.id)).where(
+                and_(
+                    ActivityLog.tenant_id == tenant_id,
+                    ActivityLog.activity_type == "create_category",
+                    ActivityLog.created_at >= month_start
+                )
+            )
+        ).first() or 0
+
+        # Get features created this month
+        features_this_month = session.exec(
+            select(func.count(ActivityLog.id)).where(
+                and_(
+                    ActivityLog.tenant_id == tenant_id,
+                    ActivityLog.activity_type == "create_feature",
+                    ActivityLog.created_at >= month_start
+                )
+            )
+        ).first() or 0
+
+        return DashboardStatsResponse(
+            total_page_views=current_views,
+            page_views_growth=round(page_views_growth, 1),
+            unique_visitors=unique_visitors,
+            categories_this_month=categories_this_month,
+            features_this_month=features_this_month,
+            period_days=days
+        )
+
+    except Exception as e:
+        # Return default stats if analytics data is not available
+        return DashboardStatsResponse(
+            total_page_views=0,
+            page_views_growth=0.0,
+            unique_visitors=0,
+            categories_this_month=0,
+            features_this_month=0,
+            period_days=days
+        )
+
 

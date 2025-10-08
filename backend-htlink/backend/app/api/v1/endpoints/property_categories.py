@@ -5,7 +5,8 @@ from sqlmodel import select
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
-from app.models import FeatureCategory, FeatureCategoryCreate, FeatureCategoryUpdate
+from app.models import FeatureCategory, FeatureCategoryCreate, FeatureCategoryUpdate, ActivityType
+from app.utils.activity_logger import log_activity
 
 router = APIRouter()
 
@@ -43,6 +44,24 @@ def create_property_category(
     session.add(category)
     session.commit()
     session.refresh(category)
+
+    # Log activity
+    try:
+        log_activity(
+            db=session,
+            tenant_id=tenant_code,
+            activity_type=ActivityType.CREATE_CATEGORY,
+            details={
+                "message": f"Property category '{category.slug}' created by {current_user.email}",
+                "category_id": category.id,
+                "category_slug": category.slug,
+                "user_id": current_user.id,
+                "username": current_user.email
+            }
+        )
+    except Exception as e:
+        print(f"❌ Error logging activity: {e}")
+
     return category
 
 
@@ -66,12 +85,30 @@ def update_property_category(
     ).first()
     if not category:
         raise HTTPException(status_code=404, detail="Property category not found")
-    
+
     category_data = category_in.model_dump(exclude_unset=True)
     category.sqlmodel_update(category_data)
     session.add(category)
     session.commit()
     session.refresh(category)
+
+    # Log activity
+    try:
+        log_activity(
+            db=session,
+            tenant_id=tenant_code,
+            activity_type=ActivityType.UPDATE_CATEGORY,
+            details={
+                "message": f"Property category '{category.slug}' updated by {current_user.email}",
+                "category_id": category.id,
+                "category_slug": category.slug,
+                "user_id": current_user.id,
+                "username": current_user.email
+            }
+        )
+    except Exception as e:
+        print(f"❌ Error logging activity: {e}")
+
     return category
 
 
@@ -116,7 +153,28 @@ def delete_property_category(
     ).first()
     if not category:
         raise HTTPException(status_code=404, detail="Property category not found")
-    
+
+    # Store category info before deletion
+    category_slug = category.slug
+
     session.delete(category)
     session.commit()
+
+    # Log activity
+    try:
+        log_activity(
+            db=session,
+            tenant_id=tenant_code,
+            activity_type=ActivityType.DELETE_CATEGORY,
+            details={
+                "message": f"Property category '{category_slug}' deleted by {current_user.email}",
+                "category_id": category_id,
+                "category_slug": category_slug,
+                "user_id": current_user.id,
+                "username": current_user.email
+            }
+        )
+    except Exception as e:
+        print(f"❌ Error logging activity: {e}")
+
     return {"message": "Property category deleted successfully"}
