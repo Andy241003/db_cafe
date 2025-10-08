@@ -12,6 +12,7 @@ interface LocalFeature {
   id: number;
   name: string;
   category: string;
+  categorySlug: string;
   icon: string;
   iconColor: string;
   status: 'active' | 'inactive';
@@ -84,6 +85,7 @@ const Features: React.FC = () => {
           const category = categories.find(cat => cat.id === feature.category_id);
           // Choose translated category title if available for current UI locale
           const categoryLabel = category ? (category.translations?.[uiLocale]?.title || category.name || category.slug) : 'general';
+          const categorySlug = category ? category.slug : 'general';
 
           // Get posts for this feature
           const featurePosts = postsMap.get(feature.id) || [];
@@ -167,6 +169,7 @@ const Features: React.FC = () => {
             id: feature.id,
             name: featureTitle,
             category: categoryLabel,
+            categorySlug: categorySlug,
             icon: feature.icon_key || "fa-file-alt",
             iconColor: "linear-gradient(135deg, #667eea, #764ba2)",
             status: feature.is_system ? "inactive" : "active",
@@ -197,7 +200,7 @@ const Features: React.FC = () => {
   const filteredFeatures = useMemo(() => {
     return features.filter(feature => {
       const matchesSearch = feature.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = !categoryFilter || feature.category === categoryFilter;
+      const matchesCategory = !categoryFilter || feature.categorySlug === categoryFilter;
       const matchesStatus = !statusFilter || feature.status === statusFilter;
       return matchesSearch && matchesCategory && matchesStatus;
     });
