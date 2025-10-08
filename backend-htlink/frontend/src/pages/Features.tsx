@@ -521,32 +521,22 @@ const Features: React.FC = () => {
 
             for (const locale of locales) {
               try {
-                const response = await fetch(
-                  `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/translations/features/${featureId}/${locale}`,
+                await featuresAPI.updateTranslation(
+                  featureId,
+                  locale,
                   {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                      'X-Tenant-Code': localStorage.getItem('tenant_code') || 'demo',
-                    },
-                    body: JSON.stringify({
-                      title: formData.name,
-                      short_desc: currentFeature.translations[locale].short_desc // Keep existing short_desc
-                    })
+                    title: formData.name,
+                    short_desc: currentFeature.translations[locale].short_desc // Keep existing short_desc
                   }
                 );
-
-                if (!response.ok) {
-                  console.error(`Failed to update translation for locale ${locale}:`, response.status);
-                }
+                console.log(`✅ Updated translation for locale ${locale}`);
               } catch (transError) {
-                console.error(`Error updating translation for locale ${locale}:`, transError);
+                console.error(`❌ Error updating translation for locale ${locale}:`, transError);
               }
             }
           }
         } catch (error) {
-          console.error('Error updating feature translations:', error);
+          console.error('❌ Error updating feature translations:', error);
         }
       }
 
