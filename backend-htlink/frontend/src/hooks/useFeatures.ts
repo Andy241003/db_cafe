@@ -5,7 +5,7 @@ interface UseFeatures {
   features: Feature[];
   loading: boolean;
   error: string | null;
-  createFeature: (feature: Partial<Feature>) => Promise<void>;
+  createFeature: (feature: Partial<Feature>) => Promise<Feature>;
   updateFeature: (id: number, feature: Partial<Feature>) => Promise<void>;
   deleteFeature: (id: number) => Promise<void>;
   refreshFeatures: () => Promise<void>;
@@ -44,6 +44,7 @@ export const useFeatures = (): UseFeatures => {
       const newFeature = await featuresAPI.create(feature);
       console.log('useFeatures: Feature created successfully:', newFeature);
       setFeatures(prev => [...prev, newFeature]);
+      return newFeature; // Return the created feature
     } catch (err) {
       console.error('useFeatures: Error creating feature:', err);
       setError('Failed to create feature');

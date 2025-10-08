@@ -296,6 +296,18 @@ export const featuresAPI = {
     await apiClient.delete(`/features/${id}`);
   },
 
+  createTranslation: async (featureId: number, locale: string, data: { title: string; short_desc?: string }): Promise<any> => {
+    console.log('featuresAPI: Creating feature translation:', { featureId, locale, data });
+    const payload = {
+      feature_id: featureId,
+      locale: locale,
+      title: data.title,
+      short_desc: data.short_desc || ''
+    };
+    const response = await apiClient.post(`/translations/features`, payload);
+    return response.data;
+  },
+
   updateTranslation: async (featureId: number, locale: string, data: { title?: string; short_desc?: string }): Promise<any> => {
     console.log('featuresAPI: Updating feature translation:', { featureId, locale, data });
     const response = await apiClient.put(`/translations/features/${featureId}/${locale}`, data);

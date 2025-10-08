@@ -6,7 +6,7 @@ import TranslateModal from '../components/features/TranslateModal';
 import { useFeatures } from '../hooks/useFeatures';
 import { useCategories } from '../hooks/useCategories';
 import type { UIPost } from '../services/api';
-import { postsAPI, propertiesAPI } from '../services/api';
+import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
 
 interface LocalFeature {
   id: number;
@@ -467,9 +467,33 @@ const Features: React.FC = () => {
         is_system: formData.status === 'inactive'
       };
 
-      await createFeature(featureData);
+      // Create feature first
+      const newFeature = await createFeature(featureData);
+      console.log('✅ Feature created:', newFeature);
+
+      // Create feature translation for default locale (en)
+      if (newFeature && newFeature.id) {
+        try {
+          await featuresAPI.createTranslation(
+            newFeature.id,
+            'en',
+            {
+              title: formData.name,
+              short_desc: formData.description || ''
+            }
+          );
+          console.log('✅ Feature translation created for locale: en');
+        } catch (translationError) {
+          console.error('❌ Error creating feature translation:', translationError);
+          // Don't fail the whole operation if translation fails
+        }
+      } else {
+        console.error('❌ Feature created but no ID returned');
+      }
+
       alert('Feature created successfully!');
       setIsAddFeatureModalOpen(false);
+      await refreshFeatures(); // Refresh to show new feature with translation
     } catch (error) {
       console.error('Error creating feature:', error);
       alert('Failed to create feature. Please try again.');
