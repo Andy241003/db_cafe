@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     EMAIL_TEST_USER: EmailStr = "test@example.com"
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str = "changethis"
+    # Allow enabling localhost origins via env var for development or temporary testing.
+    # Set to true in a local .env override if you need to allow browser requests from
+    # http://localhost:<port> without changing production CORS list.
+    ALLOW_LOCALHOST_CORS: bool = False
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

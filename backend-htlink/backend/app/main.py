@@ -95,6 +95,7 @@ print(f"🌐 FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,
+    allow_origin_regex=r"^https?://localhost(:[0-9]+)?$" if settings.ALLOW_LOCALHOST_CORS else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

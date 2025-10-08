@@ -220,3 +220,13 @@ docker-compose -f docker-compose.production.yml up -d
 Your HotelLink API is now running in production! 🚀
 
 Visit `http://your-server:8000/docs` to explore the API and start integrating with your applications.
+
+---
+
+## Local dev CORS helper
+
+If you need to allow browser requests from `http://localhost:<port>` to a backend instance without changing production CORS, set the environment variable `ALLOW_LOCALHOST_CORS=true` in your local `.env` or `.env.local` used by docker-compose. This enables a safe localhost-origin regex inside the CORS middleware and only affects the process where the env var is set.
+
+Example `.env.local` (do NOT deploy this to production):
+
+ALLOW_LOCALHOST_CORS=true
