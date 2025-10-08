@@ -78,7 +78,7 @@ const Activities: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 mb-6">
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Activity Type
@@ -112,14 +112,13 @@ const Activities: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={loadActivities}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Refresh
-            </button>
-          </div>
+          <button
+            onClick={loadActivities}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center gap-2"
+          >
+            <i className="fas fa-sync-alt"></i>
+            Refresh
+          </button>
         </div>
       </div>
 
