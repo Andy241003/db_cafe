@@ -37,7 +37,7 @@ class FeatureCategoryTranslationBase(BaseModel):
 
 
 class FeatureCategoryTranslationCreate(FeatureCategoryTranslationBase):
-    category_id: int
+    category_id: Optional[int] = None  # Optional because it can come from URL path
 
 
 class FeatureCategoryTranslationUpdate(BaseModel):
@@ -76,7 +76,8 @@ class FeatureResponse(FeatureBase):
     tenant_id: int
     category_id: int
     created_at: datetime
-    
+    translations: Optional[Dict[str, Any]] = None  # Dict keyed by locale code
+
     class Config:
         from_attributes = True
 
@@ -204,6 +205,8 @@ class PostWithTranslationResponse(PostResponse):
     title: Optional[str] = None
     content_html: Optional[str] = None
     locale: Optional[str] = None
+    # When include_translations is requested, include all locale translations
+    translations: Optional[List[Any]] = None
 
 
 # Post Translation schemas

@@ -161,6 +161,25 @@ class Property(SQLModel, table=True):
     tenant: Tenant = Relationship(back_populates="properties")
 
 
+# Property Translation model
+class PropertyTranslation(SQLModel, table=True):
+    __tablename__ = "property_translation"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="properties.id")
+    locale: str = Field(max_length=10)
+    property_name: Optional[str] = Field(max_length=255)
+    slogan: Optional[str] = Field(max_length=255)
+    description: Optional[str] = Field(sa_column=Column(Text))
+    address: Optional[str] = Field(max_length=255)
+    district: Optional[str] = Field(max_length=100)
+    city: Optional[str] = Field(max_length=100)
+    country: Optional[str] = Field(max_length=100)
+    copyright_text: Optional[str] = Field(max_length=255)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
 # Feature Category model
 class FeatureCategory(SQLModel, table=True):
     __tablename__ = "feature_categories"
@@ -429,8 +448,8 @@ from app.models.property_posts import (
 
 # Import all models to ensure they are registered
 __all__ = [
-    "Plan", "Tenant", "Locale", "AdminUser", "Property",
-    "FeatureCategory", "FeatureCategoryTranslation", 
+    "Plan", "Tenant", "Locale", "AdminUser", "Property", "PropertyTranslation",
+    "FeatureCategory", "FeatureCategoryTranslation",
     "Feature", "FeatureTranslation",
     "PropertyCategory", "PropertyFeature",
     "Post", "PostTranslation", "MediaFile", "PostMedia",

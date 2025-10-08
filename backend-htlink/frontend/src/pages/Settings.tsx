@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { tenantApi } from '../services/tenantApi';
 import { propertiesApi } from '../services/propertiesApi';
 import { mediaApi } from '../services/mediaApi';
+import { localesApi } from '../services/localesApi';
 // import type { TenantSettings } from '../services/tenantApi'; // Will be used later
 import type { ApiProperty } from '../types/properties-api';
 
@@ -84,13 +85,16 @@ const Settings: React.FC = () => {
   // Tenant data - will be used for tenant-level settings in future
   // const [tenantData, setTenantData] = useState<TenantSettings | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  
+
   // Properties data
   const [properties, setProperties] = useState<ApiProperty[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<ApiProperty | null>(null);
   const [propertiesLoading, setPropertiesLoading] = useState<boolean>(false);
-  
+
+  // Locales data
+  const [existingLocales, setExistingLocales] = useState<string[]>([]);
+
   // File upload states
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
   const [dragOver, setDragOver] = useState<boolean>(false);
@@ -204,15 +208,61 @@ const Settings: React.FC = () => {
   };
 
   // Handle language selection
-  const handleLanguageToggle = (languageCode: string) => {
-    const newSupportedLanguages = localizationSettings.supportedLanguages.includes(languageCode)
-      ? localizationSettings.supportedLanguages.filter(lang => lang !== languageCode)
-      : [...localizationSettings.supportedLanguages, languageCode];
-    
-    setLocalizationSettings(prev => ({
-      ...prev,
-      supportedLanguages: newSupportedLanguages
-    }));
+  const handleLanguageToggle = async (languageCode: string) => {
+    const isCurrentlySelected = localizationSettings.supportedLanguages.includes(languageCode);
+
+    if (isCurrentlySelected) {
+      // Remove language from supported list
+      const newSupportedLanguages = localizationSettings.supportedLanguages.filter(lang => lang !== languageCode);
+      setLocalizationSettings(prev => ({
+        ...prev,
+        supportedLanguages: newSupportedLanguages
+      }));
+    } else {
+      // Add language to supported list
+      // First, check if locale exists in database, if not create it
+      try {
+        const language = languages.find(lang => lang.code === languageCode);
+        if (!language) {
+          console.error('Language not found:', languageCode);
+          return;
+        }
+
+        // Try to get the locale from database
+        try {
+          await localesApi.getLocale(languageCode);
+          console.log(`✅ Locale ${languageCode} already exists`);
+        } catch (error: any) {
+          // If locale doesn't exist (404), create it
+          if (error.response?.status === 404) {
+            console.log(`📝 Creating new locale: ${languageCode}`);
+            await localesApi.createLocale({
+              code: languageCode,
+              name: language.name,
+              native_name: language.native
+            });
+            console.log(`✅ Locale ${languageCode} created successfully`);
+            showSuccess(`Language ${language.name} added to system`);
+
+            // Reload existing locales to update UI
+            await loadExistingLocales();
+          } else {
+            throw error;
+          }
+        }
+
+        // Add to supported languages
+        const newSupportedLanguages = [...localizationSettings.supportedLanguages, languageCode];
+        setLocalizationSettings(prev => ({
+          ...prev,
+          supportedLanguages: newSupportedLanguages
+        }));
+
+      } catch (error) {
+        console.error('Error adding language:', error);
+        showSuccess('Failed to add language. Please try again.');
+      }
+    }
   };
 
   // Handle color changes
@@ -482,9 +532,33 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Save System settings (just fake for now since it's mostly read-only info)
+  // Save System settings
   const saveSystemSettings = async () => {
-    showSuccess('System settings are read-only and managed automatically.');
+    if (!selectedProperty || !selectedPropertyId) {
+      showSuccess('Please select a property first.');
+      return;
+    }
+
+    try {
+      const propertyUpdateData = {
+        is_active: advancedSettings.propertyActive,
+        settings_json: {
+          ...selectedProperty.settings_json,
+          advanced: {
+            autoLanguageDetection: advancedSettings.autoLanguageDetection,
+            analyticsTracking: advancedSettings.analyticsTracking,
+            cacheSystem: advancedSettings.cacheSystem
+          }
+        }
+      };
+
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      showSuccess('System settings saved successfully!');
+      await loadProperties();
+    } catch (error) {
+      console.error('Error saving system settings:', error);
+      showSuccess('Failed to save system settings. Please try again.');
+    }
   };
 
   // Save all settings
@@ -642,13 +716,25 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Load existing locales from database
+  const loadExistingLocales = async () => {
+    try {
+      const locales = await localesApi.getLocales();
+      const localeCodes = locales.map(locale => locale.code);
+      setExistingLocales(localeCodes);
+      console.log('📋 Existing locales:', localeCodes);
+    } catch (error) {
+      console.error('Error loading locales:', error);
+    }
+  };
+
   // Load properties for tenant
   const loadProperties = async () => {
     try {
       setPropertiesLoading(true);
       const propertiesData = await propertiesApi.getProperties();
       setProperties(propertiesData);
-      
+
       // Auto-select first property if available
       if (propertiesData.length > 0 && !selectedPropertyId) {
         setSelectedPropertyId(propertiesData[0].id);
@@ -888,10 +974,13 @@ const Settings: React.FC = () => {
         const tenant = response.data;
         // setTenantData(tenant); // Will store tenant data when needed
         console.log('Tenant loaded:', tenant.name);
-        
+
+        // Load existing locales
+        await loadExistingLocales();
+
         // Load properties after tenant data is loaded
         await loadProperties();
-        
+
       } catch (error) {
         console.error('Error loading tenant data:', error);
       } finally {
@@ -1345,25 +1434,41 @@ const Settings: React.FC = () => {
 
               <div className="mb-5">
                 <label className="mb-2 block text-sm font-medium text-slate-700">Supported Languages</label>
+                <p className="mb-3 text-xs text-slate-500">
+                  Select languages to support. New languages will be automatically added to the system.
+                </p>
                 <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-                  {languages.map((language) => (
-                    <div 
-                      key={language.code}
-                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${localizationSettings.supportedLanguages.includes(language.code) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-500 hover:bg-slate-50'}`}
-                      onClick={() => handleLanguageToggle(language.code)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-5 w-6 items-center justify-center rounded-sm bg-slate-200 text-xs">{language.flag}</div>
-                        <div>
-                          <h4 className="text-sm font-medium text-slate-900">{language.name}</h4>
-                          <div className="text-xs text-slate-500">{language.native}</div>
+                  {languages.map((language) => {
+                    const isSelected = localizationSettings.supportedLanguages.includes(language.code);
+                    const isInDatabase = existingLocales.includes(language.code);
+                    const isNew = !isInDatabase;
+
+                    return (
+                      <div
+                        key={language.code}
+                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-500 hover:bg-slate-50'}`}
+                        onClick={() => handleLanguageToggle(language.code)}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="flex h-5 w-6 items-center justify-center rounded-sm bg-slate-200 text-xs">{language.flag}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-medium text-slate-900">{language.name}</h4>
+                              {isNew && !isSelected && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
+                                  NEW
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500">{language.native}</div>
+                          </div>
+                        </div>
+                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 transition-all ${isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 text-transparent'}`}>
+                          <i className="fas fa-check text-xs"></i>
                         </div>
                       </div>
-                      <div className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 transition-all ${localizationSettings.supportedLanguages.includes(language.code) ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 text-transparent'}`}>
-                        <i className="fas fa-check text-xs"></i>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

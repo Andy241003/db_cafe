@@ -48,16 +48,45 @@ apiClient.interceptors.request.use(
 export interface Locale {
   code: string;
   name: string;
+  native_name?: string;
+}
+
+export interface LocaleCreate {
+  code: string;
+  name: string;
+  native_name: string;
 }
 
 export const localesApi = {
   async getLocales(): Promise<Locale[]> {
     try {
-  const response = await apiClient.get('/locales/');
+      const response = await apiClient.get('/locales/');
       console.debug('[localesApi] GET /locales response:', response.status, response.data);
       return response.data;
     } catch (err) {
       console.warn('[localesApi] failed to fetch /locales:', err);
+      throw err;
+    }
+  },
+
+  async createLocale(localeData: LocaleCreate): Promise<Locale> {
+    try {
+      const response = await apiClient.post('/locales/', localeData);
+      console.debug('[localesApi] POST /locales response:', response.status, response.data);
+      return response.data;
+    } catch (err) {
+      console.warn('[localesApi] failed to create locale:', err);
+      throw err;
+    }
+  },
+
+  async getLocale(code: string): Promise<Locale> {
+    try {
+      const response = await apiClient.get(`/locales/${code}`);
+      console.debug('[localesApi] GET /locales/{code} response:', response.status, response.data);
+      return response.data;
+    } catch (err) {
+      console.warn('[localesApi] failed to fetch locale:', err);
       throw err;
     }
   }

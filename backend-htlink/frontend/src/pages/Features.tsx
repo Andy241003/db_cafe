@@ -47,103 +47,141 @@ const Features: React.FC = () => {
   const loadPostsForFeatures = async (features: any[]) => {
     const postsPromises = features.map(async (feature: any) => {
       try {
-        const posts = await postsAPI.getAll(feature.id);
-        console.log(`=== LOADED POSTS FOR FEATURE ${feature.slug} (ID: ${feature.id}) ===`);
-        console.log(`Number of posts: ${posts.length}`);
-        posts.forEach((post: any) => {
-          console.log(`- Post ${post.id}: "${post.title}" | Content: "${post.content_html}"`);
-        });
+        const posts = await postsAPI.getAll(feature.id, true);
         return { featureId: feature.id, posts };
       } catch (error) {
         console.error(`Error loading posts for feature ${feature.id}:`, error);
         return { featureId: feature.id, posts: [] };
       }
     });
-    
+
     const postsResults = await Promise.all(postsPromises);
     const postsMap = new Map();
     postsResults.forEach(result => {
       postsMap.set(result.featureId, result.posts);
     });
-    
+
     return postsMap;
   };
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Features Debug - API Features:', apiFeatures);
-    console.log('Features Debug - Categories:', categories);
-    console.log('Features Debug - Loading:', loading);
-    console.log('Features Debug - Error:', error);
-  }, [apiFeatures, categories, loading, error]);
+
 
   // Convert API features to LocalFeature format when data loads
   useEffect(() => {
-    console.log('=== FEATURE CONVERSION DEBUG ===');
-    console.log('API Features:', apiFeatures.length, 'features, data:', apiFeatures);
-    console.log('Categories:', categories.length, 'categories, data:', categories);
     
     if (apiFeatures.length > 0) {
       const convertFeatures = async () => {
-        // Load posts for all features first
+        // Determine current UI locale (try stored user/tenant values, fallback to 'en')
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const storedLocale = localStorage.getItem('locale') || localStorage.getItem('default_locale') || currentUser.default_locale || currentUser.locale;
+        const uiLocale = (storedLocale || 'en').toLowerCase();
+
+        // Load posts for all features
         const postsMap = await loadPostsForFeatures(apiFeatures);
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
           // Find category by id to get slug for filtering
           const category = categories.find(cat => cat.id === feature.category_id);
-          console.log('Converting feature:', feature.slug, 'icon_key:', feature.icon_key, 'is_system:', feature.is_system, 'category:', category?.slug);
-          
+          // Choose translated category title if available for current UI locale
+          const categoryLabel = category ? (category.translations?.[uiLocale]?.title || category.name || category.slug) : 'general';
+
           // Get posts for this feature
           const featurePosts = postsMap.get(feature.id) || [];
-          console.log(`Posts for feature ${feature.slug}:`, featurePosts);
           
-          const uiPosts: UIPost[] = featurePosts.map((post: any) => {
-            console.log('Converting post:', post.id, 'title:', post.title, 'content_html:', post.content_html);
-            
-            return {
-              ...post,
-              title: post.title || `Post ${post.id}`,
-              excerpt: post.content_html ? post.content_html.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : 'No content',
-              locale: post.locale || 'en',
-              localeName: 'English',
-              flagClass: 'flag-icon-us', 
-              content: post.content_html || '', // Ensure content is from content_html
-              slug: post.slug || '',
-              status: post.status ? post.status.toLowerCase() : 'draft',
-              updatedAt: post.updated_at || post.created_at,
-              // Also keep original fields for reference
-              content_html: post.content_html
-            };
+          // The backend may return posts with a `translations` array when include_translations is true.
+          // Expand each post and its translations into separate UIPost entries so all locales display.
+          const uiPosts: UIPost[] = [];
+          featurePosts.forEach((post: any) => {
+            // Normalize translations to an array
+            const translationsArray: any[] = [];
+            if (post.translations) {
+              if (Array.isArray(post.translations)) {
+                translationsArray.push(...post.translations);
+              } else if (typeof post.translations === 'object') {
+                // API may return an object keyed by locale: { en: {...}, vi: {...} }
+                Object.keys(post.translations).forEach(k => {
+                  translationsArray.push({ locale: k, ...post.translations[k] });
+                });
+              }
+            }
+
+            // If post has translations, create UI entries for each translation
+            if (translationsArray.length > 0) {
+              translationsArray.forEach((t: any) => {
+                const tInfo = getLocaleInfo(t.locale);
+                const tRaw = t.content_html || '';
+                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+                uiPosts.push({
+                  ...post,
+                  uiKey: `${post.id}-${t.locale}`,
+                  title: t.title || `Post ${post.id}`,
+                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+                  locale: t.locale || 'en',
+                  localeName: tInfo.localeName,
+                  flagClass: tInfo.flagClass,
+                  content: tRaw,
+                  slug: post.slug || '',
+                  status: post.status ? post.status.toLowerCase() : 'draft',
+                  updatedAt: post.updated_at || post.created_at,
+                  content_html: t.content_html,
+                  translations: translationsArray // Keep translations for modal
+                });
+              });
+            } else {
+              // If no translations, show a placeholder entry indicating translations are needed
+              const defaultLocale = 'en';
+              const defaultInfo = getLocaleInfo(defaultLocale);
+              uiPosts.push({
+                ...post,
+                uiKey: `${post.id}-${defaultLocale}`,
+                title: `Post ${post.id} (No translations)`,
+                excerpt: 'This post has no translations yet. Click Translate to add one.',
+                locale: defaultLocale,
+                localeName: defaultInfo.localeName,
+                flagClass: defaultInfo.flagClass,
+                content: '',
+                slug: post.slug || '',
+                status: post.status ? post.status.toLowerCase() : 'draft',
+                updatedAt: post.updated_at || post.created_at,
+                content_html: '',
+                translations: [] // Empty translations array
+              });
+            }
           });
-          
-          console.log('Converted UI posts:', uiPosts);
-          
-          // Convert is_system to status for UI
-          // is_system: false = active (normal feature)
-          // is_system: true = inactive (system feature that can be disabled)
-          
+
+          // Get feature title from feature.translations (preferred) or fallback to post title or slug
+          let featureTitle = feature.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+          // Try to get title from feature translations first
+          if (feature.translations && feature.translations[uiLocale]) {
+            featureTitle = feature.translations[uiLocale].title;
+          } else {
+            // Fallback to post title
+            const firstPost = featurePosts.find((p: any) => p.locale === uiLocale) || featurePosts[0];
+            if (firstPost?.title) {
+              featureTitle = firstPost.title;
+            }
+          }
+
           return {
             id: feature.id,
-            name: feature.title || feature.slug, // Use title if available, otherwise slug
-            category: category?.slug || "general", // Use category slug for filtering
+            name: featureTitle,
+            category: categoryLabel,
             icon: feature.icon_key || "fa-file-alt",
-            iconColor: "linear-gradient(135deg, #667eea, #764ba2)", // Default gradient
+            iconColor: "linear-gradient(135deg, #667eea, #764ba2)",
             status: feature.is_system ? "inactive" : "active",
-            posts: uiPosts, // Use loaded posts
+            posts: uiPosts,
           };
         });
-        console.log('=== CONVERTED FEATURES WITH POSTS ===', convertedFeatures);
         setFeatures(convertedFeatures);
-        
+
         // Expand first feature by default if any exist
         if (convertedFeatures.length > 0) {
           setExpandedFeatures(new Set([convertedFeatures[0].id]));
         }
       };
-      
+
       convertFeatures();
-    } else {
-      console.log('No API features to convert yet...');
     }
   }, [apiFeatures, categories]);
   
@@ -155,20 +193,14 @@ const Features: React.FC = () => {
   const [selectedPost, setSelectedPost] = useState<UIPost | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
 
-  // Filter features based on search and filters - NO LIMITS, show all features
+  // Filter features based on search and filters
   const filteredFeatures = useMemo(() => {
-    console.log('Filtering features with:', { searchQuery, categoryFilter, statusFilter });
-    console.log('Total features:', features.length);
-    
-    const filtered = features.filter(feature => {
+    return features.filter(feature => {
       const matchesSearch = feature.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = !categoryFilter || feature.category === categoryFilter;
       const matchesStatus = !statusFilter || feature.status === statusFilter;
       return matchesSearch && matchesCategory && matchesStatus;
     });
-    
-    console.log('Filtered features count:', filtered.length);
-    return filtered;
   }, [features, searchQuery, categoryFilter, statusFilter]);
 
   // Toggle feature expansion
@@ -182,16 +214,8 @@ const Features: React.FC = () => {
     setExpandedFeatures(newExpanded);
   };
 
-  // Post management functions  
+  // Post management functions
   const handleEditPostClick = (post: UIPost) => {
-    console.log('=== EDIT POST DEBUG ===');
-    console.log('Post ID:', post.id);
-    console.log('Post title:', post.title);
-    console.log('Post feature_id:', post.feature_id);
-    console.log('Post content:', post.content);
-    console.log('Post content_html:', (post as any).content_html);
-    console.log('Full post object:', post);
-    
     // Use content_html as primary source since that's what we store in DB
     const editPost = {
       ...post,
@@ -199,13 +223,9 @@ const Features: React.FC = () => {
       title: post.title || `Post ${post.id}`,
       slug: post.slug || `post-${post.id}`,
       status: post.status || 'draft',
-      feature_id: post.feature_id || (post as any).feature_id // Ensure feature_id is preserved
+      feature_id: post.feature_id || (post as any).feature_id
     };
-    
-    console.log('Prepared edit post:', editPost);
-    console.log('Edit post feature_id:', editPost.feature_id);
-    console.log('Edit post content to send to modal:', editPost.content);
-    
+
     setSelectedPost(editPost);
     setIsEditPostModalOpen(true);
   };
@@ -215,56 +235,44 @@ const Features: React.FC = () => {
     setIsTranslateModalOpen(true);
   };
 
-  const deletePost = async (postId: number) => {
-    console.log('Delete Post clicked:', postId);
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        await postsAPI.delete(postId);
-        alert('Post deleted successfully!');
-        
-        // Refresh features to update posts list
-        await refreshFeatures();
-        
-        // Force reload posts for updated features display
-        if (apiFeatures.length > 0) {
-          const postsMap = await loadPostsForFeatures(apiFeatures);
-          
-          // Update local features with fresh posts
-          const updatedFeatures = features.map(feature => {
-            const freshPosts = postsMap.get(feature.id) || [];
-            const uiPosts: UIPost[] = freshPosts.map((post: any) => ({
-              ...post,
-              title: post.title || `Post ${post.id}`,
-              excerpt: post.content_html ? post.content_html.substring(0, 100) + '...' : '',
-              locale: 'en',
-              localeName: 'English',
-              flagClass: 'flag-icon-us',
-              content: post.content_html,
-              updatedAt: post.updated_at || post.created_at
-            }));
-            
-            return {
-              ...feature,
-              posts: uiPosts
-            };
-          });
-          
-          console.log('Updated features after delete:', updatedFeatures);
-          setFeatures(updatedFeatures);
+  const deletePost = async (postId: number, locale: string, translations: any[]) => {
+
+    // Check if this post has multiple translations
+    const hasMultipleTranslations = translations && translations.length > 1;
+
+    try {
+      if (hasMultipleTranslations) {
+        // Only delete the translation for this locale
+        if (window.confirm(`Are you sure you want to delete the ${locale.toUpperCase()} translation of this post?`)) {
+          const { postsApi } = await import('../services/postsApi');
+          await postsApi.deleteTranslation(postId, locale);
+          alert(`${locale.toUpperCase()} translation deleted successfully!`);
+
+          // Refresh features to update posts list
+          await refreshFeatures();
         }
-      } catch (error: any) {
-        console.error('Error deleting post:', error);
-        alert(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
+      } else {
+        // Delete the entire post (last translation)
+        if (window.confirm('This is the last translation. Deleting it will remove the entire post. Continue?')) {
+          await postsAPI.delete(postId);
+          alert('Post deleted successfully!');
+
+          // Refresh features to update posts list
+          await refreshFeatures();
+        }
       }
+    } catch (error: any) {
+      console.error('Error deleting post:', error);
+      alert(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
     }
   };
 
   const handleEditFeature = (featureId: number) => {
-    console.log('Editing feature ID:', featureId);
-    const feature = apiFeatures.find(f => f.id === featureId);
-    if (feature) {
-      console.log('Found feature for editing:', feature);
-      setSelectedFeature(feature);
+    const apiFeature = apiFeatures.find(f => f.id === featureId);
+    const localFeature = features.find(f => f.id === featureId);
+    if (apiFeature && localFeature) {
+      // Pass both API feature and local feature title
+      setSelectedFeature({ ...apiFeature, title: localFeature.name });
       setIsEditFeatureModalOpen(true);
     } else {
       console.error('Feature not found for ID:', featureId);
@@ -286,8 +294,6 @@ const Features: React.FC = () => {
   };
 
   const addPost = (featureId: number) => {
-    console.log("Adding post to feature:", featureId);
-    
     // Create a new post object for the feature
     const newPost = {
       id: 0, // New post
@@ -315,31 +321,21 @@ const Features: React.FC = () => {
   // Modal handlers
   const handleSavePost = async (postData: any) => {
     try {
-      console.log('=== SAVING POST ===');
-      console.log('Post data from form:', postData);
-      console.log('Selected post object:', selectedPost);
-      
       // Get user context for tenant and property
       const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const tenantId = parseInt(localStorage.getItem('tenant_id') || '1');
-      
-      console.log('User context:', { currentUser, tenantId });
-      
+
       // Get or create property_id
       let propertyId = currentUser.property_id;
-      
+
       if (!propertyId) {
         try {
-          console.log('No property_id in user context, fetching properties...');
           const properties = await propertiesAPI.getAll();
-          console.log('Available properties:', properties);
-          
+
           if (properties.length > 0) {
             propertyId = properties[0].id;
-            console.log(`Using first available property: ${propertyId}`);
           } else {
             // Create default property if none exist
-            console.log('No properties found, creating default property...');
             const defaultProperty = await propertiesAPI.create({
               name: 'Default Hotel Property',
               tenant_id: tenantId,
@@ -347,18 +343,17 @@ const Features: React.FC = () => {
               address: ''
             });
             propertyId = defaultProperty.id;
-            console.log(`Created default property: ${propertyId}`);
           }
         } catch (propertyError) {
           console.error('Failed to get/create property:', propertyError);
           throw new Error('Failed to get property information. Please contact administrator.');
         }
       }
-      
+
       // Convert postData to API format
       const postPayload = {
         tenant_id: tenantId,
-        property_id: propertyId, // Now guaranteed to have a valid property_id
+        property_id: propertyId,
         feature_id: selectedPost?.feature_id || selectedPost?.id || 1,
         slug: postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-'),
         status: (postData.status || 'draft').toUpperCase(),
@@ -367,55 +362,77 @@ const Features: React.FC = () => {
         content_html: postData.content || '',
         locale: postData.locale || 'en'
       };
-      
-      console.log('API payload to send:', postPayload);
-      console.log('Update or Create?', selectedPost?.id && selectedPost.id > 0 ? 'UPDATE' : 'CREATE');
-      
+
       if (selectedPost?.id && selectedPost.id > 0) {
-        // Update existing post
-        console.log(`Updating existing post ID: ${selectedPost.id}`);
-        const updatedPost = await postsAPI.update(selectedPost.id, postPayload);
-        console.log('Updated post response:', updatedPost);
+        await postsAPI.update(selectedPost.id, postPayload);
         alert('Post updated successfully!');
       } else {
-        // Create new post  
-        console.log('Creating new post');
-        const newPost = await postsAPI.create(postPayload);
-        console.log('Created post response:', newPost);
+        await postsAPI.create(postPayload);
         alert('Post created successfully!');
       }
       
       setIsEditPostModalOpen(false);
       setSelectedPost(null);
-      
-      // REFRESH DATA - Reload features and posts
-      console.log('=== POST SAVED - REFRESHING DATA ===');
+
+      // Refresh data
       try {
-        // Method 1: Use the refreshFeatures hook to get fresh API data
         await refreshFeatures();
-        console.log('✅ Features refreshed via hook');
-        
-        // Method 2: Force re-conversion of features with fresh posts
+
         if (apiFeatures.length > 0) {
-          console.log('🔄 Reloading posts for all features...');
           const postsMap = await loadPostsForFeatures(apiFeatures);
           
           // Update local features with fresh posts
           const updatedFeatures = features.map(feature => {
             const freshPosts = postsMap.get(feature.id) || [];
-            const uiPosts: UIPost[] = freshPosts.map((post: any) => ({
-              ...post,
-              title: post.title || `Post ${post.id}`,
-              excerpt: post.content_html ? post.content_html.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : 'No content',
-              locale: post.locale || 'en',
-              localeName: 'English',
-              flagClass: 'flag-icon-us',
-              content: post.content_html || '',
-              slug: post.slug || '',
-              status: post.status ? post.status.toLowerCase() : 'draft',
-              updatedAt: post.updated_at || post.created_at,
-              content_html: post.content_html
-            }));
+            const uiPosts: UIPost[] = [];
+            freshPosts.forEach((post: any) => {
+              const mainLocale = post.locale || 'en';
+              const mainInfo = getLocaleInfo(mainLocale);
+              const mainRaw = post.content_html || '';
+              const mainExcerpt = mainRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+              uiPosts.push({
+                ...post,
+                uiKey: `${post.id}-${mainLocale}`,
+                title: post.title || `Post ${post.id}`,
+                excerpt: mainExcerpt ? mainExcerpt + '...' : 'No content',
+                locale: mainLocale,
+                localeName: mainInfo.localeName,
+                flagClass: mainInfo.flagClass,
+                content: mainRaw || '',
+                slug: post.slug || '',
+                status: post.status ? post.status.toLowerCase() : 'draft',
+                updatedAt: post.updated_at || post.created_at,
+                content_html: post.content_html
+              });
+
+              const translationsArray3: any[] = [];
+              if (post.translations) {
+                if (Array.isArray(post.translations)) {
+                  translationsArray3.push(...post.translations);
+                } else if (typeof post.translations === 'object') {
+                  Object.keys(post.translations).forEach(k => translationsArray3.push({ locale: k, ...post.translations[k] }));
+                }
+              }
+              translationsArray3.forEach((t: any) => {
+                const tInfo = getLocaleInfo(t.locale);
+                const tRaw = t.content_html || '';
+                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+                uiPosts.push({
+                  ...post,
+                  uiKey: `${post.id}-${t.locale}`,
+                  title: t.title || post.title || `Post ${post.id}`,
+                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+                  locale: t.locale || 'en',
+                  localeName: tInfo.localeName,
+                  flagClass: tInfo.flagClass,
+                  content: tRaw || '',
+                  slug: post.slug || '',
+                  status: post.status ? post.status.toLowerCase() : 'draft',
+                  updatedAt: post.updated_at || post.created_at,
+                  content_html: t.content_html
+                });
+              });
+            });
             
             return {
               ...feature,
@@ -424,11 +441,9 @@ const Features: React.FC = () => {
           });
           
           setFeatures(updatedFeatures);
-          console.log('✅ Local features updated with fresh posts');
         }
       } catch (refreshError) {
-        console.error('❌ Failed to refresh data, trying page reload...', refreshError);
-        // Fallback: Full page reload
+        console.error('Failed to refresh data:', refreshError);
         window.location.reload();
       }
     } catch (error: any) {
@@ -441,18 +456,14 @@ const Features: React.FC = () => {
 
   const handleSaveFeature = async (formData: FormData) => {
     try {
-      console.log('Creating feature:', formData);
-      
-      // Convert FormData to API format
       const featureData = {
         slug: formData.slug,
         icon_key: formData.icon,
         category_id: categories.find(cat => cat.slug === formData.category)?.id || 1,
-        tenant_id: 1, // Default tenant
-        is_system: formData.status === 'inactive' // Convert status to is_system
+        tenant_id: 1,
+        is_system: formData.status === 'inactive'
       };
-      
-      console.log('API feature data:', featureData);
+
       await createFeature(featureData);
       alert('Feature created successfully!');
       setIsAddFeatureModalOpen(false);
@@ -464,26 +475,55 @@ const Features: React.FC = () => {
 
   const handleSaveEditFeature = async (featureId: number, formData: any) => {
     try {
-      console.log('Updating feature:', featureId, formData);
-      
-      // Convert FormData to API format
       const updateData = {
         slug: formData.slug,
         icon_key: formData.icon,
         category_id: categories.find(cat => cat.slug === formData.category)?.id || 1,
         tenant_id: 1,
-        is_system: formData.status === 'inactive' // Convert status back to is_system
+        is_system: formData.status === 'inactive'
       };
-      
-      console.log('API update data:', updateData);
+
       await updateFeature(featureId, updateData);
-      
-      console.log('Feature updated successfully, refreshing data...');
-      
-      // Force refresh features list to show updated data
+
+      // Update feature translations if name changed
+      if (formData.name) {
+        try {
+          const currentFeature = apiFeatures.find(f => f.id === featureId);
+          if (currentFeature && currentFeature.translations) {
+            const locales = Object.keys(currentFeature.translations);
+
+            for (const locale of locales) {
+              try {
+                const response = await fetch(
+                  `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/translations/features/${featureId}/${locale}`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                      'X-Tenant-Code': localStorage.getItem('tenant_code') || 'demo',
+                    },
+                    body: JSON.stringify({
+                      title: formData.name,
+                      short_desc: currentFeature.translations[locale].short_desc // Keep existing short_desc
+                    })
+                  }
+                );
+
+                if (!response.ok) {
+                  console.error(`Failed to update translation for locale ${locale}:`, response.status);
+                }
+              } catch (transError) {
+                console.error(`Error updating translation for locale ${locale}:`, transError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error updating feature translations:', error);
+        }
+      }
+
       await refreshFeatures();
-      
-      console.log('Data refreshed, closing modal...');
       alert('Feature updated successfully!');
       setIsEditFeatureModalOpen(false);
       setSelectedFeature(null);
@@ -493,24 +533,157 @@ const Features: React.FC = () => {
     }
   };
 
-  const handleTranslate = (translationData: any) => {
-    console.log('Translated data:', translationData);
-    setIsTranslateModalOpen(false);
+  const handleTranslate = async (translationData: any) => {
+    if (!selectedPost) {
+      console.error('No post selected for translation');
+      return;
+    }
+
+    try {
+      // Import postsApi for translation operations
+      const { postsApi } = await import('../services/postsApi');
+
+      // Check if translation already exists for this locale
+      const existingTranslation = (selectedPost as any).translations?.find(
+        (t: any) => t.locale === translationData.targetLanguage
+      );
+
+      if (existingTranslation) {
+        const updatePayload = {
+          title: translationData.title,
+          content_html: translationData.content,
+        };
+        await postsApi.updateTranslation(
+          selectedPost.id,
+          translationData.targetLanguage,
+          updatePayload
+        );
+        alert('Translation updated successfully!');
+      } else {
+        const createPayload = {
+          locale: translationData.targetLanguage,
+          title: translationData.title,
+          content_html: translationData.content,
+        };
+        await postsApi.createTranslation(selectedPost.id, createPayload);
+        alert('Translation created successfully!');
+      }
+
+      setIsTranslateModalOpen(false);
+
+      // Refresh data to show new translation
+      await refreshFeatures();
+
+      // Reload posts to update UI
+      if (apiFeatures.length > 0) {
+        const postsMap = await loadPostsForFeatures(apiFeatures);
+        const updatedFeatures = features.map(feature => {
+          const freshPosts = postsMap.get(feature.id) || [];
+          const uiPosts: UIPost[] = [];
+          freshPosts.forEach((post: any) => {
+            const mainLocale = post.locale || 'en';
+            const mainInfo = getLocaleInfo(mainLocale);
+            const mainRaw = post.content_html || '';
+            const mainExcerpt = mainRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+            uiPosts.push({
+              ...post,
+              uiKey: `${post.id}-${mainLocale}`,
+              title: post.title || `Post ${post.id}`,
+              excerpt: mainExcerpt ? mainExcerpt + '...' : 'No content',
+              locale: mainLocale,
+              localeName: mainInfo.localeName,
+              flagClass: mainInfo.flagClass,
+              content: mainRaw || '',
+              slug: post.slug || '',
+              status: post.status ? post.status.toLowerCase() : 'draft',
+              updatedAt: post.updated_at || post.created_at,
+              content_html: post.content_html
+            });
+
+            const translationsArray: any[] = [];
+            if (post.translations) {
+              if (Array.isArray(post.translations)) {
+                translationsArray.push(...post.translations);
+              } else if (typeof post.translations === 'object') {
+                Object.keys(post.translations).forEach(k => translationsArray.push({ locale: k, ...post.translations[k] }));
+              }
+            }
+            translationsArray.forEach((t: any) => {
+              const tInfo = getLocaleInfo(t.locale);
+              const tRaw = t.content_html || '';
+              const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+              uiPosts.push({
+                ...post,
+                uiKey: `${post.id}-${t.locale}`,
+                title: t.title || post.title || `Post ${post.id}`,
+                excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+                locale: t.locale || 'en',
+                localeName: tInfo.localeName,
+                flagClass: tInfo.flagClass,
+                content: tRaw || '',
+                slug: post.slug || '',
+                status: post.status ? post.status.toLowerCase() : 'draft',
+                updatedAt: post.updated_at || post.created_at,
+                content_html: t.content_html
+              });
+            });
+          });
+
+          return {
+            ...feature,
+            posts: uiPosts
+          };
+        });
+
+        setFeatures(updatedFeatures);
+        console.log('✅ Features updated with new translation');
+      }
+    } catch (error: any) {
+      console.error('Error saving translation:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error config:', error.config);
+
+      // Show detailed error message
+      let errorMessage = 'Failed to save translation';
+      if (error.response?.data?.detail) {
+        errorMessage += `: ${error.response.data.detail}`;
+      } else if (error.response?.data) {
+        errorMessage += `: ${JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+
+      alert(errorMessage);
+    }
   };
 
   const getIconClass = (iconName: string) => {
-    console.log('getIconClass: Converting icon:', iconName);
-    
-    // Handle icons with fa- prefix
     if (iconName.startsWith('fa-')) {
       return `fas ${iconName}`;
     }
-    
-    // Handle icons without prefix - add fa- prefix
-    const iconWithPrefix = `fa-${iconName}`;
-    console.log('getIconClass: Added prefix:', iconWithPrefix);
-    return `fas ${iconWithPrefix}`;
+    return `fas fa-${iconName}`;
   }
+
+  // Map locale code to a human-friendly name and a short flag/label used in the UI
+  const getLocaleInfo = (locale?: string) => {
+    const code = (locale || 'en').toLowerCase();
+    switch (code) {
+      case 'vi':
+        return { localeName: 'Tiếng Việt', flagClass: '🇻🇳' };
+      case 'ja':
+        return { localeName: '日本語', flagClass: '🇯🇵' };
+      case 'ko':
+        return { localeName: '한국어', flagClass: '🇰🇷' };
+      case 'fr':
+        return { localeName: 'Français', flagClass: '🇫🇷' };
+      case 'zh':
+        return { localeName: '中文', flagClass: '🇨🇳' };
+      case 'en':
+      default:
+        return { localeName: 'English', flagClass: '🇬🇧' };
+    }
+  };
 
   // Handle loading and error states
   if (loading) {
@@ -695,12 +868,10 @@ const Features: React.FC = () => {
                 ) : (
                   <div className="flex flex-col gap-3">
                     {feature.posts.map(post => (
-                      <div key={post.id} className="bg-white border border-slate-200 rounded-lg p-4 transition-all hover:shadow-md">
+                      <div key={(post as any).uiKey || `${post.id}-${post.locale}`} className="bg-white border border-slate-200 rounded-lg p-4 transition-all hover:shadow-md">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2 font-semibold text-slate-900">
-                            <div className={`w-5 h-3.5 rounded-sm flex items-center justify-center text-xs font-bold text-white ${post.flagClass === 'vi' ? 'bg-red-600' : 'bg-blue-900'}`}>
-                              {post.flagClass.toUpperCase()}
-                            </div>
+                            <span className="text-lg">{post.flagClass}</span>
                             {post.localeName}
                           </div>
                           <div className="flex gap-2">
@@ -718,7 +889,13 @@ const Features: React.FC = () => {
                             </button>
                             <button
                               className="px-2 py-1 border-none rounded text-xs font-medium cursor-pointer flex items-center gap-1 transition-all bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                              onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Get all posts with same ID to count translations
+                                const allPostVersions = feature.posts.filter(p => p.id === post.id);
+                                const translations = allPostVersions.map(p => ({ locale: p.locale }));
+                                deletePost(post.id, post.locale, translations);
+                              }}
                             >
                               <i className="fas fa-trash"></i> Delete
                             </button>

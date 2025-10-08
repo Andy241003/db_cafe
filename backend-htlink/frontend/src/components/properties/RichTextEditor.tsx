@@ -18,20 +18,36 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder = 'Start typing...'
 }) => {
   const [isHtmlMode, setIsHtmlMode] = useState(false);
+  const [htmlContent, setHtmlContent] = useState(content);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  // Sync content when prop changes
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== content) {
+    setHtmlContent(content);
+    if (editorRef.current && !isHtmlMode && editorRef.current.innerHTML !== content) {
       editorRef.current.innerHTML = content;
     }
-  }, [content]);
+  }, [content, isHtmlMode]);
 
   const formatText = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+    try {
+      // Focus the editor first to ensure selection is in the contentEditable
+      editorRef.current?.focus();
+
+      // Execute the command
+      const success = document.execCommand(command, false, value);
+
+      if (!success) {
+        console.warn(`Command "${command}" failed to execute`);
+      }
+
+      // Update the content
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+    } catch (error) {
+      console.error(`Error executing command "${command}":`, error);
     }
-    editorRef.current?.focus();
   };
 
   const insertLink = () => {
@@ -46,12 +62,33 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleContentChange = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const newContent = editorRef.current.innerHTML;
+      setHtmlContent(newContent);
+      onChange(newContent);
     }
   };
 
   const handleHtmlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
+    const newContent = e.target.value;
+    setHtmlContent(newContent);
+    onChange(newContent);
+  };
+
+  const toggleHtmlMode = () => {
+    if (isHtmlMode) {
+      // Switching from HTML to visual mode
+      // Update the editor with the current HTML content
+      if (editorRef.current) {
+        editorRef.current.innerHTML = htmlContent;
+      }
+    } else {
+      // Switching from visual to HTML mode
+      // Sync the HTML content with the editor
+      if (editorRef.current) {
+        setHtmlContent(editorRef.current.innerHTML);
+      }
+    }
+    setIsHtmlMode(!isHtmlMode);
   };
 
   const toolbarButtons = [
@@ -74,6 +111,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
+      <style>{`
+        [contenteditable][data-placeholder]:empty:before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          pointer-events: none;
+        }
+        [contenteditable]:focus {
+          outline: none;
+        }
+      `}</style>
       <div className="bg-slate-50 border-b border-slate-200 p-2 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
           <select 
@@ -108,14 +155,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           ))}
         </div>
         <div className="flex-grow" />
-        <button type="button" onClick={() => setIsHtmlMode(!isHtmlMode)} title="Toggle HTML Mode" className={`w-8 h-8 text-slate-600 hover:bg-slate-200 rounded-md ${isHtmlMode ? 'bg-blue-100 text-blue-600' : ''}`}>
+        <button type="button" onClick={toggleHtmlMode} title="Toggle HTML Mode" className={`w-8 h-8 text-slate-600 hover:bg-slate-200 rounded-md ${isHtmlMode ? 'bg-blue-100 text-blue-600' : ''}`}>
           <FontAwesomeIcon icon={faCode} />
         </button>
       </div>
 
       {isHtmlMode ? (
         <textarea
-          value={content}
+          value={htmlContent}
           onChange={handleHtmlChange}
           className="w-full h-64 p-4 font-mono text-sm bg-slate-900 text-green-400 outline-none resize-y"
           placeholder={placeholder}

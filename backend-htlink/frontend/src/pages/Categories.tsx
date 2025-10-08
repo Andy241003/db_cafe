@@ -57,16 +57,70 @@ const Categories: React.FC = () => {
 
   const handleAcceptTranslation = async (categoryId: number, targetLang: Language, translatedData: any): Promise<void> => {
     try {
-      console.log('Accepting translation:', { categoryId, targetLang, translatedData });
-      
-      // TODO: Implement API call to save translation
-      // await updateCategoryTranslation(categoryId, targetLang, translatedData);
-      
-      alert(`Translation for ${targetLang.toUpperCase()} saved successfully!`);
+      console.log('=== SAVING CATEGORY TRANSLATION ===');
+      console.log('Category ID:', categoryId);
+      console.log('Target Language:', targetLang);
+      console.log('Translation Data:', translatedData);
+
+      // Import categoriesApi for translation operations
+      const { categoriesApi } = await import('../services/categoriesApi');
+
+      // Check if translation already exists for this locale
+      const category = categories.find(c => c.id === categoryId);
+      const existingTranslation = category?.translations?.[targetLang];
+
+      const translationPayload = {
+        locale: targetLang,
+        title: translatedData.title,
+        short_desc: translatedData.description || '',
+      };
+
+      if (existingTranslation) {
+        // Update existing translation
+        console.log('Updating existing translation:', translationPayload);
+        await categoriesApi.updateCategoryTranslation(
+          categoryId,
+          targetLang,
+          {
+            title: translatedData.title,
+            short_desc: translatedData.description || '',
+          }
+        );
+        alert(`Translation for ${targetLang.toUpperCase()} updated successfully!`);
+      } else {
+        // Create new translation
+        console.log('Creating new translation:', translationPayload);
+        console.log('Full payload with category_id:', {
+          category_id: categoryId,
+          ...translationPayload
+        });
+
+        const result = await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
+        console.log('Translation created successfully:', result);
+        alert(`Translation for ${targetLang.toUpperCase()} created successfully!`);
+      }
+
       translateModal.closeModal();
-    } catch (error) {
+
+      // Refresh categories to show updated translations
+      window.location.reload();
+    } catch (error: any) {
       console.error('Error saving translation:', error);
-      alert('Error saving translation. Please try again.');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error config:', error.config);
+
+      // Show detailed error message
+      let errorMessage = 'Error saving translation';
+      if (error.response?.data?.detail) {
+        errorMessage += `: ${error.response.data.detail}`;
+      } else if (error.response?.data) {
+        errorMessage += `: ${JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+
+      alert(errorMessage);
     }
   };
 

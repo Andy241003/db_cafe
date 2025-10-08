@@ -1,6 +1,6 @@
 from .crud_core import plan, tenant, admin_user, locale
 from .crud_content import (
-    property, feature_category, feature_category_translation,
+    property, property_translation, feature_category, feature_category_translation,
     feature, feature_translation, property_category, property_feature,
     post, post_translation, media_file, post_media, event, setting
 )
@@ -18,7 +18,7 @@ def create_admin_user(session, user_create):
 # Export all CRUD instances
 __all__ = [
     "plan", "tenant", "admin_user", "locale",
-    "property", "feature_category", "feature_category_translation",
+    "property", "property_translation", "feature_category", "feature_category_translation",
     "feature", "feature_translation", "property_category", "property_feature",
     "post", "post_translation", "media_file", "post_media", "event", "setting",
     "property_posts",

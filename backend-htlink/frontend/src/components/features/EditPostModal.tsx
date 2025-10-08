@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faTimes, faInfoCircle, faLink, faBold, faItalic, faUnderline, faStrikethrough, 
-  faListOl, faListUl, faIndent, faOutdent, faAlignLeft, faAlignCenter, faAlignRight, 
-  faImage, faTable, faCode 
+import {
+  faTimes, faInfoCircle, faLink, faBold, faItalic, faUnderline, faStrikethrough,
+  faListOl, faListUl, faIndent, faOutdent, faAlignLeft, faAlignCenter, faAlignRight,
+  faImage, faTable, faCode
 } from '@fortawesome/free-solid-svg-icons';
 
 import type { UIPost } from '../../services/api';
+import { localesApi, type Locale } from '../../services/localesApi';
 
 interface EditPostModalProps {
   isOpen: boolean;
@@ -17,8 +18,8 @@ interface EditPostModalProps {
 
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
   const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
-  // Removed editorRef - using simple textarea now
-  
+  const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
+
   const [postForm, setPostForm] = useState({
     locale: '',
     title: '',
@@ -28,6 +29,28 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
     status: 'draft' as 'draft' | 'published' | 'archived',
     vrLink: ''
   });
+
+  // Load available locales from API
+  useEffect(() => {
+    const loadLocales = async () => {
+      try {
+        const locales = await localesApi.getLocales();
+        setAvailableLocales(locales);
+        console.log('Loaded locales for post modal:', locales);
+      } catch (error) {
+        console.error('Failed to load locales:', error);
+        // Fallback to default locales
+        setAvailableLocales([
+          { code: 'en', name: 'English' },
+          { code: 'vi', name: 'Vietnamese' },
+          { code: 'ja', name: 'Japanese' }
+        ]);
+      }
+    };
+    if (isOpen) {
+      loadLocales();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     console.log('=== EditPostModal useEffect ===');
@@ -137,10 +160,11 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               required
             >
               <option value="">Select language...</option>
-              <option value="vi">🇻🇳 Vietnamese</option>
-              <option value="en">🇬🇧 English</option>
-              <option value="fr">🇫🇷 French</option>
-              <option value="jp">🇯🇵 Japanese</option>
+              {availableLocales.map((locale) => (
+                <option key={locale.code} value={locale.code}>
+                  {locale.code.toUpperCase()} - {locale.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -150,9 +174,32 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               type="text"
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white transition-all focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={postForm.title}
-              onChange={(e) => setPostForm(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) => {
+                const newTitle = e.target.value;
+                // Auto-generate slug from title
+                const newSlug = newTitle.toLowerCase()
+                  .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+                  .replace(/\s+/g, '-') // Replace spaces with hyphens
+                  .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+                  .trim();
+                setPostForm(prev => ({ ...prev, title: newTitle, slug: newSlug }));
+              }}
               required
             />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug (URL-friendly identifier)</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
+              value={postForm.slug}
+              readOnly
+              disabled
+            />
+            <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
+              <FontAwesomeIcon icon={faInfoCircle} /> Auto-generated from title
+            </small>
           </div>
 
           <div className="mb-4">
@@ -166,21 +213,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             />
             <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
               <FontAwesomeIcon icon={faInfoCircle} /> Optional: Link to virtual reality tour of the hotel
-            </small>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug / External Link *</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white transition-all focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              value={postForm.slug}
-              onChange={(e) => setPostForm(prev => ({ ...prev, slug: e.target.value }))}
-              placeholder="e.g., swimming-pool or https://example.com/pool"
-              required
-            />
-            <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
-              <FontAwesomeIcon icon={faLink} /> Enter a slug for internal page or a full URL for external link
             </small>
           </div>
 

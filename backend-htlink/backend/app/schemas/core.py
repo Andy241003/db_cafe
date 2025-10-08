@@ -219,6 +219,42 @@ class PropertyUpdate(BaseModel):
 class PropertyResponse(PropertyBase, TimestampResponse):
     id: int
     tenant_id: int
-    
+
+    class Config:
+        from_attributes = True
+
+
+# Property Translation schemas
+class PropertyTranslationBase(BaseModel):
+    locale: str = Field(max_length=10)
+    property_name: Optional[str] = Field(None, max_length=255)
+    slogan: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    address: Optional[str] = Field(None, max_length=255)
+    district: Optional[str] = Field(None, max_length=100)
+    city: Optional[str] = Field(None, max_length=100)
+    country: Optional[str] = Field(None, max_length=100)
+    copyright_text: Optional[str] = Field(None, max_length=255)
+
+
+class PropertyTranslationCreate(PropertyTranslationBase):
+    property_id: Optional[int] = None  # Optional because it can come from URL path
+
+
+class PropertyTranslationUpdate(BaseModel):
+    property_name: Optional[str] = Field(None, max_length=255)
+    slogan: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    address: Optional[str] = Field(None, max_length=255)
+    district: Optional[str] = Field(None, max_length=100)
+    city: Optional[str] = Field(None, max_length=100)
+    country: Optional[str] = Field(None, max_length=100)
+    copyright_text: Optional[str] = Field(None, max_length=255)
+
+
+class PropertyTranslationResponse(PropertyTranslationBase, TimestampResponse):
+    id: int
+    property_id: int
+
     class Config:
         from_attributes = True

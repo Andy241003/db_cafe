@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { RequestIconModal } from './RequestIconModal';
 import type { Category, CategoryFormData, Language } from '../../types/categories';
+import { localesApi, type Locale } from '../../services/localesApi';
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -32,12 +33,6 @@ const iconMap: Record<string, string> = {
   'heart': 'fa-heart'
 };
 
-const languageLabels: Partial<Record<Language, string>> = {
-  en: 'English',
-  vi: 'Tiếng Việt',
-  ja: '日本語'
-};
-
 export const CategoryModal: React.FC<CategoryModalProps> = ({
   isOpen,
   onClose,
@@ -46,6 +41,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<Language>('en');
   const [isRequestIconModalOpen, setIsRequestIconModalOpen] = useState(false);
+  const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
   const [formData, setFormData] = useState<CategoryFormData>({
     slug: '',
     icon: '',
@@ -53,8 +49,30 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
       en: { title: '', description: '' },
       vi: { title: '', description: '' },
       ja: { title: '', description: '' }
-    } 
+    }
   });
+
+  // Load available locales from API
+  useEffect(() => {
+    const loadLocales = async () => {
+      try {
+        const locales = await localesApi.getLocales();
+        setAvailableLocales(locales);
+        console.log('Loaded locales:', locales);
+      } catch (error) {
+        console.error('Failed to load locales:', error);
+        // Fallback to default locales
+        setAvailableLocales([
+          { code: 'en', name: 'English' },
+          { code: 'vi', name: 'Vietnamese' },
+          { code: 'ja', name: 'Japanese' }
+        ]);
+      }
+    };
+    if (isOpen) {
+      loadLocales();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (category) {
@@ -174,23 +192,52 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
           <form onSubmit={handleSubmit}>
             {/* Language Tabs */}
             <div className="flex border-b border-gray-200 mb-6">
-              {(['en', 'vi', 'ja'] as Language[]).map((lang: Language) => (
+              {availableLocales.map((locale) => (
                 <button
-                  key={lang}
+                  key={locale.code}
                   type="button"
-                  onClick={() => handleTabChange(lang)}
+                  onClick={() => handleTabChange(locale.code as Language)}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                    activeTab === lang
+                    activeTab === locale.code
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {languageLabels[lang]}
+                  {locale.name}
                 </button>
               ))}
             </div>
 
-            {/* Slug Field */}
+            {/* Language Content - Title First */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title ({availableLocales.find(l => l.code === activeTab)?.name || activeTab.toUpperCase()})
+                </label>
+                <input
+                  type="text"
+                  value={formData.translations[activeTab as keyof typeof formData.translations]?.title || ''}
+                  onChange={handleTitleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Category title"
+                  required={activeTab === 'en'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description ({availableLocales.find(l => l.code === activeTab)?.name || activeTab.toUpperCase()})
+                </label>
+                <textarea
+                  value={formData.translations[activeTab as keyof typeof formData.translations]?.description || ''}
+                  onChange={handleDescriptionChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                  placeholder="Brief description of this category"
+                />
+              </div>
+            </div>
+
+            {/* Slug Field - Moved After Title/Description */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category Slug (URL-friendly identifier)
@@ -237,35 +284,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                     <i className={`fas ${iconMap[icon] || 'fa-box'}`}></i>
                   </button>
                 ))}   
-              </div>
-            </div>
-
-            {/* Language Content */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title ({languageLabels[activeTab]})
-                </label>
-                <input
-                  type="text"
-                  value={formData.translations[activeTab as keyof typeof formData.translations]?.title || ''}
-                  onChange={handleTitleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Category title"
-                  required={activeTab === 'en'}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description ({languageLabels[activeTab]})
-                </label>
-                <textarea
-                  value={formData.translations[activeTab as keyof typeof formData.translations]?.description || ''}
-                  onChange={handleDescriptionChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
-                  placeholder="Brief description of this category"
-                />
               </div>
             </div>
 

@@ -4,12 +4,13 @@ from sqlalchemy import text
 from fastapi import HTTPException
 from .base import CRUDBase
 from ..models import (
-    Property, FeatureCategory, FeatureCategoryTranslation,
+    Property, PropertyTranslation, FeatureCategory, FeatureCategoryTranslation,
     Feature, FeatureTranslation, PropertyCategory, PropertyFeature,
     Post, PostTranslation, MediaFile, PostMedia, Event, Setting
 )
 from ..schemas import (
     PropertyCreate, PropertyUpdate,
+    PropertyTranslationCreate, PropertyTranslationUpdate,
     FeatureCategoryCreate, FeatureCategoryUpdate,
     FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate,
     FeatureCreate, FeatureUpdate,
@@ -342,6 +343,7 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
 
     def get_by_tenant_with_translations(self, db: Session, *, tenant_id: int, property_id: Optional[int] = None, feature_id: Optional[int] = None, status: Optional[str] = None, locale: str = "en", skip: int = 0, limit: int = 100) -> List[dict]:
         """Get posts by tenant with translation data"""
+        print(f"[CRUD-DEBUG] get_by_tenant_with_translations called (tenant_id={tenant_id}, locale={locale}, feature_id={feature_id}, skip={skip}, limit={limit})", flush=True)
         query = select(Post, PostTranslation).join(
             PostTranslation, Post.id == PostTranslation.post_id
         ).where(
@@ -356,6 +358,22 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
         if status:
             query = query.where(Post.status == status)
             
+        # Debug: also check raw posts (without translations) for the same filters
+        try:
+            raw_query = select(Post).where(Post.tenant_id == tenant_id)
+            if property_id:
+                raw_query = raw_query.where(Post.property_id == property_id)
+            if feature_id:
+                raw_query = raw_query.where(Post.feature_id == feature_id)
+            if status:
+                raw_query = raw_query.where(Post.status == status)
+
+            raw_posts = db.exec(raw_query.order_by(Post.created_at.desc()).offset(skip).limit(limit)).all()
+            raw_ids = [p.id for p in raw_posts]
+            print(f"🔎 Raw posts matching tenant/filters: {len(raw_posts)} ids={raw_ids}", flush=True)
+        except Exception as e:
+            print(f"❌ Error querying raw posts: {e}", flush=True)
+
         results = db.exec(query.offset(skip).limit(limit).order_by(Post.pinned.desc(), Post.created_at.desc())).all()
         
         # Combine post and translation data
@@ -381,6 +399,123 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
             posts_with_translations.append(post_dict)
             
         return posts_with_translations
+
+    def get_by_tenant_with_all_translations(self, db: Session, *, tenant_id: int, property_id: Optional[int] = None, feature_id: Optional[int] = None, status: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[dict]:
+        """Get posts by tenant and include all translations as a translations list per post."""
+        query = select(Post, PostTranslation).join(
+            PostTranslation, Post.id == PostTranslation.post_id
+        ).where(
+            Post.tenant_id == tenant_id
+        )
+
+        if property_id:
+            query = query.where(Post.property_id == property_id)
+        if feature_id:
+            query = query.where(Post.feature_id == feature_id)
+        if status:
+            query = query.where(Post.status == status)
+
+        results = db.exec(query.order_by(Post.pinned.desc(), Post.created_at.desc()).offset(skip).limit(limit)).all()
+
+        posts_map: Dict[int, dict] = {}
+        for post, translation in results:
+            if post.id not in posts_map:
+                posts_map[post.id] = {
+                    "id": post.id,
+                    "tenant_id": post.tenant_id,
+                    "property_id": post.property_id,
+                    "feature_id": post.feature_id,
+                    "slug": post.slug,
+                    "status": post.status,
+                    "pinned": post.pinned,
+                    "cover_media_id": post.cover_media_id,
+                    "published_at": post.published_at,
+                    "created_by": post.created_by,
+                    "created_at": post.created_at,
+                    "updated_at": post.updated_at,
+                    # default title/content will be omitted when returning all translations;
+                    # include translations array instead so callers can pick the locale they need
+                    "translations": []
+                }
+
+            # Append translation object
+            posts_map[post.id]["translations"].append({
+                "locale": translation.locale,
+                "title": translation.title,
+                "subtitle": getattr(translation, 'subtitle', None),
+                "content_html": translation.content_html,
+                "seo_title": getattr(translation, 'seo_title', None),
+                "seo_desc": getattr(translation, 'seo_desc', None),
+                "og_image_id": getattr(translation, 'og_image_id', None),
+            })
+
+        # Return list of posts with translations
+        return list(posts_map.values())
+
+    def get_by_tenant_with_all_translations(self, db: Session, *, tenant_id: int, property_id: Optional[int] = None, feature_id: Optional[int] = None, status: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[dict]:
+        """Get posts by tenant and include all translations for each post (returns translations list)"""
+        print(f"[CRUD-DEBUG] get_by_tenant_with_all_translations called (tenant_id={tenant_id}, feature_id={feature_id}, skip={skip}, limit={limit})", flush=True)
+        # First select the posts themselves (apply ordering + paging at post level)
+        posts_query = select(Post).where(Post.tenant_id == tenant_id)
+
+        if property_id:
+            posts_query = posts_query.where(Post.property_id == property_id)
+        if feature_id:
+            posts_query = posts_query.where(Post.feature_id == feature_id)
+        if status:
+            posts_query = posts_query.where(Post.status == status)
+
+        posts_list = db.exec(posts_query.order_by(Post.pinned.desc(), Post.created_at.desc()).offset(skip).limit(limit)).all()
+
+        # No posts -> empty result
+        if not posts_list:
+            return []
+
+        post_ids = [p.id for p in posts_list]
+
+        # Load all translations for the selected posts in one query
+        translations_query = select(PostTranslation).where(PostTranslation.post_id.in_(post_ids))
+        translations = db.exec(translations_query).all()
+        print(f"[CRUD-DEBUG] translations fetched: {len(translations)} for post_ids={post_ids}", flush=True)
+
+        # Group translations by post_id
+        translations_map: Dict[int, List[PostTranslation]] = {}
+        for t in translations:
+            translations_map.setdefault(t.post_id, []).append(t)
+
+        # Build final result preserving post ordering
+        results: List[dict] = []
+        for post in posts_list:
+            post_entry = {
+                "id": post.id,
+                "tenant_id": post.tenant_id,
+                "property_id": post.property_id,
+                "feature_id": post.feature_id,
+                "slug": post.slug,
+                "status": post.status,
+                "pinned": post.pinned,
+                "cover_media_id": post.cover_media_id,
+                "published_at": post.published_at,
+                "created_by": post.created_by,
+                "created_at": post.created_at,
+                "updated_at": post.updated_at,
+                "translations": []
+            }
+
+            for translation in translations_map.get(post.id, []):
+                post_entry["translations"].append({
+                    "locale": translation.locale,
+                    "title": translation.title,
+                    "subtitle": getattr(translation, 'subtitle', None),
+                    "content_html": translation.content_html,
+                    "seo_title": getattr(translation, 'seo_title', None),
+                    "seo_desc": getattr(translation, 'seo_desc', None),
+                    "og_image_id": getattr(translation, 'og_image_id', None),
+                })
+
+            results.append(post_entry)
+
+        return results
 
         # Fallback: if no posts found in posts/post_translations, try property_posts
         # This helps compatibility when legacy data exists in property_posts tables
@@ -561,8 +696,78 @@ class CRUDSetting(CRUDBase[Setting, SettingCreate, SettingUpdate]):
         ).all()
 
 
+class CRUDPropertyTranslation(CRUDBase[PropertyTranslation, PropertyTranslationCreate, PropertyTranslationUpdate]):
+    def get_by_property_and_locale(
+        self, db: Session, *, property_id: int, locale: str
+    ) -> Optional[PropertyTranslation]:
+        """Get translation by property ID and locale"""
+        return db.exec(
+            select(PropertyTranslation)
+            .where(PropertyTranslation.property_id == property_id)
+            .where(PropertyTranslation.locale == locale)
+        ).first()
+
+    def get_by_property(
+        self, db: Session, *, property_id: int
+    ) -> List[PropertyTranslation]:
+        """Get all translations for a property"""
+        return db.exec(
+            select(PropertyTranslation)
+            .where(PropertyTranslation.property_id == property_id)
+        ).all()
+
+    def create_translation(
+        self, db: Session, *, property_id: int, obj_in: PropertyTranslationCreate
+    ) -> PropertyTranslation:
+        """Create a new translation for a property"""
+        # Check if translation already exists
+        existing = self.get_by_property_and_locale(
+            db, property_id=property_id, locale=obj_in.locale
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Translation for locale '{obj_in.locale}' already exists"
+            )
+
+        obj_in.property_id = property_id
+        return self.create(db, obj_in=obj_in)
+
+    def update_translation(
+        self, db: Session, *, property_id: int, locale: str, obj_in: PropertyTranslationUpdate
+    ) -> PropertyTranslation:
+        """Update an existing translation"""
+        db_obj = self.get_by_property_and_locale(
+            db, property_id=property_id, locale=locale
+        )
+        if not db_obj:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Translation for locale '{locale}' not found"
+            )
+
+        return self.update(db, db_obj=db_obj, obj_in=obj_in)
+
+    def delete_translation(
+        self, db: Session, *, property_id: int, locale: str
+    ) -> None:
+        """Delete a translation"""
+        db_obj = self.get_by_property_and_locale(
+            db, property_id=property_id, locale=locale
+        )
+        if not db_obj:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Translation for locale '{locale}' not found"
+            )
+
+        db.delete(db_obj)
+        db.commit()
+
+
 # Create instances
 property = CRUDProperty(Property)
+property_translation = CRUDPropertyTranslation(PropertyTranslation)
 feature_category = CRUDFeatureCategory(FeatureCategory)
 feature_category_translation = CRUDFeatureCategoryTranslation(FeatureCategoryTranslation)
 feature = CRUDFeature(Feature)

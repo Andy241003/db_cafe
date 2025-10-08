@@ -188,19 +188,50 @@ def create_category_translation(
     translation_in: FeatureCategoryTranslationCreate
 ):
     """Create translation for category"""
-    # Check if category exists
-    category = db.get(FeatureCategory, category_id)
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    translation = FeatureCategoryTranslation(
-        category_id=category_id,
-        **translation_in.model_dump()
-    )
-    db.add(translation)
-    db.commit()
-    db.refresh(translation)
-    return translation
+    try:
+        print(f"🔥 CREATE CATEGORY TRANSLATION called", flush=True)
+        print(f"   Category ID: {category_id}", flush=True)
+        print(f"   Translation data: {translation_in.model_dump()}", flush=True)
+
+        # Check if category exists
+        category = db.get(FeatureCategory, category_id)
+        if not category:
+            print(f"❌ Category {category_id} not found", flush=True)
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        print(f"✅ Category found: {category.id}, slug: {category.slug}", flush=True)
+
+        # Check if translation already exists
+        existing = db.exec(select(FeatureCategoryTranslation).where(
+            FeatureCategoryTranslation.category_id == category_id,
+            FeatureCategoryTranslation.locale == translation_in.locale
+        )).first()
+
+        if existing:
+            print(f"⚠️  Translation already exists for category {category_id}, locale {translation_in.locale}", flush=True)
+            raise HTTPException(status_code=400, detail=f"Translation for locale '{translation_in.locale}' already exists. Use PUT to update.")
+
+        # Get translation data and ensure category_id from URL is used
+        translation_data = translation_in.model_dump(exclude_unset=True)
+        # Always use category_id from URL path (override if present in body)
+        translation_data['category_id'] = category_id
+
+        print(f"📦 Creating translation with data: {translation_data}", flush=True)
+
+        translation = FeatureCategoryTranslation(**translation_data)
+        db.add(translation)
+        db.commit()
+        db.refresh(translation)
+
+        print(f"✅ Category translation created successfully", flush=True)
+        return translation
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating category translation: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{category_id}/translations/{locale}")

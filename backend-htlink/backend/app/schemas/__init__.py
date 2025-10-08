@@ -11,6 +11,7 @@ __all__ = [
     "LocaleBase", "LocaleCreate", "LocaleUpdate", "LocaleResponse",
     "AdminUserBase", "AdminUserCreate", "AdminUserUpdate", "AdminUserPasswordUpdate", "AdminUserResponse",
     "PropertyBase", "PropertyCreate", "PropertyUpdate", "PropertyResponse",
+    "PropertyTranslationBase", "PropertyTranslationCreate", "PropertyTranslationUpdate", "PropertyTranslationResponse",
     
     # Content schemas
     "FeatureCategoryBase", "FeatureCategoryCreate", "FeatureCategoryUpdate", "FeatureCategoryResponse",

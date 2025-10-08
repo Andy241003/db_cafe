@@ -1,6 +1,7 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import select
 
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
@@ -107,16 +108,40 @@ def read_features(
     """
     Retrieve features for tenant, optionally filtered by category.
     """
+    from app.models import FeatureTranslation
+
     # Get user's tenant features
     features = crud.feature.get_by_tenant(
-        session, 
+        session,
         tenant_id=current_user.tenant_id,
         category_id=category_id,
-        skip=skip, 
+        skip=skip,
         limit=limit,
         include_system=include_system
     )
-    return features
+
+    # Load translations for each feature
+    features_with_translations = []
+    for feature in features:
+        feature_dict = feature.model_dump() if hasattr(feature, 'model_dump') else feature.dict()
+
+        # Load translations
+        translations = session.exec(
+            select(FeatureTranslation).where(FeatureTranslation.feature_id == feature.id)
+        ).all()
+
+        # Convert to dict keyed by locale
+        translations_dict = {}
+        for trans in translations:
+            translations_dict[trans.locale] = {
+                "title": trans.title,
+                "short_desc": trans.short_desc
+            }
+
+        feature_dict['translations'] = translations_dict
+        features_with_translations.append(feature_dict)
+
+    return features_with_translations
 
 
 @router.post("/test", response_model=FeatureResponse)  
@@ -209,10 +234,10 @@ def delete_feature(
     user_role = current_user.role.upper() if current_user.role else ""
     if user_role not in ["OWNER", "ADMIN"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    
+
     feature = crud.feature.get(session, id=feature_id)
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
-    
+
     crud.feature.remove(session, id=feature_id)
     return {"detail": "Feature deleted"}

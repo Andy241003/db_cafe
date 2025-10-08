@@ -38,4 +38,4 @@ export interface TranslationData {
   description: string;
 }
 
-export type Language = 'en' | 'vi' | 'ja' | 'kr' | 'fr';
+export type Language = 'en' | 'vi' | 'ja' | 'ko' | 'fr';

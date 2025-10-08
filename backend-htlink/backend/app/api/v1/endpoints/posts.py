@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
@@ -35,6 +35,7 @@ def create_post_test(
 
 @router.get("/", response_model=List[PostWithTranslationResponse])
 def read_posts(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -43,22 +44,55 @@ def read_posts(
     status: Optional[PostStatus] = None,
     skip: int = 0,
     limit: int = 100,
+    include_translations: bool = False,
 ) -> Any:
     """
     Retrieve posts for tenant, optionally filtered by property, feature, or status.
     """
     try:
-        print(f"🔍 GET /posts - tenant_id: {tenant_id}, property_id: {property_id}, feature_id: {feature_id}")
-        
-        posts = crud.post.get_by_tenant_with_translations(
-            session, 
-            tenant_id=tenant_id,
-            property_id=property_id,
-            feature_id=feature_id,
-            status=status,
-            skip=skip, 
-            limit=limit
-        )
+        # Debug: show incoming query params and the parsed include_translations flag
+        try:
+            raw_qs = dict(request.query_params)
+        except Exception:
+            raw_qs = str(request.query_params)
+        # Use flush=True so the container logs show these immediately
+        print(f"[POSTS-DEBUG] GET /posts - tenant_id: {tenant_id}, property_id: {property_id}, feature_id: {feature_id}", flush=True)
+        print(f"[POSTS-DEBUG] Raw query params: {raw_qs}", flush=True)
+
+        # If the query param is present at all, treat it as a request for all translations.
+        # This is robust to different client encodings (include_translations=1, include_translations=true, or presence without value).
+        parsed_include = ('include_translations' in request.query_params) or bool(include_translations)
+        # Extra debug: show raw QueryParams repr and the explicit get() result
+        try:
+            qp_repr = repr(request.query_params)
+        except Exception:
+            qp_repr = str(request.query_params)
+        print(f"[POSTS-DEBUG] Parsed include_translations (robust-presence): {parsed_include} (raw_qs keys={list(raw_qs.keys()) if isinstance(raw_qs, dict) else raw_qs})", flush=True)
+        print(f"[POSTS-DEBUG] QueryParams repr: {qp_repr}", flush=True)
+        print(f"[POSTS-DEBUG] request.query_params.get('include_translations') => {request.query_params.get('include_translations')}", flush=True)
+
+        if parsed_include:
+            posts = crud.post.get_by_tenant_with_all_translations(
+                session,
+                tenant_id=tenant_id,
+                property_id=property_id,
+                feature_id=feature_id,
+                status=status,
+                skip=skip,
+                limit=limit,
+            )
+            print(f"[POSTS-DEBUG] Branch: ALL_TRANSLATIONS selected", flush=True)
+        else:
+            posts = crud.post.get_by_tenant_with_translations(
+                session, 
+                tenant_id=tenant_id,
+                property_id=property_id,
+                feature_id=feature_id,
+                status=status,
+                skip=skip, 
+                limit=limit
+            )
+            print(f"[POSTS-DEBUG] Branch: SINGLE_LOCALE selected", flush=True)
         
         print(f"✅ Found {len(posts)} posts")
         return posts

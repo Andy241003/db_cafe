@@ -118,23 +118,19 @@ export interface ApiPostUpdate {
 export interface ApiPostTranslationCreate {
   locale: string;
   title: string;
-  content: string;
-  excerpt?: string;
-  meta_title?: string;
-  meta_description?: string;
-  og_title?: string;
-  og_description?: string;
+  subtitle?: string;
+  content_html: string;
+  seo_title?: string;
+  seo_desc?: string;
   og_image_id?: number;
 }
 
 export interface ApiPostTranslationUpdate {
   title?: string;
-  content?: string;
-  excerpt?: string;
-  meta_title?: string;
-  meta_description?: string;
-  og_title?: string;
-  og_description?: string;
+  subtitle?: string;
+  content_html?: string;
+  seo_title?: string;
+  seo_desc?: string;
   og_image_id?: number;
 }
 
@@ -215,29 +211,36 @@ class PostsApiService {
 
   /**
    * Create translation for post
+   * Note: Backend endpoint is /translations/posts, not /posts/{id}/translations
    */
   async createTranslation(postId: number, translationData: ApiPostTranslationCreate): Promise<ApiPostTranslation> {
-    const response = await apiClient.post(`/posts/${postId}/translations`, translationData);
+    const payload = {
+      post_id: postId,
+      ...translationData
+    };
+    const response = await apiClient.post(`/translations/posts`, payload);
     return response.data;
   }
 
   /**
    * Update translation for post
+   * Note: Backend endpoint is /translations/posts/{post_id}/{locale}
    */
   async updateTranslation(
-    postId: number, 
-    locale: string, 
+    postId: number,
+    locale: string,
     translationData: ApiPostTranslationUpdate
   ): Promise<ApiPostTranslation> {
-    const response = await apiClient.put(`/posts/${postId}/translations/${locale}`, translationData);
+    const response = await apiClient.put(`/translations/posts/${postId}/${locale}`, translationData);
     return response.data;
   }
 
   /**
    * Delete translation for post
+   * Note: Backend endpoint is /translations/posts/{post_id}/{locale}
    */
   async deleteTranslation(postId: number, locale: string): Promise<void> {
-    await apiClient.delete(`/posts/${postId}/translations/${locale}`);
+    await apiClient.delete(`/translations/posts/${postId}/${locale}`);
   }
 }
 

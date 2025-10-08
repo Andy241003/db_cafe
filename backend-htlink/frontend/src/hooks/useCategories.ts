@@ -34,14 +34,41 @@ export const useCategories = (): UseCategoriesReturn => {
         const apiFeatures = await featuresAPI.getAll();
         console.log('📊 Features loaded for counting:', apiFeatures);
         
+        // Load translations for all categories
+        const { categoriesApi } = await import('../services/categoriesApi');
+
         // Convert FeatureCategory from API to Category for frontend
-        const convertedCategories: Category[] = apiCategories.map((cat: PropertyCategory) => {
+        const convertedCategories: Category[] = await Promise.all(apiCategories.map(async (cat: PropertyCategory) => {
           // Count features in this category
           const featuresInCategory = apiFeatures.filter(feature => feature.category_id === cat.id);
           const featureCount = featuresInCategory.length;
-          
+
           console.log(`📊 Category "${cat.slug}" has ${featureCount} features:`, featuresInCategory.map(f => f.slug));
-          
+
+          // Load translations from API
+          let translations: Record<string, { title: string; description: string }> = {};
+          try {
+            const apiTranslations = await categoriesApi.getCategoryTranslations(cat.id);
+            console.log(`📝 Loaded translations for category ${cat.id}:`, apiTranslations);
+
+            // Convert API translations to UI format
+            apiTranslations.forEach((t: any) => {
+              translations[t.locale] = {
+                title: t.title || '',
+                description: t.short_desc || ''
+              };
+            });
+          } catch (error) {
+            console.warn(`Failed to load translations for category ${cat.id}:`, error);
+            // Fallback to default translations
+            translations = {
+              en: {
+                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                description: `Category for ${cat.slug.replace(/-/g, ' ')}`
+              }
+            };
+          }
+
           return {
             id: cat.id,
             name: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert slug to title
@@ -50,22 +77,9 @@ export const useCategories = (): UseCategoriesReturn => {
             status: 'active' as const,
             type: cat.is_system ? 'system' as const : 'custom' as const,
             featureCount: featureCount, // Real count from API
-            translations: {
-              en: {
-                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                description: `Category for ${cat.slug.replace(/-/g, ' ')}`
-              },
-              vi: {
-                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                description: `Danh mục cho ${cat.slug.replace(/-/g, ' ')}`
-              },
-              ja: {
-                title: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                description: `${cat.slug.replace(/-/g, ' ')}のカテゴリ`
-              }
-            }
+            translations: translations
           };
-        });
+        }));
         
         setCategories(convertedCategories);
         console.log('✅ Categories converted for UI:', convertedCategories);

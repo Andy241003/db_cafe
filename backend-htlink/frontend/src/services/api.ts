@@ -128,6 +128,13 @@ export interface Feature {
   // Include translations for display
   title?: string;
   short_desc?: string;
+  // Translations keyed by locale code
+  translations?: {
+    [locale: string]: {
+      title: string;
+      short_desc?: string;
+    };
+  };
 }
 
 export interface FeatureCategory {
@@ -288,6 +295,12 @@ export const featuresAPI = {
     console.log('featuresAPI: Deleting feature:', id);
     await apiClient.delete(`/features/${id}`);
   },
+
+  updateTranslation: async (featureId: number, locale: string, data: { title?: string; short_desc?: string }): Promise<any> => {
+    console.log('featuresAPI: Updating feature translation:', { featureId, locale, data });
+    const response = await apiClient.put(`/translations/features/${featureId}/${locale}`, data);
+    return response.data;
+  },
 };
 
 // Property Categories API
@@ -319,8 +332,10 @@ export const categoriesAPI = {
 
 // Posts API
 export const postsAPI = {
-  getAll: async (feature_id?: number): Promise<Post[]> => {
-    const params = feature_id ? { feature_id } : {};
+  // By default include_translations=true so frontend receives all locale variants
+  getAll: async (feature_id?: number, includeTranslations: boolean = true): Promise<Post[]> => {
+    const params: any = { include_translations: includeTranslations };
+    if (feature_id) params.feature_id = feature_id;
     const response: AxiosResponse<Post[]> = await apiClient.get('/posts/', { params });
     return response.data;
   },

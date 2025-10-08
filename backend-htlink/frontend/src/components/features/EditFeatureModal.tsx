@@ -22,6 +22,7 @@ interface Feature {
   category_id: number;
   tenant_id: number;
   is_system: boolean;
+  title?: string; // Optional title from posts
 }
 
 interface EditFeatureModalProps {
@@ -64,7 +65,7 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
       console.log('EditFeatureModal: Available icons:', icons.map(i => i.name));
       
       const formData = {
-        name: feature.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        name: feature.title || feature.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         category: category?.slug || '',
         slug: feature.slug,
         icon: normalizedIcon,

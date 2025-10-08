@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { translationsApi } from '../../services/translationsApi';
 
 interface Post {
   id: number;
@@ -12,6 +13,7 @@ interface Post {
   status: 'published' | 'draft' | 'archived';
   updatedAt: string;
   content?: string;
+  translations?: any[];
 }
 
 interface TranslateModalProps {
@@ -26,29 +28,83 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [translatedContent, setTranslatedContent] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [originalContent, setOriginalContent] = useState('');
 
   useEffect(() => {
-    if (post) {
-      // Mock translation generation
-      if (targetLanguage === 'vi') {
-        setTranslatedTitle('Hướng dẫn Nhận phòng Khách sạn');
-        setTranslatedContent('Chào mừng quý khách đến với Khách sạn Tabi Tower! Quy trình nhận phòng của chúng tôi được thiết kế để thuận tiện và hiệu quả...');
-      } else if (targetLanguage === 'ja') {
-        setTranslatedTitle('ホテルチェックインガイドライン');
-        setTranslatedContent('タビタワーホテルへようこそ！私たちのチェックインプロセスは...');
+    if (post && isOpen) {
+      // Set original content
+      setOriginalContent(post.content || post.excerpt || '');
+
+      // Check if translation already exists for target language
+      const existingTranslation = post.translations?.find(t => t.locale === targetLanguage);
+
+      if (existingTranslation) {
+        // Use existing translation
+        setTranslatedTitle(existingTranslation.title || '');
+        setTranslatedContent(existingTranslation.content_html || existingTranslation.content || '');
       } else {
-        setTranslatedTitle(post.title);
-        setTranslatedContent(post.excerpt);
+        // Auto-translate using API
+        const autoTranslate = async () => {
+          setIsRegenerating(true);
+          try {
+            const titleResult = await translationsApi.translateBatch(
+              [post.title],
+              targetLanguage,
+              'auto',
+              false,
+              4
+            );
+            const contentResult = await translationsApi.translateBatch(
+              [post.content || post.excerpt || ''],
+              targetLanguage,
+              'auto',
+              true,
+              4
+            );
+
+            setTranslatedTitle(titleResult[0] || post.title);
+            setTranslatedContent(contentResult[0] || '');
+          } catch (error) {
+            console.error('Auto-translation failed:', error);
+            // Fallback to original
+            setTranslatedTitle(post.title);
+            setTranslatedContent(post.content || post.excerpt || '');
+          } finally {
+            setIsRegenerating(false);
+          }
+        };
+
+        autoTranslate();
       }
     }
-  }, [post, targetLanguage]);
+  }, [post, targetLanguage, isOpen]);
 
   const handleRegenerate = async () => {
     setIsRegenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 700));
-    // Mock regeneration
-    setTranslatedContent(prev => prev + ' (regenerated)');
-    setIsRegenerating(false);
+    try {
+      const titleResult = await translationsApi.translateBatch(
+        [post?.title || ''],
+        targetLanguage,
+        'auto',
+        false,
+        4
+      );
+      const contentResult = await translationsApi.translateBatch(
+        [originalContent],
+        targetLanguage,
+        'auto',
+        true,
+        4
+      );
+
+      setTranslatedTitle(titleResult[0] || post?.title || '');
+      setTranslatedContent(contentResult[0] || '');
+    } catch (error) {
+      console.error('Regeneration failed:', error);
+      alert('Failed to regenerate translation. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   const handleUseTranslation = () => {
@@ -82,20 +138,43 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
               {[
                 { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
                 { code: 'ja', name: '日本語', flag: '🇯🇵' },
-                { code: 'en', name: 'English', flag: '🇬🇧' }
-              ].map(lang => (
-                <button 
-                  key={lang.code}
-                  onClick={() => setTargetLanguage(lang.code)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    targetLanguage === lang.code 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {`${lang.flag} ${lang.name}`}
-                </button>
-              ))}
+                { code: 'en', name: 'English', flag: '🇬🇧' },
+                { code: 'ko', name: '한국어', flag: '🇰🇷' }
+              ].map(lang => {
+                const isDefault = post?.locale === lang.code;
+                const hasTranslation = post?.translations?.some((t: any) => t.locale === lang.code);
+                const isDisabled = isDefault || hasTranslation || isRegenerating;
+
+                return (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      if (isDisabled) return;
+                      setTargetLanguage(lang.code);
+                    }}
+                    disabled={isDisabled}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      isDefault || hasTranslation
+                        ? 'bg-slate-200 text-slate-500 opacity-60 cursor-not-allowed'
+                        : targetLanguage === lang.code
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                    title={
+                      isDefault
+                        ? 'This is the default locale for the post'
+                        : hasTranslation
+                          ? 'Translation already exists for this language'
+                          : isRegenerating
+                            ? 'Translating...'
+                            : ''
+                    }
+                  >
+                    {`${lang.flag} ${lang.name}`}
+                    {hasTranslation && !isDefault && <FontAwesomeIcon icon={faCheck} className="ml-2 text-green-600" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

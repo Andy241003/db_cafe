@@ -8,6 +8,8 @@ from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
 from app.models import FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate
 from app.models import PostTranslation, PostTranslationCreate, PostTranslationUpdate
 from app.models import FeatureCategoryTranslation, FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
+from app.models import PropertyTranslation
+from app.schemas import PropertyTranslationCreate, PropertyTranslationUpdate, PropertyTranslationResponse
 from app.models.activity_log import ActivityType
 from app.utils.decorators.track_activity import track_activity
 
@@ -99,6 +101,42 @@ def create_feature_translation(
     session.add(translation)
     session.commit()
     session.refresh(translation)
+    return translation
+
+
+@router.get("/features/{feature_id}/{locale}", response_model=FeatureTranslation)
+def get_feature_translation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    feature_id: int,
+    locale: str,
+) -> Any:
+    """
+    Get a feature translation by feature ID and locale.
+    """
+    # Verify feature belongs to current tenant or is a system feature
+    from app.models import Feature
+    feature = session.exec(select(Feature).where(
+        Feature.id == feature_id
+    )).first()
+    if not feature:
+        raise HTTPException(status_code=404, detail="Feature not found")
+
+    # Check if feature belongs to tenant or is system-wide
+    if feature.tenant_id != tenant_id and feature.tenant_id != 0:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    translation = session.exec(
+        select(FeatureTranslation).where(
+            FeatureTranslation.feature_id == feature_id,
+            FeatureTranslation.locale == locale
+        )
+    ).first()
+    if not translation:
+        raise HTTPException(status_code=404, detail="Feature translation not found")
+
     return translation
 
 
@@ -215,20 +253,49 @@ def create_post_translation(
     """
     Create new post translation.
     """
-    # Verify post belongs to current tenant
-    from app.models import Post
-    post = session.exec(select(Post).where(
-        Post.id == translation_in.post_id,
-        Post.tenant_id == tenant_id
-    )).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
-    translation = PostTranslation.model_validate(translation_in)
-    session.add(translation)
-    session.commit()
-    session.refresh(translation)
-    return translation
+    try:
+        print(f"🔥 CREATE POST TRANSLATION called", flush=True)
+        print(f"   User: {current_user.email}", flush=True)
+        print(f"   Tenant ID: {tenant_id}", flush=True)
+        print(f"   Translation data: {translation_in.model_dump()}", flush=True)
+
+        # Verify post belongs to current tenant
+        from app.models import Post
+        post = session.exec(select(Post).where(
+            Post.id == translation_in.post_id,
+            Post.tenant_id == tenant_id
+        )).first()
+
+        if not post:
+            print(f"❌ Post {translation_in.post_id} not found for tenant {tenant_id}", flush=True)
+            raise HTTPException(status_code=404, detail=f"Post {translation_in.post_id} not found or does not belong to your tenant")
+
+        print(f"✅ Post found: {post.id}, tenant: {post.tenant_id}", flush=True)
+
+        # Check if translation already exists
+        existing = session.exec(select(PostTranslation).where(
+            PostTranslation.post_id == translation_in.post_id,
+            PostTranslation.locale == translation_in.locale
+        )).first()
+
+        if existing:
+            print(f"⚠️  Translation already exists for post {translation_in.post_id}, locale {translation_in.locale}", flush=True)
+            raise HTTPException(status_code=400, detail=f"Translation for locale '{translation_in.locale}' already exists. Use PUT to update.")
+
+        translation = PostTranslation.model_validate(translation_in)
+        session.add(translation)
+        session.commit()
+        session.refresh(translation)
+
+        print(f"✅ Translation created successfully", flush=True)
+        return translation
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating post translation: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/posts/{post_id}/{locale}", response_model=PostTranslation)
@@ -434,3 +501,137 @@ def delete_feature_category_translation(
     session.delete(translation)
     session.commit()
     return {"message": "Feature category translation deleted successfully"}
+
+
+# Property Translations
+@router.get("/properties", response_model=list[PropertyTranslationResponse])
+def read_property_translations(
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    """
+    Retrieve property translations for properties belonging to current tenant.
+    """
+    from app.models import Property
+    statement = select(PropertyTranslation).join(Property).where(
+        Property.tenant_id == tenant_id
+    ).offset(skip).limit(limit)
+    translations = session.exec(statement).all()
+    return translations
+
+
+@router.post("/properties", response_model=PropertyTranslationResponse)
+@track_activity(ActivityType.CREATE_TRANSLATION, message_template="Property translation created by {current_user.email}")
+def create_property_translation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    translation_in: PropertyTranslationCreate,
+) -> Any:
+    """
+    Create new property translation.
+    """
+    # Verify property belongs to current tenant
+    from app.models import Property
+    property = session.exec(select(Property).where(
+        Property.id == translation_in.property_id,
+        Property.tenant_id == tenant_id
+    )).first()
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    translation = crud.property_translation.create_translation(
+        session, property_id=translation_in.property_id, obj_in=translation_in
+    )
+    return translation
+
+
+@router.get("/properties/{property_id}/{locale}", response_model=PropertyTranslationResponse)
+def get_property_translation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    property_id: int,
+    locale: str,
+) -> Any:
+    """
+    Get a property translation by property ID and locale.
+    """
+    # Verify property belongs to current tenant
+    from app.models import Property
+    property = session.exec(select(Property).where(
+        Property.id == property_id,
+        Property.tenant_id == tenant_id
+    )).first()
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    translation = crud.property_translation.get_by_property_and_locale(
+        session, property_id=property_id, locale=locale
+    )
+    if not translation:
+        raise HTTPException(status_code=404, detail="Property translation not found")
+
+    return translation
+
+
+@router.put("/properties/{property_id}/{locale}", response_model=PropertyTranslationResponse)
+@track_activity(ActivityType.UPDATE_TRANSLATION, message_template="Property translation updated by {current_user.email}")
+def update_property_translation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    property_id: int,
+    locale: str,
+    translation_in: PropertyTranslationUpdate,
+) -> Any:
+    """
+    Update a property translation.
+    """
+    # Verify property belongs to current tenant
+    from app.models import Property
+    property = session.exec(select(Property).where(
+        Property.id == property_id,
+        Property.tenant_id == tenant_id
+    )).first()
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    translation = crud.property_translation.update_translation(
+        session, property_id=property_id, locale=locale, obj_in=translation_in
+    )
+    return translation
+
+
+@router.delete("/properties/{property_id}/{locale}")
+@track_activity(ActivityType.DELETE_TRANSLATION, message_template="Property translation deleted by {current_user.email}")
+def delete_property_translation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    property_id: int,
+    locale: str,
+) -> Any:
+    """
+    Delete a property translation.
+    """
+    # Verify property belongs to current tenant
+    from app.models import Property
+    property = session.exec(select(Property).where(
+        Property.id == property_id,
+        Property.tenant_id == tenant_id
+    )).first()
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    crud.property_translation.delete_translation(
+        session, property_id=property_id, locale=locale
+    )
+    return {"message": "Property translation deleted successfully"}

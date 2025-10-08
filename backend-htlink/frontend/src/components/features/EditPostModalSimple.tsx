@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faInfoCircle, faLink } from '@fortawesome/free-solid-svg-icons';
 import type { UIPost } from '../../services/api';
+import { localesApi, type Locale } from '../../services/localesApi';
 
 interface EditPostModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface EditPostModalProps {
 }
 
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
+  const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
   const [postForm, setPostForm] = useState({
     locale: 'en',
     title: '',
@@ -20,6 +22,26 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
     status: 'draft' as 'draft' | 'published' | 'archived',
     vrLink: ''
   });
+
+  // Load available locales from API
+  useEffect(() => {
+    const loadLocales = async () => {
+      try {
+        const locales = await localesApi.getLocales();
+        setAvailableLocales(locales);
+      } catch (error) {
+        console.error('Failed to load locales:', error);
+        // Fallback
+        setAvailableLocales([
+          { code: 'en', name: 'English' },
+          { code: 'vi', name: 'Vietnamese' }
+        ]);
+      }
+    };
+    if (isOpen) {
+      loadLocales();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     console.log('=== EditPostModal Simple useEffect ===');
@@ -91,9 +113,14 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white"
               value={postForm.locale}
               onChange={(e) => setPostForm(prev => ({ ...prev, locale: e.target.value }))}
+              required
             >
-              <option value="en">🇺🇸 English</option>
-              <option value="vi">🇻🇳 Vietnamese</option>
+              <option value="">Select language...</option>
+              {availableLocales.map((locale) => (
+                <option key={locale.code} value={locale.code}>
+                  {locale.code.toUpperCase()} - {locale.name}
+                </option>
+              ))}
             </select>
           </div>
 
