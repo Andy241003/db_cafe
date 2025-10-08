@@ -6,7 +6,7 @@ import { HotelItem } from "../components/properties/HotelItem";
 import { AddHotelModal } from "../components/properties/AddHotelModal";
 import { EditHotelPostModal } from "../components/properties/EditHotelPostModal";
 import { TranslateModal } from "../components/properties/TranslateModal";
-import type { Hotel, HotelPost, TranslationData } from "../types/properties";
+import type { Hotel, HotelPost } from "../types/properties";
 import { faPlus, faSpinner, faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -68,7 +68,9 @@ const Properties: React.FC = () => {
   };
 
   const handleTranslatePost = (post: HotelPost) => {
+    // open translate modal for existing post (also capture hotel id)
     setCurrentTranslatingPost(post);
+    setCurrentHotelId(post.hotelId);
     setIsTranslateModalOpen(true);
   };
 
@@ -116,15 +118,40 @@ const Properties: React.FC = () => {
     }
   };
 
-  const handleSaveTranslation = async (translationData: TranslationData) => {
-    if (!currentTranslatingPost) return;
-    try {
-      await translatePost(currentTranslatingPost.id, translationData);
-      setIsTranslateModalOpen(false);
-      showNotification("Translation saved successfully!", "success");
-    } catch (error) {
-      console.error("Error saving translation:", error);
-      showNotification("Failed to save translation.", "error");
+  const handleSaveTranslation = async (translationData: any) => {
+    // Create a new property post for the hotel using the translation content and locale
+    if (currentHotelId) {
+      try {
+        const postData = {
+          title: '',
+          content: translationData.content,
+          locale: translationData.locale,
+          status: 'draft'
+        };
+        console.log('Creating new property post from translation for hotel:', currentHotelId, postData);
+        await createHotelPost(currentHotelId, postData);
+        setIsTranslateModalOpen(false);
+        showNotification('Post created from translation successfully!', 'success');
+        // Force refresh to ensure the newly created post appears in the list
+        await refreshProperties();
+      } catch (error) {
+        console.error('Error creating post from translation:', error);
+        showNotification('Failed to create post from translation.', 'error');
+      }
+      return;
+    }
+
+    // If no hotel context is available, attempt to update the existing post's translations as a fallback
+    if (currentTranslatingPost) {
+      try {
+        await translatePost(currentTranslatingPost.id, translationData);
+        setIsTranslateModalOpen(false);
+        showNotification('Translation saved successfully!', 'success');
+        await refreshProperties();
+      } catch (error) {
+        console.error('Error saving translation (fallback):', error);
+        showNotification('Failed to save translation.', 'error');
+      }
     }
   };
 

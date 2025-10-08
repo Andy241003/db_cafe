@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any, Union
 from sqlmodel import Session, select
+from sqlalchemy import text
 from fastapi import HTTPException
 from .base import CRUDBase
 from ..models import (
@@ -379,6 +380,76 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
             }
             posts_with_translations.append(post_dict)
             
+        return posts_with_translations
+
+        # Fallback: if no posts found in posts/post_translations, try property_posts
+        # This helps compatibility when legacy data exists in property_posts tables
+        # instead of the canonical posts/post_translations tables.
+        if len(posts_with_translations) == 0:
+            try:
+                print("🔁 No posts found in posts/post_translations, attempting property_posts fallback", flush=True)
+                # Note: property_posts don't have a feature_id column. For compatibility
+                # with the Features UI we will map the requested feature_id into the
+                # returned rows so the frontend can display legacy content under a
+                # given feature. This is a temporary compatibility shim; consider
+                # migrating data into posts/post_translations long-term.
+
+                conn = db.get_bind()
+                sql = text(
+                    "SELECT p.id AS id, pr.tenant_id AS tenant_id, p.property_id AS property_id, :feature_id AS feature_id, NULL AS slug, "
+                    "p.status AS status, 0 AS pinned, NULL AS cover_media_id, NULL AS published_at, NULL AS created_by, "
+                    "p.created_at AS created_at, p.updated_at AS updated_at, t.content AS content_html, t.locale AS locale "
+                    "FROM property_posts p "
+                    "INNER JOIN property_post_translations t ON p.id = t.post_id "
+                    "INNER JOIN properties pr ON p.property_id = pr.id "
+                    "WHERE pr.tenant_id = :tenant_id AND t.locale = :locale"
+                )
+
+                params = {"tenant_id": tenant_id, "locale": locale}
+                if property_id:
+                    sql = text(sql.text + " AND p.property_id = :property_id")
+                    params["property_id"] = property_id
+                if status:
+                    sql = text(sql.text + " AND p.status = :status")
+                    params["status"] = status
+
+                # Add limit/offset
+                sql = text(sql.text + " LIMIT :limit OFFSET :skip")
+                params["limit"] = limit
+                params["skip"] = skip
+
+                result = conn.execute(sql, params)
+                fallback_posts = []
+                for row in result.fetchall():
+                    content = row.content_html or ""
+                    # Fallback title: use first 50 chars of content or a placeholder
+                    fallback_title = (content.strip()[:50] + "...") if len(content.strip()) > 50 else content.strip() or "Untitled post"
+                    # Generate a slug fallback if missing
+                    fallback_slug = f"legacy-post-{row.id}"
+                    fallback_posts.append({
+                        "id": row.id,
+                        "tenant_id": row.tenant_id,
+                        "property_id": row.property_id,
+                        "feature_id": row.feature_id,
+                        "slug": fallback_slug,
+                        "status": row.status,
+                        "pinned": bool(row.pinned),
+                        "cover_media_id": row.cover_media_id,
+                        "published_at": row.published_at,
+                        "created_by": row.created_by,
+                        "created_at": row.created_at,
+                        "updated_at": row.updated_at,
+                        "title": fallback_title,
+                        "content_html": row.content_html,
+                        "locale": row.locale,
+                    })
+
+                if fallback_posts:
+                    print(f"✅ Found {len(fallback_posts)} posts via property_posts fallback", flush=True)
+                    return fallback_posts
+            except Exception as e:
+                print(f"❌ Error during property_posts fallback: {e}", flush=True)
+
         return posts_with_translations
 
     def get_with_translation(self, db: Session, *, post_id: int, locale: str = "en") -> Optional[dict]:

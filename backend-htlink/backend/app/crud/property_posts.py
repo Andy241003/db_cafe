@@ -1,5 +1,6 @@
 from typing import List, Optional
 from sqlmodel import Session, select
+from sqlalchemy import text
 from app.models.property_posts import (
     PropertyPost, 
     PropertyPostTranslation,
@@ -127,7 +128,17 @@ def delete_property_post(session: Session, post_id: int) -> bool:
     post = session.get(PropertyPost, post_id)
     if not post:
         return False
-    
+    # Explicitly delete translations first because property_post_translations
+    # uses a composite primary key that includes post_id; trying to delete
+    # the parent row without clearing children can cause SQLAlchemy to attempt
+    # to null-out the child's post_id which is part of its PK and triggers
+    # an AssertionError. Remove translations first, then delete the post.
+    translations = session.exec(
+        select(PropertyPostTranslation).where(PropertyPostTranslation.post_id == post_id)
+    ).all()
+    for t in translations:
+        session.delete(t)
+
     session.delete(post)
     session.commit()
     return True
@@ -142,30 +153,38 @@ def get_property_posts_by_locale(
     limit: int = 100
 ) -> List[dict]:
     """Get property posts with translations for a specific locale"""
-    query = select(PropertyPost, PropertyPostTranslation).join(
-        PropertyPostTranslation, PropertyPost.id == PropertyPostTranslation.post_id
-    ).where(
-        PropertyPost.property_id == property_id,
-        PropertyPost.status == status,
-        PropertyPostTranslation.locale == locale
-    ).offset(skip).limit(limit)
-    
-    results = session.exec(query).all()
-    
+    # Use raw SQL to avoid ORM model/DB column mismatches in environments where
+    # the translations table may have a different shape (older schema).
+    sql = text(
+        "SELECT p.id AS id, p.property_id AS property_id, p.status AS status, p.created_at AS created_at, p.updated_at AS updated_at, "
+        "t.content AS content, t.locale AS locale "
+        "FROM property_posts p "
+        "INNER JOIN property_post_translations t ON p.id = t.post_id "
+        "WHERE p.property_id = :property_id AND p.status = :status AND t.locale = :locale "
+        "LIMIT :limit OFFSET :skip"
+    )
+
+    params = {
+        "property_id": property_id,
+        "status": status,
+        "locale": locale,
+        "limit": limit,
+        "skip": skip,
+    }
+
+    # Execute raw SQL via the session connection
+    conn = session.get_bind()
+    result = conn.execute(sql, params)
     posts = []
-    for post, translation in results:
+    for row in result.fetchall():
         posts.append({
-            "id": post.id,
-            "property_id": post.property_id,
-            "status": post.status,
-            "created_at": post.created_at,
-            "updated_at": post.updated_at,
-            "title": translation.title,
-            "slug": translation.slug,
-            "short_description": translation.short_description,
-            "content": translation.content,
-            "thumbnail_url": translation.thumbnail_url,
-            "locale": translation.locale
+            "id": row.id,
+            "property_id": row.property_id,
+            "status": row.status,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+            "content": row.content,
+            "locale": row.locale,
         })
 
     return posts

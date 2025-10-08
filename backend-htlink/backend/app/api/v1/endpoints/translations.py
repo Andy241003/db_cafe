@@ -14,6 +14,46 @@ from app.utils.decorators.track_activity import track_activity
 router = APIRouter()
 
 
+@router.post('/translate')
+async def translate_batch_endpoint(
+    texts: list[str],
+    target: str = 'en',
+    source: str = 'auto',
+    is_html: bool = False,
+    concurrent: int = 8,
+    libre_url: str | None = None,
+    current_user: CurrentUser = None,
+    session: SessionDep = None,
+):
+    """Batch translate an array of texts. Returns list of translated strings.
+
+    This endpoint is intended for internal use by authenticated users/services.
+    """
+    from app.services.universal_translation import translate_batch
+
+    # Basic input validation
+    if not isinstance(texts, list) or not all(isinstance(t, str) for t in texts):
+        raise HTTPException(status_code=400, detail='`texts` must be a list of strings')
+
+    try:
+        # DEBUG: log incoming request for troubleshooting
+        print(f"[TRANSLATE_ENDPOINT] incoming texts count={len(texts)} target={target} source={source} is_html={is_html}", flush=True)
+        for i, t in enumerate(texts[:5]):
+            print(f"[TRANSLATE_ENDPOINT] text[{i}] len={len(t)} snippet={repr(t[:100])}", flush=True)
+
+        results = await translate_batch(texts, target=target, source=source, is_html=is_html, concurrent=concurrent, libre_url=libre_url)
+
+        # DEBUG: log results for quick inspection
+        print(f"[TRANSLATE_ENDPOINT] results_count={len(results)}", flush=True)
+        for i, r in enumerate(results[:5]):
+            print(f"[TRANSLATE_ENDPOINT] result[{i}] len={len(r)} snippet={repr(r[:200])}", flush=True)
+
+        return results
+    except Exception as e:
+        print(f"[TRANSLATE_ENDPOINT] exception: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Feature Translations
 @router.get("/features", response_model=list[FeatureTranslation])
 def read_feature_translations(

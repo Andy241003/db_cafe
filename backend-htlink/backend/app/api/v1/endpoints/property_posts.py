@@ -8,7 +8,9 @@ from app.models.property_posts import (
     PropertyPostCreate,
     PropertyPostUpdate,
     PropertyPostRead,
-    PropertyPostTranslationRead
+    PropertyPostTranslationRead,
+    PropertyPostTranslation,
+    PropertyPostTranslationCreate,
 )
 from app.crud import property_posts as crud_property_posts
 
@@ -141,6 +143,43 @@ def read_property_post_translations(
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
     return post.translations
+
+
+@router.post("/{post_id}/translations", response_model=PropertyPostTranslationRead)
+def create_property_post_translation(
+    *,
+    session: SessionDep,
+    current_user: AdminUser = Depends(get_current_user),
+    post_id: int,
+    translation_in: PropertyPostTranslationCreate,
+) -> PropertyPostTranslation:
+    """
+    Create a translation for an existing property post.
+    """
+    # Verify post exists
+    post = crud_property_posts.get_property_post(session, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Property post not found")
+
+    # DEBUG log incoming translation
+    print(f"[PROPERTY_POSTS] Create translation request for post_id={post_id} locale={translation_in.locale} content_len={len(translation_in.content or '')}", flush=True)
+
+    # Ensure translation for locale doesn't already exist
+    existing = session.get(PropertyPostTranslation, (post_id, translation_in.locale))
+    if existing:
+        raise HTTPException(status_code=400, detail="Translation for this locale already exists")
+
+    db_translation = PropertyPostTranslation(
+        post_id=post_id,
+        locale=translation_in.locale,
+        content=translation_in.content,
+    )
+    session.add(db_translation)
+    session.commit()
+    session.refresh(db_translation)
+
+    print(f"[PROPERTY_POSTS] Translation created id=(post_id={db_translation.post_id}, locale={db_translation.locale})", flush=True)
+    return db_translation
 
 
 @router.get("/property/{property_id}/published", response_model=List[dict])

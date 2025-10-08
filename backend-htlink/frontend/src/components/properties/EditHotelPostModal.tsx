@@ -4,6 +4,8 @@ import { RichTextEditor } from './RichTextEditor';
 import type { HotelPost } from '../../types/properties';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { localesApi } from '../../services/localesApi';
+import type { Locale } from '../../services/localesApi';
 
 interface EditHotelPostModalProps {
   isOpen: boolean;
@@ -21,9 +23,15 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    status: 'draft' as 'draft' | 'published'
+    status: 'draft' as 'draft' | 'published',
+    locale: 'en'
   });
   const [loading, setLoading] = useState(false);
+  const [locales, setLocales] = useState<Locale[]>([
+    { code: 'en', name: 'English (EN)' },
+    { code: 'vi', name: 'Vietnamese (VI)' },
+    { code: 'ja', name: 'Japanese (JA)' }
+  ]);
 
   useEffect(() => {
     if (post) {
@@ -32,15 +40,33 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
         title: post.title,
         content: post.content,
         status: post.status
+        ,locale: post.locale || 'en'
       });
     } else {
       setFormData({
         title: '',
         content: '<p>Start writing your amazing hotel post here...</p>',
         status: 'draft'
+        ,locale: 'en'
       });
     }
   }, [post, isOpen]);
+
+  // Fetch locales when modal is opened so select options come from DB
+  useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      try {
+        const remote = await localesApi.getLocales();
+        if (Array.isArray(remote) && remote.length > 0) {
+          setLocales(remote);
+        }
+      } catch (e) {
+        // keep fallback locales on error
+        console.warn('Could not load locales from server, using fallback', e);
+      }
+    })();
+  }, [isOpen]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -95,6 +121,18 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
                   placeholder="e.g., Grand Opening Special Offer"
                   className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
                 />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 mb-1.5 block">Locale</label>
+                <select
+                  value={formData.locale}
+                  onChange={(e) => setFormData(prev => ({ ...prev, locale: e.target.value }))}
+                  className="w-40 p-2.5 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                >
+                  {locales.map(l => (
+                    <option key={l.code} value={l.code}>{l.name} ({l.code.toUpperCase()})</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="font-semibold text-slate-700 mb-1.5 block">Content</label>

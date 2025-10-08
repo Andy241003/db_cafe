@@ -49,6 +49,7 @@ apiClient.interceptors.request.use(
 );
 
 export interface PropertyPostTranslation {
+  // When returned from the server, translations may include post_id.
   post_id?: number;
   locale: string;
   content: string;
@@ -66,6 +67,8 @@ export interface PropertyPost {
 export interface PropertyPostCreate {
   property_id: number;
   status?: string;
+  // Allow submitting translations at creation time; server will assign post_id.
+  translations?: Omit<PropertyPostTranslation, 'post_id'>[];
 }
 
 export interface PropertyPostUpdate {

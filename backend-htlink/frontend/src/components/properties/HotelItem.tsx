@@ -13,7 +13,7 @@ interface HotelItemProps {
   onToggleExpand: () => void;
   onAddPost: () => void;
   onEditPost: (post: HotelPost) => void;
-  onTranslatePost: (post: HotelPost) => void;
+  onTranslatePost: (post: HotelPost, hotelId: string) => void;
   onDeletePost: (postId: number) => void;
   onEditHotel: (hotel: Hotel) => void;
   onDeleteHotel: (hotelId: string) => void;
@@ -138,17 +138,22 @@ export const HotelItem: React.FC<HotelItemProps> = ({
         <div className="bg-slate-50 p-4 border-t border-slate-200">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-semibold text-slate-700">Posts for this Hotel</h4>
-            <button 
-              className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-md font-semibold text-xs flex items-center gap-2 hover:bg-slate-100 transition-colors" 
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('Add Post button clicked');
-                onAddPost();
-              }}
-            >
-              <FontAwesomeIcon icon={faPlus} />
-              Add Post
-            </button>
+            <div>
+              <button 
+                className={`bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-md font-semibold text-xs flex items-center gap-2 transition-colors ${hotel.posts.length > 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hotel.posts.length > 0) return; // disable when posts exist
+                  console.log('Add Post button clicked');
+                  onAddPost();
+                }}
+                title={hotel.posts.length > 0 ? 'Post already exists — use Translate button to add another locale' : 'Add Post'}
+                aria-disabled={hotel.posts.length > 0}
+              >
+                <FontAwesomeIcon icon={faPlus} />
+                Add Post
+              </button>
+            </div>
           </div>
           
           {hotel.posts.length === 0 ? (
@@ -174,7 +179,7 @@ export const HotelItem: React.FC<HotelItemProps> = ({
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => onEditPost(post)} className="p-2 h-8 w-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-md"><FontAwesomeIcon icon={faEdit} /></button>
-                    <button onClick={() => onTranslatePost(post)} className="p-2 h-8 w-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-md"><FontAwesomeIcon icon={faLanguage} /></button>
+                    <button onClick={() => onTranslatePost(post, hotel.id)} className="p-2 h-8 w-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-md"><FontAwesomeIcon icon={faLanguage} /></button>
                     <button onClick={() => onDeletePost(post.id)} className="p-2 h-8 w-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-md"><FontAwesomeIcon icon={faTrash} /></button>
                   </div>
                 </div>

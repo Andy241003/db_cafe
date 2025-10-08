@@ -29,6 +29,8 @@ export interface HotelPost {
   excerpt?: string;
   slug?: string;
   locale?: 'en' | 'vi' | 'ja';
+  // Support multilingual translations per post
+  translations?: TranslationData[];
   status: 'draft' | 'published';
   address?: string;
   phone?: string;

@@ -1,8 +1,11 @@
 // src/components/properties/TranslateModal.tsx
 import React, { useState, useEffect } from 'react';
 import type { HotelPost, TranslationData } from '../../types/properties';
+import { localesApi } from '../../services/localesApi';
+import type { Locale } from '../../services/localesApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { translationsApi } from '../../services/translationsApi';
 
 interface TranslateModalProps {
   isOpen: boolean;
@@ -17,38 +20,77 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   post,
   onSave
 }) => {
-  const [targetLanguage, setTargetLanguage] = useState<'en' | 'vi' | 'ja'>('vi');
-  const [translationData, setTranslationData] = useState<TranslationData>({
-    originalAddress: '',
-    originalPhone: '',
-    originalContent: '',
-    translatedAddress: '',
-    translatedPhone: '',
-    translatedContent: '',
-    targetLanguage: 'vi'
-  });
+  const [languages, setLanguages] = useState<Array<Locale>>([
+    { code: 'en', name: 'English' },
+    { code: 'vi', name: 'Vietnamese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' }
+  ]);
+  const [targetLanguage, setTargetLanguage] = useState<string>('en');
+  const [originalContent, setOriginalContent] = useState<string>('');
+  const [translatedContent, setTranslatedContent] = useState<string>('');
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
-    if (post) {
-      const mockData: TranslationData = {
-        originalAddress: post.address || '123 Nguyen Hue Street, District 1, Ho Chi Minh City',
-        originalPhone: post.phone || '+84 28 3825 1234',
-        originalContent: post.content,
-        translatedAddress: getTranslatedAddress(targetLanguage, post.address || '123 Nguyen Hue Street, District 1, Ho Chi Minh City'),
-        translatedPhone: post.phone || '+84 28 3825 1234',
-        translatedContent: getTranslatedContent(targetLanguage, post.content),
-        targetLanguage
-      };
-      setTranslationData(mockData);
-    }
-  }, [post, targetLanguage]);
+    if (!post) return;
+    // initialize original content
+    setOriginalContent(post.content || '');
 
-  const getTranslatedAddress = (lang: string, original: string) => {
-    if (lang === 'vi') return '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh';
-    if (lang === 'ja') return '123ホーチミン市1区グエンフエ通り';
-    return original;
-  };
+    // fetch available locales from backend, fallback to built-in list
+    (async () => {
+      let available: Array<Locale> = [
+        { code: 'en', name: 'English' },
+        { code: 'vi', name: 'Vietnamese' },
+        { code: 'ja', name: 'Japanese' },
+        { code: 'ko', name: 'Korean' }
+      ];
+      try {
+        const remote = await localesApi.getLocales();
+        if (Array.isArray(remote) && remote.length > 0) {
+          available = remote;
+          setLanguages(remote);
+          console.debug('[TranslateModal] loaded locales:', remote.map(r => r.code));
+        } else {
+          setLanguages(available);
+        }
+      } catch (e) {
+        console.warn('[TranslateModal] failed to load locales, using fallback', e);
+        setLanguages(available);
+      }
+
+      // pick a sensible default target language (first language that is not the post's locale)
+      const selectable = available.map(l => l.code).filter(l => l !== (post.locale || 'en'));
+      const defaultLang = selectable.length > 0 ? selectable[0] : (post.locale || 'en');
+      setTargetLanguage(defaultLang);
+
+      // load existing translation for the defaultLang if exists; otherwise trigger auto-translate
+      const existing = (post.translations || []).find(t => t.locale === defaultLang);
+      if (existing && existing.content) {
+        setTranslatedContent(existing.content);
+      } else {
+        // If there's no existing translation, attempt to auto-translate now
+        if ((post.content || '').trim()) {
+          setIsRegenerating(true);
+          try {
+            const results = await translationsApi.translateBatch([post.content || ''], defaultLang, 'auto', true, 4);
+            if (Array.isArray(results) && results.length > 0) {
+              setTranslatedContent(results[0]);
+            } else {
+              setTranslatedContent(getTranslatedContent(defaultLang, post.content));
+            }
+          } catch (e) {
+            console.warn('[TranslateModal] auto-translate failed on open, using fallback', e);
+            setTranslatedContent(getTranslatedContent(defaultLang, post.content));
+          } finally {
+            setIsRegenerating(false);
+          }
+        } else {
+          setTranslatedContent(getTranslatedContent(defaultLang, post.content));
+        }
+      }
+    })();
+  }, [post]);
+
 
   const getTranslatedContent = (lang: string, original: string) => {
     if (lang === 'vi') return '<strong>Chào mừng đến với Khách sạn Tabi Tower</strong><br>Trải nghiệm sự sang trọng và thoải mái...';
@@ -58,16 +100,45 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
   const handleRegenerate = async () => {
     setIsRegenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setTranslationData(prev => ({
-      ...prev,
-      translatedContent: getTranslatedContent(targetLanguage, prev.originalContent) + ' (regenerated)',
-    }));
-    setIsRegenerating(false);
+    try {
+      // Use translation service to translate the original content into targetLanguage
+      const results = await translationsApi.translateBatch([originalContent], targetLanguage, 'auto', true, 4);
+      if (Array.isArray(results) && results.length > 0) {
+        setTranslatedContent(results[0]);
+      }
+    } catch (e) {
+      console.warn('Translation regenerate failed, falling back to mock', e);
+      setTranslatedContent(getTranslatedContent(targetLanguage, originalContent) + ' (regenerated)');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // Helper to translate to a selected language (used when user clicks a language)
+  const translateToLanguage = async (lang: string) => {
+    // If no original content, nothing to do
+    if (!originalContent || originalContent.trim() === '') {
+      setTranslatedContent('');
+      return;
+    }
+
+    setIsRegenerating(true);
+    try {
+      const results = await translationsApi.translateBatch([originalContent], lang, 'auto', true, 4);
+      if (Array.isArray(results) && results.length > 0) {
+        setTranslatedContent(results[0]);
+      }
+    } catch (e) {
+      console.warn('[TranslateModal] translateToLanguage failed', e);
+      setTranslatedContent(getTranslatedContent(lang, originalContent));
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   const handleSave = () => {
-    onSave(translationData);
+    // Only translate content — pass locale and content to parent
+    onSave({ locale: targetLanguage, content: translatedContent } as any);
   };
 
   if (!isOpen) return null;
@@ -89,55 +160,49 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
           <div className="mb-6">
             <label className="font-semibold text-slate-700 mb-2 block">Translate to:</label>
             <div className="flex gap-2">
-              {['vi', 'ja', 'en'].map(lang => (
-                <button 
-                  key={lang}
-                  onClick={() => setTargetLanguage(lang as 'vi' | 'ja' | 'en')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    targetLanguage === lang 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {lang === 'vi' ? '🇻🇳 Tiếng Việt' : lang === 'ja' ? '🇯🇵 日本語' : '🇬🇧 English'}
-                </button>
-              ))}
+              {languages.map(lang => {
+                const code = lang.code;
+                const isDefault = post?.locale === code;
+                return (
+                  <button
+                    key={code}
+                    onClick={() => {
+                      if (isDefault || isRegenerating) return;
+                      setTargetLanguage(code);
+                      const existing = (post?.translations || []).find(t => t.locale === code);
+                      if (existing && existing.content) {
+                        setTranslatedContent(existing.content);
+                      } else {
+                        // Trigger auto-translate for this language
+                        void translateToLanguage(code);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      post?.locale === code
+                        ? 'bg-slate-200 text-slate-500 opacity-60 cursor-not-allowed'
+                        : (targetLanguage === code ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
+                    }`}
+                    disabled={isDefault || isRegenerating}
+                    title={isDefault ? 'This is the default locale for the post' : (isRegenerating ? 'Translating...' : '')}
+                  >
+                    {lang.code === 'vi' ? '🇻🇳 ' + (lang.name || 'Tiếng Việt') : lang.code === 'ja' ? '🇯🇵 ' + (lang.name || '日本語') : '🇬🇧 ' + (lang.name || 'English')}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            {/* Original Content */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-slate-800 border-b pb-2">Original ({post?.locale})</h3>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Address</label>
-                <p className="mt-1 p-2 bg-slate-50 rounded-md text-sm">{translationData.originalAddress}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Phone</label>
-                <p className="mt-1 p-2 bg-slate-50 rounded-md text-sm">{translationData.originalPhone}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Content</label>
-                <div className="mt-1 p-2 bg-slate-50 rounded-md text-sm prose max-w-none" dangerouslySetInnerHTML={{ __html: translationData.originalContent }} />
-              </div>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-slate-800 border-b pb-2">Original ({post?.locale})</h3>
+            <div>
+              <label className="text-sm font-medium text-slate-600">Content</label>
+              <div className="mt-1 p-2 bg-slate-50 rounded-md text-sm prose max-w-none" dangerouslySetInnerHTML={{ __html: originalContent }} />
             </div>
 
-            {/* Translated Content */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-slate-800 border-b pb-2">Translation ({targetLanguage})</h3>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Address</label>
-                <input type="text" value={translationData.translatedAddress} onChange={e => setTranslationData({...translationData, translatedAddress: e.target.value})} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Phone</label>
-                <input type="text" value={translationData.translatedPhone} onChange={e => setTranslationData({...translationData, translatedPhone: e.target.value})} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Content</label>
-                <textarea value={translationData.translatedContent} onChange={e => setTranslationData({...translationData, translatedContent: e.target.value})} rows={8} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
-              </div>
+            <h3 className="font-semibold text-slate-800 border-b pb-2">Translation ({targetLanguage})</h3>
+            <div>
+              <label className="text-sm font-medium text-slate-600">Content</label>
+              <textarea value={translatedContent} onChange={e => setTranslatedContent(e.target.value)} rows={10} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
             </div>
           </div>
         </div>

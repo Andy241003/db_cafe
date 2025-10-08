@@ -7,38 +7,53 @@ import type { Hotel, HotelFormData, HotelPost, TranslationData } from '../types/
 
 // Helper function to transform API post to UI format
 const transformApiPostToUI = (apiPost: any, hotelId: string): HotelPost => {
-  // Handle both array and object format for translations
-  let translation: any = { title: '', content: '', content_html: '', locale: 'en' };
-  
+  // Build translations array from API response.
+  let translationsArray: any[] = [];
   if (apiPost.translations) {
-    if (Array.isArray(apiPost.translations) && apiPost.translations.length > 0) {
-      // Array format
-      translation = apiPost.translations[0];
-    } else if (typeof apiPost.translations === 'object' && !Array.isArray(apiPost.translations)) {
-      // Object format - use the translations object directly
-      translation = apiPost.translations;
+    if (Array.isArray(apiPost.translations)) {
+      translationsArray = apiPost.translations;
+    } else if (typeof apiPost.translations === 'object') {
+      // In case backend returns an object keyed by locale
+      translationsArray = Object.keys(apiPost.translations).map((k) => ({ locale: k, ...apiPost.translations[k] }));
     }
   }
-  
-  // Also check if translation data is directly on the post object (flattened format)
-  if (!translation.title && apiPost.title) {
-    translation.title = apiPost.title;
+
+  // Fallback: if API returns flattened fields, create a single translation
+  if (translationsArray.length === 0) {
+    const fallbackLocale = apiPost.locale || 'en';
+    translationsArray = [{ locale: fallbackLocale, title: apiPost.title || '', content: apiPost.content_html || apiPost.content || '' }];
   }
-  if (!translation.content_html && apiPost.content_html) {
-    translation.content_html = apiPost.content_html;
-  }
-  if (!translation.locale && apiPost.locale) {
-    translation.locale = apiPost.locale;
-  }
+
+  // Choose preferred translation for top-level fields (prefer 'en', otherwise first)
+  let preferred = translationsArray.find(t => t.locale === 'en') || translationsArray[0] || { title: '', content: '', locale: 'en' };
+
+  // Helper to extract a readable title from HTML content
+  const extractTitleFromHtml = (html: string | undefined): string => {
+    if (!html) return '';
+    try {
+      // Try to find a heading tag first
+      const headingMatch = html.match(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/i);
+      if (headingMatch && headingMatch[1]) {
+        return headingMatch[1].replace(/<[^>]*>/g, '').trim();
+      }
+      // Fallback: strip tags and take first 6 words
+      const text = html.replace(/<[^>]*>/g, '').trim();
+      const firstWords = text.split(/\s+/).slice(0, 6).join(' ');
+      return firstWords.length > 0 ? (firstWords + (text.length > firstWords.length ? '...' : '')) : '';
+    } catch (e) {
+      return '';
+    }
+  };
   
   return {
     id: apiPost.id,
-    title: translation.title || 'Untitled',
-    content: translation.content_html || translation.content || '',
-    excerpt: (translation.content_html || translation.content || '').replace(/<[^>]*>/g, '').substring(0, 150) + '...',
+  title: preferred.title || extractTitleFromHtml(preferred.content_html || preferred.content) || 'Untitled',
+  content: preferred.content_html || preferred.content || '',
+  excerpt: (preferred.content_html || preferred.content || '').replace(/<[^>]*>/g, '').substring(0, 150) + '...',
     status: apiPost.status.toLowerCase() as 'published' | 'draft',
     hotelId: hotelId,
-    locale: (translation.locale as 'en' | 'vi' | 'ja') || 'en',
+  locale: (preferred.locale as 'en' | 'vi' | 'ja') || 'en',
+  translations: translationsArray as TranslationData[],
     slug: apiPost.slug,
     address: '',
     phone: '',
@@ -178,31 +193,30 @@ export const usePropertiesApi = () => {
     console.log('Post data:', postData);
 
     try {
-      // Step 1: Create post (without translations)
+      // Create post and include translations in the same request.
+      // The backend will associate translations with the created post_id.
+  const content = postData.content || '<p>Content goes here...</p>';
+  const title = postData.title || '';
+  const locale = postData.locale || 'en';
+      // If title provided and not present in content, prepend as <h2>
+      const finalContent = title && !/(<h[1-3][\s\S]*?>)/i.test(content)
+        ? `<h2>${title}</h2>\n${content}`
+        : content;
+
       const apiPostData = {
         property_id: parseInt(hotelId),
         status: postData.status || 'draft',
-        translations: [] // Empty translations
+        translations: [
+          {
+            locale,
+            content: finalContent
+          }
+        ]
       };
 
-      console.log('Creating property post via API:', apiPostData);
+      console.log('Creating property post via API (with translations):', apiPostData);
       const createdPost = await propertyPostsApi.createPropertyPost(apiPostData);
       console.log('Property post created successfully:', createdPost);
-
-      // Step 2: Create translation for the post
-      const slug = postData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'new-post';
-      const translationData = {
-        locale: 'en',
-        title: postData.title || 'New Post',
-        slug: slug,
-        short_description: postData.excerpt || '',
-        content: postData.content || 'Content goes here...',
-        thumbnail_url: postData.thumbnail || '',
-      };
-
-      console.log('Creating translation for post:', createdPost.id, translationData);
-      await propertyPostsApi.createPropertyPostTranslation(createdPost.id!, translationData);
-      console.log('Translation created successfully');
 
       // Reload posts for this specific hotel to get fresh data
       try {
@@ -245,19 +259,26 @@ export const usePropertiesApi = () => {
   const updateHotelPost = async (postData: HotelPost) => {
     console.log('Updating property post:', postData);
 
-    const slug = postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-');
+  // Prepare update data for propertyPostsApi - backend expects translations with locale + content
+    const locale = postData.locale || (postData.translations && postData.translations[0]?.locale) || 'en';
+    const rawContent = postData.content || (postData.translations && postData.translations[0]?.content) || '';
+    const title = postData.title || '';
+    let finalContentUpdate = rawContent;
+    if (title) {
+      if (/(<h[1-3][\s\S]*?>)([\s\S]*?)(<\/h[1-3]>)/i.test(rawContent)) {
+        // Replace first heading with new title
+        finalContentUpdate = rawContent.replace(/(<h[1-3][^>]*>)([\s\S]*?)(<\/h[1-3]>)/i, `<h2>${title}</h2>`);
+      } else {
+        finalContentUpdate = `<h2>${title}</h2>\n${rawContent}`;
+      }
+    }
 
-    // Prepare update data for propertyPostsApi
     const updateData = {
       status: postData.status,
       translations: [
         {
-          locale: postData.locale || 'en',
-          title: postData.title,
-          slug: slug,
-          short_description: postData.excerpt || '',
-          content: postData.content,
-          thumbnail_url: '',
+          locale,
+          content: finalContentUpdate
         }
       ]
     };
@@ -331,9 +352,63 @@ export const usePropertiesApi = () => {
 
   const translatePost = async (postId: number, translationData: TranslationData) => {
     console.log('Translating post:', postId, translationData);
-    
-    // Mock implementation - just log for now
-    // In real implementation, this would create/update translations
+    try {
+      // Ensure we have the post's property_id (hotel) from the server instead of relying on local state
+      let postRecord: any = null;
+      try {
+        postRecord = await propertyPostsApi.getPropertyPost(postId);
+        console.log('Fetched post record for translation refresh:', postRecord);
+      } catch (fetchErr) {
+        console.warn('Failed to fetch post record; will try to infer hotel from local state', fetchErr);
+      }
+      // Check existing translations for this post
+      const existing = await propertyPostsApi.getPropertyPostTranslations(postId);
+      const found = existing && existing.find((t: any) => t.locale === translationData.locale);
+      const title = translationData.title || '';
+      const raw = translationData.content || '';
+      let final = raw;
+      if (title) {
+        if (/(<h[1-3][\s\S]*?>)([\s\S]*?)(<\/h[1-3]>)/i.test(raw)) {
+          final = raw.replace(/(<h[1-3][^>]*>)([\s\S]*?)(<\/h[1-3]>)/i, `<h2>${title}</h2>`);
+        } else {
+          final = `<h2>${title}</h2>\n${raw}`;
+        }
+      }
+
+      if (found) {
+        console.log('Updating existing translation for locale', translationData.locale);
+        await propertyPostsApi.updatePropertyPostTranslation(postId, translationData.locale, { content: final });
+      } else {
+        console.log('Creating new translation for locale', translationData.locale);
+        await propertyPostsApi.createPropertyPostTranslation(postId, { locale: translationData.locale, content: final });
+      }
+
+      // Refresh posts for the hotel that contains this post. Prefer the server-provided property_id.
+      let hotelId: string | null = null;
+      if (postRecord && postRecord.property_id) {
+        hotelId = String(postRecord.property_id);
+      } else {
+        for (const h of hotels) {
+          if (h.posts.some((p) => p.id === postId)) {
+            hotelId = h.id;
+            break;
+          }
+        }
+      }
+
+      if (hotelId) {
+        const apiPosts = await propertyPostsApi.getPropertyPosts({ property_id: parseInt(hotelId), skip: 0, limit: 100 });
+        setHotels(prev => prev.map(h => h.id === hotelId ? { ...h, posts: apiPosts.map((apiPost:any) => transformApiPostToUI(apiPost, hotelId!)) } : h));
+      } else {
+        // Fallback: reload all
+        await loadProperties();
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error translating post:', error);
+      throw error;
+    }
   };
 
   // Refresh data
