@@ -19,9 +19,24 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return route.name
 
 
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Add no-cache headers to API responses to prevent stale data"""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Add no-cache headers for API endpoints
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+        return response
+
+
 class ProxyHeadersMiddleware(BaseHTTPMiddleware):
     """Handle proxy headers for HTTPS termination"""
-    
+
     async def dispatch(self, request: Request, call_next):
         # Handle X-Forwarded-Proto header from nginx
         forwarded_proto = request.headers.get("X-Forwarded-Proto")
@@ -80,6 +95,9 @@ app = FastAPI(
 # Set max file size to 100MB
 app.router.max_request_size = 100 * 1024 * 1024  # 100MB in bytes
 
+
+# Add no-cache middleware to prevent stale data
+app.add_middleware(NoCacheMiddleware)
 
 # Add proxy headers middleware to handle HTTPS termination
 app.add_middleware(ProxyHeadersMiddleware)

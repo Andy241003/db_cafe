@@ -8,6 +8,11 @@ const API_BASE_URL = getApiBaseUrl();
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  }
 });
 
 // Get tenant code from localStorage
