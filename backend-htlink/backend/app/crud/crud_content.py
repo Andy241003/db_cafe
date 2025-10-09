@@ -382,9 +382,10 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
             post_dict = {
                 "id": post.id,
                 "tenant_id": post.tenant_id,
-                "property_id": post.property_id, 
+                "property_id": post.property_id,
                 "feature_id": post.feature_id,
                 "slug": post.slug,
+                "vr360_url": post.vr360_url,  # ✅ ADD THIS
                 "status": post.status,
                 "pinned": post.pinned,
                 "cover_media_id": post.cover_media_id,
@@ -426,6 +427,7 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
                     "property_id": post.property_id,
                     "feature_id": post.feature_id,
                     "slug": post.slug,
+                    "vr360_url": post.vr360_url,  # ✅ ADD THIS
                     "status": post.status,
                     "pinned": post.pinned,
                     "cover_media_id": post.cover_media_id,
@@ -492,6 +494,7 @@ class CRUDPost(CRUDBase[Post, PostCreate, PostUpdate]):
                 "property_id": post.property_id,
                 "feature_id": post.feature_id,
                 "slug": post.slug,
+                "vr360_url": post.vr360_url,  # ✅ ADD THIS
                 "status": post.status,
                 "pinned": post.pinned,
                 "cover_media_id": post.cover_media_id,

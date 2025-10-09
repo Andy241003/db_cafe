@@ -248,10 +248,11 @@ class PropertyFeature(SQLModel, table=True):
 # Post model
 class Post(SQLModel, table=True):
     __tablename__ = "posts"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id")
     property_id: int = Field(foreign_key="properties.id")
+    vr360_url: Optional[str] = Field(default=None, sa_column=Column(String(255)))  # Explicitly define column
     feature_id: int = Field(foreign_key="features.id")
     slug: str = Field(max_length=160)
     status: PostStatus = Field(default=PostStatus.DRAFT)
@@ -261,7 +262,7 @@ class Post(SQLModel, table=True):
     created_by: Optional[int] = Field(foreign_key="admin_users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
-    
+
     # Relationships
     tenant: Tenant = Relationship(back_populates="posts")
     property: Property = Relationship()

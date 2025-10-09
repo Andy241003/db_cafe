@@ -123,6 +123,7 @@ const Features: React.FC = () => {
                   flagClass: tInfo.flagClass,
                   content: tRaw,
                   slug: post.slug || '',
+                  vr360_url: post.vr360_url || '',  // Preserve vr360_url
                   status: post.status ? post.status.toLowerCase() : 'draft',
                   updatedAt: post.updated_at || post.created_at,
                   content_html: t.content_html,
@@ -143,6 +144,7 @@ const Features: React.FC = () => {
                 flagClass: defaultInfo.flagClass,
                 content: '',
                 slug: post.slug || '',
+                vr360_url: post.vr360_url || '',  // Preserve vr360_url
                 status: post.status ? post.status.toLowerCase() : 'draft',
                 updatedAt: post.updated_at || post.created_at,
                 content_html: '',
@@ -297,13 +299,17 @@ const Features: React.FC = () => {
   };
 
   const addPost = (featureId: number) => {
+    // Find the feature to get its slug
+    const feature = apiFeatures.find(f => f.id === featureId);
+    const featureSlug = feature?.slug || '';
+
     // Create a new post object for the feature
     const newPost = {
       id: 0, // New post
       tenant_id: 1, // Default tenant
       property_id: 1, // Default property - TODO: get from context
       feature_id: featureId,
-      slug: '',
+      slug: featureSlug, // Use feature's slug
       status: 'draft' as const,
       pinned: true,
       created_at: new Date().toISOString(),
@@ -316,7 +322,7 @@ const Features: React.FC = () => {
       content: '',
       updatedAt: new Date().toISOString()
     };
-    
+
     setSelectedPost(newPost);
     setIsEditPostModalOpen(true);
   };
@@ -359,6 +365,7 @@ const Features: React.FC = () => {
         property_id: propertyId,
         feature_id: selectedPost?.feature_id || selectedPost?.id || 1,
         slug: postData.slug || postData.title.toLowerCase().replace(/\s+/g, '-'),
+        vr360_url: postData.vrLink || null,
         status: (postData.status || 'draft').toUpperCase(),
         pinned: true,
         title: postData.title,
@@ -403,6 +410,7 @@ const Features: React.FC = () => {
                 flagClass: mainInfo.flagClass,
                 content: mainRaw || '',
                 slug: post.slug || '',
+                vr360_url: post.vr360_url || '',  // Preserve vr360_url
                 status: post.status ? post.status.toLowerCase() : 'draft',
                 updatedAt: post.updated_at || post.created_at,
                 content_html: post.content_html
@@ -430,6 +438,7 @@ const Features: React.FC = () => {
                   flagClass: tInfo.flagClass,
                   content: tRaw || '',
                   slug: post.slug || '',
+                  vr360_url: post.vr360_url || '',  // Preserve vr360_url
                   status: post.status ? post.status.toLowerCase() : 'draft',
                   updatedAt: post.updated_at || post.created_at,
                   content_html: t.content_html
@@ -612,6 +621,7 @@ const Features: React.FC = () => {
               flagClass: mainInfo.flagClass,
               content: mainRaw || '',
               slug: post.slug || '',
+              vr360_url: post.vr360_url || '',  // Preserve vr360_url
               status: post.status ? post.status.toLowerCase() : 'draft',
               updatedAt: post.updated_at || post.created_at,
               content_html: post.content_html
@@ -639,6 +649,7 @@ const Features: React.FC = () => {
                 flagClass: tInfo.flagClass,
                 content: tRaw || '',
                 slug: post.slug || '',
+                vr360_url: post.vr360_url || '',  // Preserve vr360_url
                 status: post.status ? post.status.toLowerCase() : 'draft',
                 updatedAt: post.updated_at || post.created_at,
                 content_html: t.content_html

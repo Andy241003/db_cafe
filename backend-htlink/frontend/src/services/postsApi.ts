@@ -86,6 +86,7 @@ export interface ApiPostCreate {
   property_id: number;  // Changed from optional to required to match backend
   feature_id: number;   // Changed from optional to required to match backend
   slug: string;
+  vr360_url?: string;   // VR360 tour link
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   cover_media_id?: number;
   pinned?: boolean;     // Added to match backend schema
@@ -105,6 +106,7 @@ export interface ApiPostUpdate {
   property_id?: number;
   feature_id?: number;
   slug?: string;
+  vr360_url?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   cover_media_id?: number;
   pinned?: boolean;

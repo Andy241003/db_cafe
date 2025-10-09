@@ -156,6 +156,7 @@ class PropertyFeatureResponse(PropertyFeatureBase):
 # Post schemas
 class PostBase(BaseModel):
     slug: str = Field(max_length=160)
+    vr360_url: Optional[str] = Field(None, max_length=255)
     status: PostStatus = PostStatus.DRAFT
     pinned: bool = True
     cover_media_id: Optional[int] = None
@@ -167,7 +168,7 @@ class PostCreate(PostBase):
     property_id: int
     feature_id: int
     created_by: Optional[int] = None
-    
+
     # Translation fields for default locale
     title: str = Field(max_length=250)
     content_html: str
@@ -176,11 +177,12 @@ class PostCreate(PostBase):
 
 class PostUpdate(BaseModel):
     slug: Optional[str] = Field(None, max_length=160)
+    vr360_url: Optional[str] = Field(None, max_length=255)
     status: Optional[PostStatus] = None
     pinned: Optional[bool] = None
     cover_media_id: Optional[int] = None
     published_at: Optional[datetime] = None
-    
+
     # Translation fields for updating content
     title: Optional[str] = Field(None, max_length=250)
     content_html: Optional[str] = None
@@ -195,7 +197,7 @@ class PostResponse(PostBase):
     created_by: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 

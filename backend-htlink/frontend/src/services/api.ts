@@ -152,6 +152,7 @@ export interface Post {
   property_id: number;
   feature_id: number;
   slug: string;
+  vr360_url?: string;
   status: 'draft' | 'published' | 'archived';
   pinned: boolean;
   cover_media_id?: number;
@@ -189,15 +190,6 @@ export interface FeatureCategoryUpdate {
 export interface PropertyCategory extends FeatureCategory {
   name?: string;
   description?: string;
-}
-
-export interface Post {
-  id: number;
-  title: string;
-  content?: string;
-  tenant_id: number;
-  created_at: string;
-  updated_at?: string;
 }
 
 // Authentication API

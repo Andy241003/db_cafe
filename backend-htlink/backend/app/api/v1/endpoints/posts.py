@@ -93,8 +93,7 @@ def read_posts(
                 limit=limit
             )
             print(f"[POSTS-DEBUG] Branch: SINGLE_LOCALE selected", flush=True)
-        
-        print(f"✅ Found {len(posts)} posts")
+
         return posts
         
     except Exception as e:

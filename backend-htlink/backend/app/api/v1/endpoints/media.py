@@ -107,21 +107,29 @@ async def upload_media_file(
         session.add(media_file)
         session.commit()
         
-        print(f"✅ Upload successful! File saved to DB", flush=True, file=sys.stderr)
-        
-        # Return proper response for frontend without accessing auto-generated fields
-        # to avoid enum validation errors
+        print(f"✅ Upload successful! File saved to DB with ID: {media_file.id}", flush=True, file=sys.stderr)
+
+        # Refresh to get auto-generated fields
+        session.refresh(media_file)
+
+        # Generate full URL for the uploaded file
+        # Use request to get the base URL dynamically
+        base_url = str(request.base_url).rstrip('/')
+        file_url = f"{base_url}/api/v1/media/{file_key}"
+
+        # Return proper response for frontend
         from datetime import datetime
         return {
-            "id": 999,  # Fake ID for now
+            "id": media_file.id,
             "tenant_id": tenant_id,
             "uploader_id": current_user.id,
             "kind": kind_value,
             "mime_type": file.content_type,
             "file_key": file_key,
+            "url": file_url,  # Add full URL
             "size_bytes": len(content),
             "alt_text": alt_text,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": media_file.created_at.isoformat() if media_file.created_at else datetime.utcnow().isoformat()
         }
         
     except Exception as e:

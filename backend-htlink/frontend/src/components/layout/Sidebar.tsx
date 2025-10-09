@@ -1,15 +1,61 @@
 // src/components/layout/Sidebar.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faHotel, faHome, faLayerGroup, faPuzzlePiece, faBuilding, 
+import {
+  faHotel, faHome, faLayerGroup, faPuzzlePiece, faBuilding,
   faImages, faChartLine, faUsers, faCog, faSignOutAlt, faGlobe, faHistory
 } from '@fortawesome/free-solid-svg-icons';
+import { propertiesApi } from '../../services/propertiesApi';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [currentPropertyName, setCurrentPropertyName] = useState<string>('Loading...');
+
+  // Load current property name
+  useEffect(() => {
+    const loadPropertyName = async () => {
+      try {
+        // Try to get property name from localStorage first
+        const storedPropertyName = localStorage.getItem('current_property_name');
+        if (storedPropertyName) {
+          setCurrentPropertyName(storedPropertyName);
+          return;
+        }
+
+        // If not in localStorage, fetch from API
+        const properties = await propertiesApi.getProperties();
+        if (properties && properties.length > 0) {
+          // Use first property as default
+          const propertyName = properties[0].property_name;
+          setCurrentPropertyName(propertyName);
+          localStorage.setItem('current_property_name', propertyName);
+        } else {
+          setCurrentPropertyName('No Property');
+        }
+      } catch (error) {
+        console.error('Error loading property name:', error);
+        setCurrentPropertyName('Unknown Property');
+      }
+    };
+
+    loadPropertyName();
+
+    // Listen for property changes
+    const handlePropertyChange = (e: CustomEvent) => {
+      if (e.detail?.propertyName) {
+        setCurrentPropertyName(e.detail.propertyName);
+        localStorage.setItem('current_property_name', e.detail.propertyName);
+      }
+    };
+
+    window.addEventListener('propertyChanged' as any, handlePropertyChange);
+
+    return () => {
+      window.removeEventListener('propertyChanged' as any, handlePropertyChange);
+    };
+  }, []);
 
   const navItems = [
     {
@@ -62,7 +108,7 @@ const Sidebar: React.FC = () => {
 
       <div className="px-6 py-4 border-y border-slate-700">
         <label className="text-xs text-slate-400">Current Property</label>
-        <div className="text-base font-semibold mt-1">Tabi Tower Hotel</div>
+        <div className="text-base font-semibold mt-1">{currentPropertyName}</div>
       </div>
 
       <nav className="p-6">

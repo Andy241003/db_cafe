@@ -44,17 +44,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
   }, [isOpen]);
 
   useEffect(() => {
-    console.log('=== EditPostModal Simple useEffect ===');
-    console.log('Post prop received:', post);
-    
     if (post) {
-      console.log('Setting up form with post data:');
-      console.log('- ID:', post.id);
-      console.log('- Title:', post.title);
-      console.log('- Content:', post.content);
-      console.log('- Slug:', post.slug);
-      console.log('- Status:', post.status);
-      
       const formData = {
         locale: post.locale || 'en',
         title: post.title || '',
@@ -62,9 +52,9 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
         target: 'self',
         content: post.content || 'Start writing your content here...',
         status: (post.status as 'draft' | 'published' | 'archived') || 'draft',
-        vrLink: post.vrLink || ''
+        vrLink: post.vr360_url || (post as any).vrLink || ''
       };
-      
+
       setPostForm(formData);
     } else {
       setPostForm({
@@ -151,17 +141,16 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug / External Link *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug (URL-friendly identifier)</label>
             <input
               type="text"
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white transition-all focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
               value={postForm.slug}
-              onChange={(e) => setPostForm(prev => ({ ...prev, slug: e.target.value }))}
-              placeholder="e.g., swimming-pool or https://example.com/pool"
-              required
+              readOnly
+              disabled
             />
             <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
-              <FontAwesomeIcon icon={faLink} /> Enter a slug for internal page or a full URL for external link
+              <FontAwesomeIcon icon={faInfoCircle} /> Inherited from feature - cannot be changed
             </small>
           </div>
 

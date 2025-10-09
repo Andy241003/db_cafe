@@ -55,12 +55,14 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
   useEffect(() => {
     console.log('=== EditPostModal useEffect ===');
     console.log('Post prop:', post);
-    
+
     if (post) {
       console.log('Setting up form with post data:');
       console.log('- Title:', post.title);
       console.log('- Content:', post.content);
-      
+      console.log('- Slug:', post.slug);
+      console.log('- VR360 URL:', post.vr360_url);
+
       setPostForm({
         locale: post.locale || 'en',
         title: post.title || '',
@@ -68,7 +70,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
         target: 'self',
         content: post.content || 'No content available. Start writing here...',
         status: (post.status as 'draft' | 'published' | 'archived') || 'draft',
-        vrLink: post.vrLink || ''
+        vrLink: post.vr360_url || post.vrLink || ''
       });
 
     } else {
@@ -176,13 +178,8 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               value={postForm.title}
               onChange={(e) => {
                 const newTitle = e.target.value;
-                // Auto-generate slug from title
-                const newSlug = newTitle.toLowerCase()
-                  .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-                  .replace(/\s+/g, '-') // Replace spaces with hyphens
-                  .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-                  .trim();
-                setPostForm(prev => ({ ...prev, title: newTitle, slug: newSlug }));
+                // Don't auto-generate slug anymore - it comes from feature
+                setPostForm(prev => ({ ...prev, title: newTitle }));
               }}
               required
             />
@@ -198,7 +195,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               disabled
             />
             <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
-              <FontAwesomeIcon icon={faInfoCircle} /> Auto-generated from title
+              <FontAwesomeIcon icon={faInfoCircle} /> Inherited from feature - cannot be changed
             </small>
           </div>
 
