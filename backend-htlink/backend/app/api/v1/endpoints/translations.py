@@ -411,20 +411,42 @@ def create_feature_category_translation(
     """
     Create new feature category translation.
     """
-    # Verify category belongs to current tenant
+    print(f"🔥 CREATE FEATURE CATEGORY TRANSLATION called", flush=True)
+    print(f"   Tenant ID: {tenant_id}", flush=True)
+    print(f"   Translation data: {translation_in.model_dump()}", flush=True)
+
+    # Verify category belongs to current tenant OR is a system category (tenant_id=0)
     from app.models import FeatureCategory
+    from sqlmodel import or_
     category = session.exec(select(FeatureCategory).where(
         FeatureCategory.id == translation_in.category_id,
-        FeatureCategory.tenant_id == tenant_id
+        or_(
+            FeatureCategory.tenant_id == tenant_id,
+            FeatureCategory.tenant_id == 0  # Allow system categories
+        )
     )).first()
+
+    print(f"   Category found: {category}", flush=True)
+    if category:
+        print(f"   Category details: id={category.id}, slug={category.slug}, tenant_id={category.tenant_id}", flush=True)
+
     if not category:
+        print(f"❌ Category not found for id={translation_in.category_id}, tenant_id={tenant_id}", flush=True)
         raise HTTPException(status_code=404, detail="Feature category not found")
-    
-    translation = FeatureCategoryTranslation.model_validate(translation_in)
-    session.add(translation)
-    session.commit()
-    session.refresh(translation)
-    return translation
+
+    try:
+        translation = FeatureCategoryTranslation.model_validate(translation_in)
+        print(f"✅ Translation validated: {translation}", flush=True)
+        session.add(translation)
+        session.commit()
+        session.refresh(translation)
+        print(f"✅ Translation created successfully", flush=True)
+        return translation
+    except Exception as e:
+        print(f"❌ Error creating translation: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @router.put("/feature-categories/{category_id}/{locale}", response_model=FeatureCategoryTranslation)
@@ -441,11 +463,15 @@ def update_feature_category_translation(
     """
     Update a feature category translation.
     """
-    # Verify category belongs to current tenant
+    # Verify category belongs to current tenant OR is a system category (tenant_id=0)
     from app.models import FeatureCategory
+    from sqlmodel import or_
     category = session.exec(select(FeatureCategory).where(
         FeatureCategory.id == category_id,
-        FeatureCategory.tenant_id == tenant_id
+        or_(
+            FeatureCategory.tenant_id == tenant_id,
+            FeatureCategory.tenant_id == 0  # Allow system categories
+        )
     )).first()
     if not category:
         raise HTTPException(status_code=404, detail="Feature category not found")

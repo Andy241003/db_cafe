@@ -328,17 +328,19 @@ export const categoriesAPI = {
   },
 
   create: async (category: FeatureCategoryCreate): Promise<FeatureCategory> => {
-    const response: AxiosResponse<FeatureCategory> = await apiClient.post('/property-categories/', category);
+    console.log('categoriesAPI.create: Calling /categories/ with data:', category);
+    const response: AxiosResponse<FeatureCategory> = await apiClient.post('/categories/', category);
+    console.log('categoriesAPI.create: Response:', response.data);
     return response.data;
   },
 
   update: async (id: number, category: FeatureCategoryUpdate): Promise<FeatureCategory> => {
-    const response: AxiosResponse<FeatureCategory> = await apiClient.put(`/property-categories/${id}`, category);
+    const response: AxiosResponse<FeatureCategory> = await apiClient.put(`/categories/${id}`, category);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/property-categories/${id}`);
+    await apiClient.delete(`/categories/${id}`);
   },
 };
 

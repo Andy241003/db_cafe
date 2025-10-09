@@ -59,15 +59,21 @@ def create_category(
     *,
     db: SessionDep,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     category_in: FeatureCategoryCreate
 ):
     """Create new feature category"""
-    print(f"🔥 CREATE_CATEGORY called by {current_user.email}")
-    category = FeatureCategory(**category_in.model_dump())
+    print(f"🔥 CREATE_CATEGORY called by {current_user.email} for tenant {tenant_id}")
+
+    # Set tenant_id from current tenant context
+    category_data = category_in.model_dump()
+    category_data['tenant_id'] = tenant_id
+
+    category = FeatureCategory(**category_data)
     db.add(category)
     db.commit()
     db.refresh(category)
-    print(f"✅ Category created: {category.slug} (ID: {category.id})")
+    print(f"✅ Category created: {category.slug} (ID: {category.id}, tenant_id: {category.tenant_id})")
 
     # Log activity
     try:
