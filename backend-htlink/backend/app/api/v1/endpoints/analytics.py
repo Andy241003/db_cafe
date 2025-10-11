@@ -135,6 +135,11 @@ async def update_analytics_summary(session: Session, tenant_id: int, event_date:
 
 # Analytics Tracking Endpoints
 
+@router.get("/test")
+async def test_connection():
+    """Test endpoint to verify API connectivity"""
+    return {"status": "ok", "message": "Analytics API is connected"}
+
 @router.post("/track")
 async def track_analytics_event(
     request: Request,

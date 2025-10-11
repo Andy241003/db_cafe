@@ -148,7 +148,7 @@ class AnalyticsAPI {
       end_date: endDate,
       period_type: periodType,
     });
-    
+
     return this.makeRequest(`/analytics/summary?${params}`);
   }
 
