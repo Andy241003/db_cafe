@@ -4,7 +4,7 @@ import type { HotelPost, TranslationData } from '../../types/properties';
 import { localesApi } from '../../services/localesApi';
 import type { Locale } from '../../services/localesApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faLanguage, faSync, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faLanguage, faSync, faCheck, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { translationsApi } from '../../services/translationsApi';
 
 interface TranslateModalProps {
@@ -20,76 +20,131 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   post,
   onSave
 }) => {
-  const [languages, setLanguages] = useState<Array<Locale>>([
-    { code: 'en', name: 'English' },
-    { code: 'vi', name: 'Vietnamese' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' }
-  ]);
+  const [languages, setLanguages] = useState<Array<Locale>>([]);
   const [targetLanguage, setTargetLanguage] = useState<string>('en');
   const [originalContent, setOriginalContent] = useState<string>('');
   const [translatedContent, setTranslatedContent] = useState<string>('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+        setSearchQuery('');
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  // Load available locales from Settings (supported languages)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadLocales = async () => {
+      try {
+        console.log('🔄 [Properties] Loading locales for TranslateModal...');
+
+        // Get property settings to check supported languages
+        const propertyId = localStorage.getItem('selected_property_id');
+
+        // Always get all locales first
+        const allLocales = await localesApi.getLocales();
+        console.log('📋 [Properties] All locales from API:', allLocales.length, allLocales.map(l => l.code));
+
+        if (!propertyId) {
+          console.log('⚠️ [Properties] No property selected, using all locales');
+          setLanguages(allLocales);
+          return;
+        }
+
+        // Get property settings
+        const response = await fetch(`/api/v1/properties/${propertyId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'X-Tenant-Code': localStorage.getItem('tenant_code') || ''
+          }
+        });
+
+        if (response.ok) {
+          const property = await response.json();
+          const supportedLanguages = property.settings_json?.localization?.supportedLanguages || ['en', 'vi'];
+          console.log('✅ [Properties] Property supported languages:', supportedLanguages);
+
+          // Filter by supported languages
+          const filtered = allLocales.filter(locale => supportedLanguages.includes(locale.code));
+          console.log('✅ [Properties] Filtered locales:', filtered.length, filtered.map(l => l.code));
+
+          setLanguages(filtered.length > 0 ? filtered : allLocales);
+        } else {
+          console.log('⚠️ [Properties] Failed to fetch property, using all locales');
+          setLanguages(allLocales);
+        }
+      } catch (error) {
+        console.error('❌ [Properties] Failed to load locales:', error);
+        // Fallback to basic locales
+        const fallback = [
+          { code: 'en', name: 'English', native_name: 'English' },
+          { code: 'vi', name: 'Vietnamese', native_name: 'Tiếng Việt' },
+          { code: 'ja', name: 'Japanese', native_name: '日本語' },
+          { code: 'ko', name: 'Korean', native_name: '한국어' }
+        ];
+        console.log('⚠️ [Properties] Using fallback locales:', fallback.map(l => l.code));
+        setLanguages(fallback);
+      }
+    };
+
+    loadLocales();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!post) return;
     // initialize original content
     setOriginalContent(post.content || '');
 
-    // fetch available locales from backend, fallback to built-in list
-    (async () => {
-      let available: Array<Locale> = [
-        { code: 'en', name: 'English' },
-        { code: 'vi', name: 'Vietnamese' },
-        { code: 'ja', name: 'Japanese' },
-        { code: 'ko', name: 'Korean' }
-      ];
-      try {
-        const remote = await localesApi.getLocales();
-        if (Array.isArray(remote) && remote.length > 0) {
-          available = remote;
-          setLanguages(remote);
-          console.debug('[TranslateModal] loaded locales:', remote.map(r => r.code));
-        } else {
-          setLanguages(available);
-        }
-      } catch (e) {
-        console.warn('[TranslateModal] failed to load locales, using fallback', e);
-        setLanguages(available);
-      }
+    // pick a sensible default target language (first language that is not the post's locale)
+    const selectable = languages.map(l => l.code).filter(l => l !== (post.locale || 'en'));
+    const defaultLang = selectable.length > 0 ? selectable[0] : (post.locale || 'en');
+    setTargetLanguage(defaultLang);
 
-      // pick a sensible default target language (first language that is not the post's locale)
-      const selectable = available.map(l => l.code).filter(l => l !== (post.locale || 'en'));
-      const defaultLang = selectable.length > 0 ? selectable[0] : (post.locale || 'en');
-      setTargetLanguage(defaultLang);
-
-      // load existing translation for the defaultLang if exists; otherwise trigger auto-translate
-      const existing = (post.translations || []).find(t => t.locale === defaultLang);
-      if (existing && existing.content) {
-        setTranslatedContent(existing.content);
-      } else {
-        // If there's no existing translation, attempt to auto-translate now
-        if ((post.content || '').trim()) {
-          setIsRegenerating(true);
-          try {
-            const results = await translationsApi.translateBatch([post.content || ''], defaultLang, 'auto', true, 4);
+    // load existing translation for the defaultLang if exists; otherwise trigger auto-translate
+    const existing = (post.translations || []).find(t => t.locale === defaultLang);
+    if (existing && existing.content) {
+      setTranslatedContent(existing.content);
+    } else {
+      // If there's no existing translation, attempt to auto-translate now
+      if ((post.content || '').trim()) {
+        setIsRegenerating(true);
+        translationsApi.translateBatch([post.content || ''], defaultLang, 'auto', true, 4)
+          .then(results => {
             if (Array.isArray(results) && results.length > 0) {
               setTranslatedContent(results[0]);
             } else {
               setTranslatedContent(getTranslatedContent(defaultLang, post.content));
             }
-          } catch (e) {
+          })
+          .catch(e => {
             console.warn('[TranslateModal] auto-translate failed on open, using fallback', e);
             setTranslatedContent(getTranslatedContent(defaultLang, post.content));
-          } finally {
+          })
+          .finally(() => {
             setIsRegenerating(false);
-          }
-        } else {
-          setTranslatedContent(getTranslatedContent(defaultLang, post.content));
-        }
+          });
+      } else {
+        setTranslatedContent(getTranslatedContent(defaultLang, post.content));
       }
-    })();
-  }, [post]);
+    }
+  }, [post, languages]);
 
 
   const getTranslatedContent = (lang: string, original: string) => {
@@ -159,37 +214,147 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         <div className="p-6 flex-grow overflow-y-auto">
           <div className="mb-6">
             <label className="font-semibold text-slate-700 mb-2 block">Translate to:</label>
-            <div className="flex gap-2">
-              {languages.map(lang => {
-                const code = lang.code;
-                const isDefault = post?.locale === code;
-                return (
-                  <button
-                    key={code}
-                    onClick={() => {
-                      if (isDefault || isRegenerating) return;
-                      setTargetLanguage(code);
-                      const existing = (post?.translations || []).find(t => t.locale === code);
-                      if (existing && existing.content) {
-                        setTranslatedContent(existing.content);
-                      } else {
-                        // Trigger auto-translate for this language
-                        void translateToLanguage(code);
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      post?.locale === code
-                        ? 'bg-slate-200 text-slate-500 opacity-60 cursor-not-allowed'
-                        : (targetLanguage === code ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
-                    }`}
-                    disabled={isDefault || isRegenerating}
-                    title={isDefault ? 'This is the default locale for the post' : (isRegenerating ? 'Translating...' : '')}
-                  >
-                    {lang.code === 'vi' ? '🇻🇳 ' + (lang.name || 'Tiếng Việt') : lang.code === 'ja' ? '🇯🇵 ' + (lang.name || '日本語') : '🇬🇧 ' + (lang.name || 'English')}
-                  </button>
-                );
-              })}
+
+            {/* Dropdown Select */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                disabled={isRegenerating}
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-lg text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faLanguage} className="text-slate-500" />
+                  <span className="font-medium text-slate-700">
+                    {languages.find(l => l.code === targetLanguage)?.native_name ||
+                     languages.find(l => l.code === targetLanguage)?.name ||
+                     targetLanguage}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    ({languages.find(l => l.code === targetLanguage)?.code})
+                  </span>
+                </span>
+                <FontAwesomeIcon
+                  icon={faChevronDown}
+                  className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                  {/* Search Box */}
+                  <div className="p-3 border-b border-slate-200 sticky top-0 bg-white">
+                    <div className="relative">
+                      <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search languages..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Language List */}
+                  <div className="max-h-64 overflow-y-auto">
+                    {languages
+                      .filter(locale => {
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          locale.name.toLowerCase().includes(query) ||
+                          locale.native_name?.toLowerCase().includes(query) ||
+                          locale.code.toLowerCase().includes(query)
+                        );
+                      })
+                      .map(locale => {
+                        const isDefault = post?.locale === locale.code;
+                        const hasTranslation = post?.translations?.some((t: any) => t.locale === locale.code);
+                        const isSelected = targetLanguage === locale.code;
+                        const isDisabled = isDefault || hasTranslation;
+
+                        return (
+                          <button
+                            key={locale.code}
+                            onClick={() => {
+                              if (!isDisabled) {
+                                setTargetLanguage(locale.code);
+                                setIsDropdownOpen(false);
+                                setSearchQuery('');
+
+                                const existing = (post?.translations || []).find(t => t.locale === locale.code);
+                                if (existing && existing.content) {
+                                  setTranslatedContent(existing.content);
+                                } else {
+                                  // Trigger auto-translate for this language
+                                  void translateToLanguage(locale.code);
+                                }
+                              }
+                            }}
+                            disabled={isDisabled}
+                            className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${
+                              isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
+                            } ${isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''}`}
+                            title={
+                              isDefault
+                                ? 'This is the original language'
+                                : hasTranslation
+                                  ? 'Translation already exists'
+                                  : ''
+                            }
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium text-slate-800">
+                                {locale.native_name || locale.name}
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                {locale.name} ({locale.code})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {hasTranslation && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                  <FontAwesomeIcon icon={faCheck} className="mr-1" />
+                                  Translated
+                                </span>
+                              )}
+                              {isDefault && (
+                                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">
+                                  Original
+                                </span>
+                              )}
+                              {isSelected && !isDisabled && (
+                                <FontAwesomeIcon icon={faCheck} className="text-blue-600" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                    {/* No Results */}
+                    {languages.filter(locale => {
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        locale.name.toLowerCase().includes(query) ||
+                        locale.native_name?.toLowerCase().includes(query) ||
+                        locale.code.toLowerCase().includes(query)
+                      );
+                    }).length === 0 && (
+                      <div className="px-4 py-8 text-center text-slate-500">
+                        <FontAwesomeIcon icon={faSearch} className="text-3xl mb-2 opacity-50" />
+                        <p className="text-sm">No languages found</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Helper Text */}
+            <p className="mt-2 text-xs text-slate-500">
+              💡 Tip: Only languages enabled in Settings → Localization are shown here
+            </p>
           </div>
 
           <div className="space-y-4">

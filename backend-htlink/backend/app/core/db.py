@@ -32,12 +32,41 @@ def init_db(session: Session) -> None:
     # Import the models we need for seeding
     from app.models import Plan, Tenant, Locale
     
-    # 1. Create basic locales first
+    # 1. Create tourism locales (25+ languages for international tourists)
     locales_data = [
-        {"code": "en", "name": "English", "native_name": "English"},
-        {"code": "vi", "name": "Vietnamese", "native_name": "Tiếng Việt"},
+        # 🌏 Châu Á - Nguồn khách lớn nhất
+        {"code": "zh-CN", "name": "Chinese (Simplified)", "native_name": "中文（简体）"},
+        {"code": "zh-TW", "name": "Chinese (Traditional)", "native_name": "中文（繁體）"},
+        {"code": "ko", "name": "Korean", "native_name": "한국어"},
         {"code": "ja", "name": "Japanese", "native_name": "日本語"},
-        {"code": "ko", "name": "Korean", "native_name": "한국어"}
+        {"code": "th", "name": "Thai", "native_name": "ภาษาไทย"},
+        {"code": "ms", "name": "Malay", "native_name": "Bahasa Melayu"},
+        {"code": "id", "name": "Indonesian", "native_name": "Bahasa Indonesia"},
+        {"code": "tl", "name": "Filipino (Tagalog)", "native_name": "Tagalog"},
+        {"code": "yue", "name": "Cantonese", "native_name": "粵語"},
+
+        # 🌍 Châu Âu
+        {"code": "en", "name": "English", "native_name": "English"},
+        {"code": "fr", "name": "French", "native_name": "Français"},
+        {"code": "de", "name": "German", "native_name": "Deutsch"},
+        {"code": "ru", "name": "Russian", "native_name": "Русский"},
+        {"code": "es", "name": "Spanish", "native_name": "Español"},
+        {"code": "it", "name": "Italian", "native_name": "Italiano"},
+
+        # 🌎 Châu Mỹ & Châu Đại Dương
+        {"code": "en-US", "name": "English (US)", "native_name": "English (US)"},
+        {"code": "en-AU", "name": "English (Australia)", "native_name": "English (AU)"},
+        {"code": "en-CA", "name": "English (Canada)", "native_name": "English (CA)"},
+        {"code": "fr-CA", "name": "French (Canada)", "native_name": "Français (CA)"},
+        {"code": "pt-BR", "name": "Portuguese (Brazil)", "native_name": "Português (BR)"},
+
+        # 🌍 Trung Đông & Nam Á
+        {"code": "hi", "name": "Hindi", "native_name": "हिन्दी"},
+        {"code": "ar", "name": "Arabic", "native_name": "العربية"},
+        {"code": "ta", "name": "Tamil", "native_name": "தமிழ்"},
+
+        # 🇻🇳 Việt Nam
+        {"code": "vi", "name": "Vietnamese", "native_name": "Tiếng Việt"},
     ]
     
     for locale_data in locales_data:

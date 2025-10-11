@@ -153,14 +153,9 @@ const Settings: React.FC = () => {
     propertyActive: true
   });
 
-  const languages: Language[] = [
-    { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
-    { code: 'vi', name: 'Vietnamese', native: 'Tiếng Việt', flag: '🇻🇳' },
-    { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
-    { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
-    { code: 'zh', name: 'Chinese (Simplified)', native: '简体中文', flag: '🇨🇳' },
-    { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' }
-  ];
+  // Load languages from database
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [isLoadingLanguages, setIsLoadingLanguages] = useState(true);
 
   const tabs = [
     { id: 'general', icon: 'fas fa-cog', text: 'General' },
@@ -964,6 +959,62 @@ const Settings: React.FC = () => {
     }));
   };
 
+  // Load languages from database
+  useEffect(() => {
+    const loadLanguages = async () => {
+      try {
+        setIsLoadingLanguages(true);
+        const locales = await localesApi.getLocales();
+
+        // Map locales to Language format with flags
+        const languageMap: { [key: string]: string } = {
+          'en': '🇬🇧', 'en-US': '🇺🇸', 'en-AU': '🇦🇺', 'en-CA': '🇨🇦',
+          'vi': '🇻🇳',
+          'ja': '🇯🇵',
+          'ko': '🇰🇷',
+          'zh': '🇨🇳', 'zh-CN': '🇨🇳', 'zh-TW': '🇹🇼',
+          'th': '🇹🇭',
+          'ms': '🇲🇾',
+          'id': '🇮🇩',
+          'tl': '🇵🇭',
+          'yue': '🇭🇰',
+          'fr': '🇫🇷', 'fr-CA': '🇨🇦',
+          'de': '🇩🇪',
+          'ru': '🇷🇺',
+          'es': '🇪🇸',
+          'it': '🇮🇹',
+          'pt-BR': '🇧🇷',
+          'hi': '🇮🇳',
+          'ar': '🇸🇦',
+          'ta': '🇮🇳'
+        };
+
+        const mappedLanguages: Language[] = locales.map(locale => ({
+          code: locale.code,
+          name: locale.name,
+          native: locale.native_name || locale.name,
+          flag: languageMap[locale.code] || '🌐'
+        }));
+
+        setLanguages(mappedLanguages);
+        console.log('✅ Loaded', mappedLanguages.length, 'languages from database');
+      } catch (error) {
+        console.error('Failed to load languages:', error);
+        // Fallback to basic languages
+        setLanguages([
+          { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
+          { code: 'vi', name: 'Vietnamese', native: 'Tiếng Việt', flag: '🇻🇳' },
+          { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
+          { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' }
+        ]);
+      } finally {
+        setIsLoadingLanguages(false);
+      }
+    };
+
+    loadLanguages();
+  }, []);
+
   // Load tenant data on component mount
   useEffect(() => {
     const loadTenantData = async () => {
@@ -1399,45 +1450,71 @@ const Settings: React.FC = () => {
 
               <div className="mb-5">
                 <label className="mb-2 block text-sm font-medium text-slate-700">Default Language</label>
-                <select 
+                <select
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
                   value={localizationSettings.defaultLanguage}
                   onChange={(e) => {
                     setLocalizationSettings(prev => ({ ...prev, defaultLanguage: e.target.value }));
                     handleAutoSave('defaultLanguage', e.target.value);
                   }}
+                  disabled={isLoadingLanguages}
                 >
-                  <option value="en">English</option>
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="ja">日本語</option>
-                  <option value="ko">한국어</option>
+                  {languages.map(lang => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.native} ({lang.name})
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Primary language for your property content
+                </p>
               </div>
 
               <div className="mb-5">
                 <label className="mb-2 block text-sm font-medium text-slate-700">Fallback Language</label>
-                <select 
+                <select
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
                   value={localizationSettings.fallbackLanguage}
                   onChange={(e) => {
                     setLocalizationSettings(prev => ({ ...prev, fallbackLanguage: e.target.value }));
                     handleAutoSave('fallbackLanguage', e.target.value);
                   }}
+                  disabled={isLoadingLanguages}
                 >
-                  <option value="en">English</option>
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="ja">日本語</option>
-                  <option value="ko">한국어</option>
+                  {languages.map(lang => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.native} ({lang.name})
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Language to use when content is not available in the requested language
+                </p>
               </div>
 
               <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-slate-700">Supported Languages</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Supported Languages
+                  {!isLoadingLanguages && (
+                    <span className="ml-2 text-xs font-normal text-slate-500">
+                      ({languages.length} available)
+                    </span>
+                  )}
+                </label>
                 <p className="mb-3 text-xs text-slate-500">
-                  Select languages to support. New languages will be automatically added to the system.
+                  Select languages to support. Only selected languages will appear in translation modals.
                 </p>
-                <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-                  {languages.map((language) => {
+
+                {isLoadingLanguages ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                      <p className="mt-3 text-sm text-slate-500">Loading languages...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                    {languages.map((language) => {
                     const isSelected = localizationSettings.supportedLanguages.includes(language.code);
                     const isInDatabase = existingLocales.includes(language.code);
                     const isNew = !isInDatabase;
@@ -1468,7 +1545,8 @@ const Settings: React.FC = () => {
                       </div>
                     );
                   })}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">

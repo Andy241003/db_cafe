@@ -2,7 +2,9 @@
 import React, { useState, useEffect } from "react";
 import type { Category, Language } from "../../types/categories";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faLanguage, faSync } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faLanguage, faSync, faChevronDown, faSearch, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { localesApi } from '../../services/localesApi';
+import type { Locale } from '../../services/localesApi';
 
 interface TranslateModalProps {
   isOpen: boolean;
@@ -14,14 +16,6 @@ interface TranslateModalProps {
     translatedData: { title: string; description: string }
   ) => void;
 }
-
-const AVAILABLE_LANGS = [
-  { code: "vi" as Language, flag: "🇻🇳", label: "Tiếng Việt" },
-  { code: "en" as Language, flag: "🇬🇧", label: "English" },
-  { code: "ja" as Language, flag: "🇯🇵", label: "日本語" },
-  { code: "ko" as Language, flag: "🇰🇷", label: "한국어" },
-  { code: "fr" as Language, flag: "🇫🇷", label: "Français" },
-];
 
 export const TranslateModal: React.FC<TranslateModalProps> = ({
   isOpen,
@@ -35,6 +29,88 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   const [originalDescription, setOriginalDescription] = useState("");
   const [translatedTitle, setTranslatedTitle] = useState("");
   const [translatedDescription, setTranslatedDescription] = useState("");
+  const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+        setSearchQuery('');
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  // Load available locales from Settings (supported languages)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadLocales = async () => {
+      try {
+        console.log('🔄 [Categories] Loading locales for TranslateModal...');
+
+        // Get property settings to check supported languages
+        const propertyId = localStorage.getItem('selected_property_id');
+
+        // Always get all locales first
+        const allLocales = await localesApi.getLocales();
+        console.log('📋 [Categories] All locales from API:', allLocales.length, allLocales.map(l => l.code));
+
+        if (!propertyId) {
+          console.log('⚠️ [Categories] No property selected, using all locales');
+          setAvailableLocales(allLocales);
+          return;
+        }
+
+        // Get property settings
+        const response = await fetch(`/api/v1/properties/${propertyId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'X-Tenant-Code': localStorage.getItem('tenant_code') || ''
+          }
+        });
+
+        if (response.ok) {
+          const property = await response.json();
+          const supportedLanguages = property.settings_json?.localization?.supportedLanguages || ['en', 'vi'];
+          console.log('✅ [Categories] Property supported languages:', supportedLanguages);
+
+          // Filter by supported languages
+          const filtered = allLocales.filter(locale => supportedLanguages.includes(locale.code));
+          console.log('✅ [Categories] Filtered locales:', filtered.length, filtered.map(l => l.code));
+
+          setAvailableLocales(filtered.length > 0 ? filtered : allLocales);
+        } else {
+          console.log('⚠️ [Categories] Failed to fetch property, using all locales');
+          setAvailableLocales(allLocales);
+        }
+      } catch (error) {
+        console.error('❌ [Categories] Failed to load locales:', error);
+        // Fallback to basic locales
+        const fallback = [
+          { code: 'en', name: 'English', native_name: 'English' },
+          { code: 'vi', name: 'Vietnamese', native_name: 'Tiếng Việt' },
+          { code: 'ja', name: 'Japanese', native_name: '日本語' },
+          { code: 'ko', name: 'Korean', native_name: '한국어' }
+        ];
+        console.log('⚠️ [Categories] Using fallback locales:', fallback.map(l => l.code));
+        setAvailableLocales(fallback);
+      }
+    };
+
+    loadLocales();
+  }, [isOpen]);
 
   // Get default locale from category
   const getDefaultLocale = (): Language => {
@@ -59,8 +135,8 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
     setOriginalDescription(origDesc);
 
     // Pick a sensible default target language (first language that is not default)
-    const selectable = AVAILABLE_LANGS.map(l => l.code).filter(l => l !== defaultLocale);
-    const defaultTarget = selectable.length > 0 ? selectable[0] : defaultLocale;
+    const selectable = availableLocales.map(l => l.code).filter(l => l !== defaultLocale);
+    const defaultTarget = selectable.length > 0 ? selectable[0] as Language : defaultLocale;
     setTargetLanguage(defaultTarget);
 
     // Load existing translation for the target language if exists
@@ -160,31 +236,137 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         {/* Language Selection */}
         <div className="p-6 border-b border-slate-200">
           <label className="font-semibold text-slate-700 mb-3 block">Translate to:</label>
-          <div className="flex gap-2 flex-wrap">
-            {AVAILABLE_LANGS.map(lang => {
-              const isDefault = defaultLocale === lang.code;
-              const isActive = targetLanguage === lang.code;
-              const isDisabled = isDefault || isRegenerating;
 
-              return (
-                <button
-                  key={lang.code}
-                  onClick={() => handleLanguageChange(lang.code)}
-                  disabled={isDisabled}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    isDefault
-                      ? 'bg-slate-200 text-slate-500 opacity-60 cursor-not-allowed'
-                      : isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                  title={isDefault ? 'This is the default locale' : (isRegenerating ? 'Translating...' : '')}
-                >
-                  {lang.flag} {lang.label}
-                </button>
-              );
-            })}
+          {/* Dropdown Select */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              disabled={isRegenerating}
+              className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-lg text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faLanguage} className="text-slate-500" />
+                <span className="font-medium text-slate-700">
+                  {availableLocales.find(l => l.code === targetLanguage)?.native_name ||
+                   availableLocales.find(l => l.code === targetLanguage)?.name ||
+                   targetLanguage}
+                </span>
+                <span className="text-xs text-slate-500">
+                  ({availableLocales.find(l => l.code === targetLanguage)?.code})
+                </span>
+              </span>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                {/* Search Box */}
+                <div className="p-3 border-b border-slate-200 sticky top-0 bg-white">
+                  <div className="relative">
+                    <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search languages..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Language List */}
+                <div className="max-h-64 overflow-y-auto">
+                  {availableLocales
+                    .filter(locale => {
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        locale.name.toLowerCase().includes(query) ||
+                        locale.native_name?.toLowerCase().includes(query) ||
+                        locale.code.toLowerCase().includes(query)
+                      );
+                    })
+                    .map(locale => {
+                      const isDefault = defaultLocale === locale.code;
+                      const hasTranslation = category?.translations?.[locale.code as Language];
+                      const isSelected = targetLanguage === locale.code;
+                      const isDisabled = isDefault;
+
+                      return (
+                        <button
+                          key={locale.code}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              handleLanguageChange(locale.code as Language);
+                              setIsDropdownOpen(false);
+                              setSearchQuery('');
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${
+                            isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
+                          } ${isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''}`}
+                          title={
+                            isDefault
+                              ? 'This is the original language'
+                              : ''
+                          }
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-800">
+                              {locale.native_name || locale.name}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {locale.name} ({locale.code})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hasTranslation && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                <FontAwesomeIcon icon={faCheck} className="mr-1" />
+                                Translated
+                              </span>
+                            )}
+                            {isDefault && (
+                              <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">
+                                Original
+                              </span>
+                            )}
+                            {isSelected && !isDisabled && (
+                              <FontAwesomeIcon icon={faCheck} className="text-blue-600" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                  {/* No Results */}
+                  {availableLocales.filter(locale => {
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      locale.name.toLowerCase().includes(query) ||
+                      locale.native_name?.toLowerCase().includes(query) ||
+                      locale.code.toLowerCase().includes(query)
+                    );
+                  }).length === 0 && (
+                    <div className="px-4 py-8 text-center text-slate-500">
+                      <FontAwesomeIcon icon={faSearch} className="text-3xl mb-2 opacity-50" />
+                      <p className="text-sm">No languages found</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Helper Text */}
+          <p className="mt-2 text-xs text-slate-500">
+            💡 Tip: Only languages enabled in Settings → Localization are shown here
+          </p>
         </div>
 
         {/* Content */}
