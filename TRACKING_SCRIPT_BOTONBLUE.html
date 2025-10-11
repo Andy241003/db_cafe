@@ -1,0 +1,262 @@
+<!-- 
+  Hotel Link 360 Analytics Tracking Script
+  
+  Website: https://botonblue.trip360.vn/
+  Admin Panel: https://travel.link360.vn/
+  
+  HƯỚNG DẪN SỬ DỤNG:
+  1. Copy toàn bộ script này
+  2. Paste vào <head> hoặc trước </body> của website botonblue.trip360.vn
+  3. Script sẽ tự động track:
+     - Page views khi user vào trang
+     - Clicks trên links và buttons
+     - Device type (desktop/mobile/tablet)
+     - Referrer (nguồn traffic)
+-->
+
+<!-- Hotel Link 360 Analytics Tracking -->
+<script>
+(function() {
+  'use strict';
+  
+  // ============================================
+  // CONFIGURATION
+  // ============================================
+  const CONFIG = {
+    TRACKING_KEY: 'boton_blue_tracking', // Tracking key của Boton Blue Hotel
+    API_URL: 'https://travel.link360.vn/api/v1/analytics/track',
+    DEBUG: false, // Set true để xem logs trong console
+    TRACK_CLICKS: true, // Track clicks trên links và buttons
+    TRACK_SHARES: true, // Track social shares
+    CLICK_SELECTORS: 'a, button, [role="button"]', // CSS selectors để track clicks
+    SHARE_SELECTORS: '.share-button, .social-share, [data-share]' // Social share buttons
+  };
+  
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
+  
+  /**
+   * Detect device type from user agent
+   */
+  function getDeviceType() {
+    const ua = navigator.userAgent.toLowerCase();
+    
+    // Check for tablet first (more specific)
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+      return 'tablet';
+    }
+    
+    // Check for mobile
+    if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(navigator.userAgent)) {
+      return 'mobile';
+    }
+    
+    // Default to desktop
+    return 'desktop';
+  }
+  
+  /**
+   * Log debug messages
+   */
+  function debug(...args) {
+    if (CONFIG.DEBUG) {
+      console.log('[Hotel Link 360 Analytics]', ...args);
+    }
+  }
+  
+  /**
+   * Send tracking event to API
+   */
+  async function trackEvent(eventType, additionalData = {}) {
+    const eventData = {
+      tracking_key: CONFIG.TRACKING_KEY,
+      event_type: eventType,
+      device: getDeviceType(),
+      user_agent: navigator.userAgent,
+      url: window.location.href,
+      referrer: document.referrer || null,
+      ...additionalData
+    };
+    
+    debug('Tracking event:', eventType, eventData);
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+        // Use keepalive to ensure tracking completes even if page unloads
+        keepalive: true
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      debug('Tracking success:', result);
+      return result;
+      
+    } catch (error) {
+      // Fail silently in production, log in debug mode
+      debug('Tracking error:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Track page view
+   */
+  function trackPageView() {
+    debug('Page loaded:', window.location.href);
+    trackEvent('page_view');
+  }
+  
+  /**
+   * Track click events
+   */
+  function setupClickTracking() {
+    if (!CONFIG.TRACK_CLICKS) return;
+    
+    document.addEventListener('click', function(e) {
+      // Find the closest clickable element
+      const target = e.target.closest(CONFIG.CLICK_SELECTORS);
+      
+      if (target) {
+        const elementInfo = {
+          tag: target.tagName.toLowerCase(),
+          text: target.textContent?.trim().substring(0, 100) || '',
+          href: target.href || '',
+          id: target.id || '',
+          class: target.className || ''
+        };
+        
+        debug('Click detected:', elementInfo);
+        
+        // Track click event
+        trackEvent('click', {
+          element: elementInfo.tag,
+          element_text: elementInfo.text,
+          element_href: elementInfo.href
+        });
+      }
+    }, { passive: true });
+    
+    debug('Click tracking enabled');
+  }
+  
+  /**
+   * Track social shares
+   */
+  function setupShareTracking() {
+    if (!CONFIG.TRACK_SHARES) return;
+    
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest(CONFIG.SHARE_SELECTORS);
+      
+      if (target) {
+        const platform = target.dataset.share || 
+                        target.className.match(/(facebook|twitter|linkedin|instagram|zalo)/i)?.[0] || 
+                        'unknown';
+        
+        debug('Share detected:', platform);
+        
+        trackEvent('share', {
+          platform: platform,
+          url: window.location.href
+        });
+      }
+    }, { passive: true });
+    
+    debug('Share tracking enabled');
+  }
+  
+  /**
+   * Track page visibility (for engagement metrics)
+   */
+  function setupVisibilityTracking() {
+    let pageVisible = true;
+    let visibilityStartTime = Date.now();
+    
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        // Page became hidden
+        const timeSpent = Math.floor((Date.now() - visibilityStartTime) / 1000);
+        debug('Page hidden, time spent:', timeSpent, 'seconds');
+        pageVisible = false;
+      } else {
+        // Page became visible again
+        debug('Page visible again');
+        pageVisible = true;
+        visibilityStartTime = Date.now();
+      }
+    });
+  }
+  
+  // ============================================
+  // INITIALIZATION
+  // ============================================
+  
+  /**
+   * Initialize tracking
+   */
+  function init() {
+    debug('Initializing Hotel Link 360 Analytics...');
+    debug('Tracking Key:', CONFIG.TRACKING_KEY);
+    debug('Device Type:', getDeviceType());
+    debug('Current URL:', window.location.href);
+    debug('Referrer:', document.referrer || 'Direct');
+    
+    // Track page view on load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', trackPageView);
+    } else {
+      trackPageView();
+    }
+    
+    // Setup event tracking
+    setupClickTracking();
+    setupShareTracking();
+    setupVisibilityTracking();
+    
+    debug('Analytics initialized successfully');
+  }
+  
+  // Start tracking
+  init();
+  
+  // Expose API for manual tracking (optional)
+  window.HotelLink360Analytics = {
+    track: trackEvent,
+    trackPageView: trackPageView,
+    getDeviceType: getDeviceType,
+    config: CONFIG
+  };
+  
+})();
+</script>
+
+<!-- 
+  CÁCH SỬ DỤNG MANUAL TRACKING (Optional):
+  
+  Nếu bạn muốn track custom events, sử dụng:
+  
+  <script>
+    // Track custom page view
+    window.HotelLink360Analytics.trackPageView();
+    
+    // Track custom event
+    window.HotelLink360Analytics.track('click', {
+      element: 'booking-button',
+      element_text: 'Book Now'
+    });
+    
+    // Get device type
+    const device = window.HotelLink360Analytics.getDeviceType();
+    console.log('Device:', device);
+  </script>
+-->
+

@@ -4,6 +4,7 @@ import { Routes, Route, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { isAuthenticated } from '../services/api';
 import Sidebar from '../components/layout/Sidebar'; // Corrected import path
 import Header from '../components/layout/Header';   // Corrected import path
+import ProtectedRoute from '../components/ProtectedRoute';
 import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
 import Settings from '../pages/Settings';
@@ -78,14 +79,46 @@ const MainLayout: React.FC = () => {
         <main className="pt-20 px-6 pb-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/users" element={<Users />} />
+
+            {/* Users - OWNER and ADMIN only */}
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Settings - All authenticated users can view, but edit requires OWNER/ADMIN */}
             <Route path="/settings/*" element={<Settings />} />
-            <Route path="/tenant-settings" element={<TenantSettings />} />
+
+            {/* Tenant Settings - OWNER only */}
+            <Route
+              path="/tenant-settings"
+              element={
+                <ProtectedRoute requireOwner>
+                  <TenantSettings />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Categories - All authenticated users can view */}
             <Route path="/categories/*" element={<Categories />} />
+
+            {/* Features - All authenticated users can view */}
             <Route path="/features/*" element={<Features />} />
+
+            {/* Properties - All authenticated users can view */}
             <Route path="/properties/*" element={<Properties />} />
+
+            {/* Media - All authenticated users can view */}
             <Route path="/media" element={<Media />} />
+
+            {/* Analytics - All authenticated users can view */}
             <Route path="/analytics" element={<Analytics />} />
+
+            {/* Activities - All authenticated users can view */}
             <Route path="/activities" element={<Activities />} />
           </Routes>
           <Outlet />

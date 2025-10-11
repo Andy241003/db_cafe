@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
-from app.models import FeatureCategory, FeatureCategoryTranslation
+from app.models import FeatureCategory, FeatureCategoryTranslation, UserRole
 from app.models.activity_log import ActivityType
 from app.utils.activity_logger import log_activity
 from app.schemas.content import (
     FeatureCategoryCreate, FeatureCategoryUpdate, FeatureCategoryResponse,
     FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
 )
+from app.core.permissions_utils import is_admin_or_owner
 
 router = APIRouter()
 
@@ -22,11 +23,17 @@ router = APIRouter()
 def list_categories(
     *,
     db: SessionDep,
+    current_user: CurrentUser,
     tenant_id: int = 0,  # 0 for system categories
     skip: int = 0,
     limit: int = 100
 ):
-    """List feature categories"""
+    """List feature categories - requires authentication"""
+    # If requesting specific tenant categories, check access
+    if tenant_id > 0:
+        if current_user.role != UserRole.OWNER and current_user.tenant_id != tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied to this tenant")
+
     statement = select(FeatureCategory).where(
         FeatureCategory.tenant_id == tenant_id
     ).offset(skip).limit(limit)
@@ -35,8 +42,12 @@ def list_categories(
 
 
 @router.get("/system", response_model=List[FeatureCategoryResponse])
-def list_system_categories(*, db: SessionDep):
-    """List system-wide feature categories"""
+def list_system_categories(
+    *,
+    db: SessionDep,
+    current_user: CurrentUser
+):
+    """List system-wide feature categories - requires authentication"""
     statement = select(FeatureCategory).where(
         FeatureCategory.tenant_id == 0,
         FeatureCategory.is_system == True
@@ -46,11 +57,22 @@ def list_system_categories(*, db: SessionDep):
 
 
 @router.get("/{category_id}", response_model=FeatureCategoryResponse)
-def get_category(*, db: SessionDep, category_id: int):
-    """Get feature category by ID"""
+def get_category(
+    *,
+    db: SessionDep,
+    current_user: CurrentUser,
+    category_id: int
+):
+    """Get feature category by ID - requires authentication"""
     category = db.get(FeatureCategory, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+
+    # Check tenant access for non-system categories
+    if category.tenant_id > 0:
+        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied to this category")
+
     return category
 
 
@@ -62,7 +84,11 @@ def create_category(
     tenant_id: CurrentTenantId,
     category_in: FeatureCategoryCreate
 ):
-    """Create new feature category"""
+    """Create new feature category - requires OWNER, ADMIN, or EDITOR role"""
+    # Check permissions - OWNER, ADMIN, EDITOR can create
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     print(f"🔥 CREATE_CATEGORY called by {current_user.email} for tenant {tenant_id}")
 
     # Set tenant_id from current tenant context
@@ -107,10 +133,19 @@ def update_category(
     category_id: int,
     category_in: FeatureCategoryUpdate
 ):
-    """Update feature category"""
+    """Update feature category - requires OWNER, ADMIN, or EDITOR role"""
+    # Check permissions - OWNER, ADMIN, EDITOR can update
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     category = db.get(FeatureCategory, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+
+    # Check tenant access for non-system categories
+    if category.tenant_id > 0:
+        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied to this category")
 
     update_data = category_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -145,10 +180,19 @@ def delete_category(
     current_user: CurrentUser,
     category_id: int
 ):
-    """Delete feature category"""
+    """Delete feature category - requires OWNER or ADMIN role only"""
+    # Check permissions - only OWNER, ADMIN can delete
+    if current_user.role.upper() not in ["OWNER", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     category = db.get(FeatureCategory, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+
+    # Check tenant access for non-system categories
+    if category.tenant_id > 0:
+        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied to this category")
 
     # Store info before deletion
     category_slug = category.slug

@@ -69,11 +69,19 @@ class AnalyticsAPI {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
-    
-    const defaultHeaders = {
+
+    // Get auth token from localStorage
+    const token = localStorage.getItem('access_token');
+
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Tenant-Code': 'boton_blue', // Default tenant for testing
     };
+
+    // Add Authorization header if token exists
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
 
     const config: RequestInit = {
       ...options,
@@ -173,21 +181,33 @@ class AnalyticsAPI {
       const details = log.details || {};
       const activityType = log.activity_type;
       const username = details.username || 'Unknown User';
-      const createdAt = new Date(log.created_at);
+
+      // Parse created_at - backend sends UTC time
+      // If it doesn't have 'Z' suffix, add it to indicate UTC
+      let createdAtStr = log.created_at;
+      if (!createdAtStr.endsWith('Z') && !createdAtStr.includes('+')) {
+        createdAtStr += 'Z';
+      }
+      const createdAt = new Date(createdAtStr);
 
       // Calculate relative time
       const now = new Date();
       const diffMs = now.getTime() - createdAt.getTime();
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMinutes / 60);
       const diffDays = Math.floor(diffHours / 24);
 
       let timeAgo: string;
-      if (diffHours < 1) {
+      if (diffMinutes < 1) {
         timeAgo = 'Just now';
+      } else if (diffMinutes < 60) {
+        timeAgo = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
       } else if (diffHours < 24) {
         timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-      } else {
+      } else if (diffDays < 30) {
         timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      } else {
+        timeAgo = createdAt.toLocaleDateString();
       }
 
       // Generate activity text based on type

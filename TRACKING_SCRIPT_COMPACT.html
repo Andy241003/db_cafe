@@ -1,0 +1,57 @@
+<!-- Hotel Link 360 Analytics - Compact Version -->
+<script>
+(function() {
+  const API = 'https://travel.link360.vn/api/v1/analytics/track';
+  const KEY = 'boton_blue_tracking';
+  
+  function getDevice() {
+    const ua = navigator.userAgent.toLowerCase();
+    if (/(tablet|ipad)/i.test(ua)) return 'tablet';
+    if (/mobile|android|iphone/i.test(ua)) return 'mobile';
+    return 'desktop';
+  }
+  
+  function track(type, data = {}) {
+    fetch(API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tracking_key: KEY,
+        event_type: type,
+        device: getDevice(),
+        user_agent: navigator.userAgent,
+        url: location.href,
+        referrer: document.referrer || null,
+        ...data
+      }),
+      keepalive: true
+    }).catch(() => {});
+  }
+  
+  // Track page view
+  function init() {
+    track('page_view');
+  }
+  
+  // Track clicks
+  document.addEventListener('click', e => {
+    const el = e.target.closest('a, button');
+    if (el) track('click', {
+      element: el.tagName.toLowerCase(),
+      element_text: (el.textContent || '').trim().substring(0, 100),
+      element_href: el.href || ''
+    });
+  }, {passive: true});
+  
+  // Initialize
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  
+  // Expose API
+  window.HotelLink360Analytics = {track, getDevice};
+})();
+</script>
+

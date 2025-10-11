@@ -1,7 +1,7 @@
 # app/api/v1/endpoints/analytics.py
 from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any, Union
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from sqlmodel import Session, select, func, and_, or_
 from sqlalchemy import distinct
 from pydantic import BaseModel, Field
@@ -11,8 +11,8 @@ import asyncio
 import uuid
 from urllib.parse import urlparse
 
-from app.api.deps import SessionDep, get_current_active_superuser, get_tenant_from_header
-from app.models import AdminUser, Tenant, Property, Event, ActivityLog, AnalyticsSummary, EventType, DeviceType
+from app.api.deps import SessionDep, CurrentUser
+from app.models import Tenant, Property, Event, ActivityLog, AnalyticsSummary, EventType, DeviceType, UserRole
 from app.core.security import get_client_ip
 
 router = APIRouter()
@@ -222,15 +222,16 @@ async def track_analytics_event(
 @router.get("/stats")
 def get_analytics_stats(
     session: SessionDep,
+    current_user: CurrentUser,
     days: int = 30
 ):
-    """Get analytics statistics for tenant dashboard (Public endpoint for demo)"""
-    
+    """Get analytics statistics for tenant dashboard - requires authentication"""
+
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
-    
-    # Use tenant_id = 1 for demo (our test tenant)
-    tenant_id = 1
+
+    # Use current user's tenant_id
+    tenant_id = current_user.tenant_id
     
     # Total page views
     total_page_views = session.exec(
@@ -344,16 +345,17 @@ def get_analytics_stats(
         ]
     }
 
-@router.get("/realtime")  
+@router.get("/realtime")
 def get_realtime_stats(
-    session: SessionDep
+    session: SessionDep,
+    current_user: CurrentUser
 ):
-    """Get real-time analytics statistics - Public endpoint for demo"""
-    
+    """Get real-time analytics statistics - requires authentication"""
+
     now = datetime.utcnow()
-    
-    # Use tenant_id = 1 for demo (our test tenant)
-    tenant_id = 1
+
+    # Use current user's tenant_id
+    tenant_id = current_user.tenant_id
     
     # Active users in last 15 minutes
     active_users_15min = session.exec(
@@ -396,22 +398,24 @@ def get_realtime_stats(
 def get_analytics_summary(
     period: str,
     session: SessionDep,
-    days: int = 30,
-    tenant: Tenant = Depends(get_tenant_from_header),
-    current_user: AdminUser = Depends(get_current_active_superuser)
+    current_user: CurrentUser,
+    days: int = 30
 ):
-    """Get analytics summary data (daily/monthly)"""
-    
+    """Get analytics summary data (daily/monthly) - all authenticated users can access"""
+
     if period not in ["daily", "monthly"]:
         raise HTTPException(status_code=400, detail="Period must be 'daily' or 'monthly'")
-    
+
     end_date = datetime.utcnow().date()
     start_date = end_date - timedelta(days=days)
-    
+
+    # Use current user's tenant_id
+    tenant_id = current_user.tenant_id
+
     summaries = session.exec(
         select(AnalyticsSummary).where(
             and_(
-                AnalyticsSummary.tenant_id == tenant.id,
+                AnalyticsSummary.tenant_id == tenant_id,
                 AnalyticsSummary.period_type == period,
                 AnalyticsSummary.date >= start_date,
                 AnalyticsSummary.date <= end_date
@@ -438,24 +442,20 @@ def get_analytics_summary(
 def get_property_analytics(
     property_id: int,
     session: SessionDep,
-    days: int = 30,
-    tenant: Tenant = Depends(get_tenant_from_header),
-    current_user: AdminUser = Depends(get_current_active_superuser)
+    current_user: CurrentUser,
+    days: int = 30
 ):
-    """Get analytics for a specific property"""
-    
-    # Verify property belongs to tenant
-    property_obj = session.exec(
-        select(Property).where(
-            and_(
-                Property.id == property_id,
-                Property.tenant_id == tenant.id
-            )
-        )
-    ).first()
-    
+    """Get analytics for a specific property - all authenticated users can access"""
+
+    # Verify property exists and user has access
+    property_obj = session.get(Property, property_id)
+
     if not property_obj:
         raise HTTPException(status_code=404, detail="Property not found")
+
+    # Check tenant access
+    if current_user.role != UserRole.OWNER and current_user.tenant_id != property_obj.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied to this property")
     
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
@@ -611,10 +611,10 @@ class DashboardStatsResponse(BaseModel):
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
     session: SessionDep,
-    days: int = 30,
-    current_user: AdminUser = Depends(get_current_active_superuser)
+    current_user: CurrentUser,
+    days: int = 30
 ):
-    """Get dashboard statistics for the current tenant"""
+    """Get dashboard statistics for the current tenant - all authenticated users can access"""
     try:
         tenant_id = current_user.tenant_id
         period_start = datetime.utcnow() - timedelta(days=days)

@@ -478,23 +478,41 @@ const transformActivityLogs = (logs: any[]): ActivityItem[] => {
     const details = log.details || {};
     const activityType = log.activity_type;
     const username = details.username || 'System User';
-    const createdAt = new Date(log.created_at);
 
-    console.log('📝 Processing log:', { id: log.id, activityType, details });
+    // Parse created_at - backend sends UTC time
+    // If it doesn't have 'Z' suffix, add it to indicate UTC
+    let createdAtStr = log.created_at;
+    if (!createdAtStr.endsWith('Z') && !createdAtStr.includes('+')) {
+      createdAtStr += 'Z';
+    }
+    const createdAt = new Date(createdAtStr);
+
+    console.log('📝 Processing log:', {
+      id: log.id,
+      activityType,
+      created_at: log.created_at,
+      parsed: createdAt.toISOString(),
+      details
+    });
 
     // Calculate relative time
     const now = new Date();
     const diffMs = now.getTime() - createdAt.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
 
     let timeAgo: string;
-    if (diffHours < 1) {
+    if (diffMinutes < 1) {
       timeAgo = 'Just now';
+    } else if (diffMinutes < 60) {
+      timeAgo = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
     } else if (diffHours < 24) {
       timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    } else {
+    } else if (diffDays < 30) {
       timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else {
+      timeAgo = createdAt.toLocaleDateString();
     }
 
     // Generate activity text based on type

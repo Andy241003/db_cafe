@@ -5,6 +5,7 @@ import type { Chart as ChartJS } from "chart.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDownload, faArrowUp, faArrowDown, faCalendar, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { usePermissions } from "../hooks/usePermissions";
 // import { usePageTracking } from "../hooks/usePageTracking";
 import LoadingSpinner from "../components/analytics/LoadingSpinner";
 import ErrorMessage from "../components/analytics/ErrorMessage";
@@ -315,7 +316,10 @@ const Analytics: React.FC = () => {
   
   // Use analytics hook
   const { data, loading, error, refreshData, exportData, realTimeStats, isApiConnected, lastUpdate } = useAnalytics(selectedDateRange, timeFilter);
-  
+
+  // Get permissions
+  const permissions = usePermissions();
+
   // Track page view - DISABLED to prevent double counting
   // usePageTracking('/analytics');
   
@@ -465,18 +469,27 @@ const Analytics: React.FC = () => {
           <p className="text-gray-600 mt-1">Key metrics and performance insights</p>
         </div>
         <div className="flex items-center gap-3">
-          <DateRangePicker 
+          <DateRangePicker
             selectedRange={selectedDateRange}
             onRangeChange={setSelectedDateRange}
           />
-          <button 
-            className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`} 
-            onClick={handleExportData}
-            disabled={isExporting}
-          >
-            <FontAwesomeIcon icon={faDownload} />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </button>
+          {permissions.canExportAnalytics && (
+            <button
+              className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleExportData}
+              disabled={isExporting}
+              title={permissions.canExportAnalytics ? 'Export analytics data' : 'Only OWNER and ADMIN can export data'}
+            >
+              <FontAwesomeIcon icon={faDownload} />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </button>
+          )}
+          {!permissions.canExportAnalytics && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-sm font-semibold cursor-not-allowed" title="Only OWNER and ADMIN can export data">
+              <FontAwesomeIcon icon={faDownload} />
+              Export (No Permission)
+            </div>
+          )}
         </div>
       </div>
 

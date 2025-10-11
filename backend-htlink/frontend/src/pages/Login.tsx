@@ -53,32 +53,37 @@ const Login: React.FC = () => {
       // Step 2: Get user data to determine tenant
       const userData = await authAPI.getCurrentUser();
       console.log('🔍 Login Debug - User Data:', userData);
-      
+
+      // ✅ IMPORTANT: Save user data to localStorage for permissions
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('✅ Saved user to localStorage:', userData);
+
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
         const tenantUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`;
         console.log('🔍 Login Debug - Fetching tenant from:', tenantUrl);
-        
+
         const tenantResponse = await fetch(tenantUrl, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (tenantResponse.ok) {
           const tenantData = await tenantResponse.json();
           console.log('🔍 Login Debug - Tenant Data:', tenantData);
-          
+
           // Save tenant info to localStorage
           localStorage.setItem('tenant_code', tenantData.code);
           localStorage.setItem('tenant_id', userData.tenant_id.toString());
           localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
-          
+
           console.log('🔍 Login Debug - Saved to localStorage:', {
             tenant_code: tenantData.code,
             tenant_id: userData.tenant_id,
-            tenant_name: tenantData.name
+            tenant_name: tenantData.name,
+            user: userData
           });
         } else if (tenantResponse.status === 404) {
           console.error('❌ Tenant not found! User assigned to deleted tenant.');

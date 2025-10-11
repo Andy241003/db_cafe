@@ -42,7 +42,7 @@ def read_properties(
 
 
 @router.post("/", response_model=PropertyResponse)
-# @track_activity(ActivityType.CREATE_PROPERTY, message_template="Property '{property_in.property_name}' created by {current_user.email}")
+@track_activity(ActivityType.CREATE_PROPERTY, message_template="Property '{property_in.property_name}' created by {current_user.email}")
 def create_property(
     *,
     session: SessionDep,
@@ -157,7 +157,7 @@ def read_property(
 
 
 @router.put("/{property_id}", response_model=PropertyResponse)
-# @track_activity(ActivityType.UPDATE_PROPERTY, message_template="Property updated by {current_user.email}")
+@track_activity(ActivityType.UPDATE_PROPERTY, message_template="Property updated by {current_user.email}")
 def update_property(
     *,
     session: SessionDep,
@@ -197,7 +197,7 @@ def update_property(
 
 
 @router.delete("/{property_id}")
-# @track_activity(ActivityType.DELETE_PROPERTY, message_template="Property deleted by {current_user.email}")
+@track_activity(ActivityType.DELETE_PROPERTY, message_template="Property deleted by {current_user.email}")
 def delete_property(
     *,
     session: SessionDep,

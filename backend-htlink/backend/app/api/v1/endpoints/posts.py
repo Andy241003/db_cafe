@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
-from app.models import Post, PostStatus
+from app.models import Post, PostStatus, UserRole
 from app.models.activity_log import ActivityType
 from app.utils.decorators.track_activity import track_activity
 from app.schemas import PostCreate, PostResponse, PostUpdate, PostWithTranslationResponse
+from app.core.permissions_utils import is_admin_or_owner
 
 router = APIRouter()
 
@@ -187,9 +188,10 @@ def delete_post(
     post_id: int,
 ) -> Any:
     """
-    Delete post. Editors and above can delete posts.
+    Delete post. Only OWNER and ADMIN can delete posts.
     """
-    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+    # Check permissions - only OWNER, ADMIN can delete
+    if not is_admin_or_owner(current_user):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
