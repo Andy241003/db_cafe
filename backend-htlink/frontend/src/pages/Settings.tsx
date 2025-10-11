@@ -762,16 +762,15 @@ const Settings: React.FC = () => {
       propertyDescription: property.description || ''
     }));
     
-    // Update Branding Settings from settings_json
-    const brandingData = (property as any).settings_json?.branding || {};
+    // Update Branding Settings - Read from property fields directly
     setBrandingSettings(prev => ({
       ...prev,
-      primaryColor: brandingData.primaryColor || '#3b82f6',  
-      secondaryColor: brandingData.secondaryColor || '#64748b',
-      logoUrl: brandingData.logoUrl || 'https://example.com/logo.png',
-      copyrightText: brandingData.copyrightText || '© 2024 Your Hotel Name',
-      termsUrl: brandingData.termsUrl || 'https://example.com/terms',
-      privacyUrl: brandingData.privacyUrl || 'https://example.com/privacy'
+      primaryColor: property.primary_color || '#3b82f6',
+      secondaryColor: property.secondary_color || '#64748b',
+      logoUrl: property.logo_url || '',
+      copyrightText: property.copyright_text || '',
+      termsUrl: property.terms_url || '',
+      privacyUrl: property.privacy_url || ''
     }));
     
     // Update Contact Settings - Read from property fields directly
