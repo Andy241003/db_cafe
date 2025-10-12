@@ -1,10 +1,12 @@
 // src/components/categories/TranslateModal.tsx
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import type { Category, Language } from "../../types/categories";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faChevronDown, faSearch, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { localesApi } from '../../services/localesApi';
 import type { Locale } from '../../services/localesApi';
+import { usePropertySettings } from '../../hooks/usePropertySettings';
 
 interface TranslateModalProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   category,
   onAcceptTranslation,
 }) => {
+  const { settings: propertySettings } = usePropertySettings();
   const [targetLanguage, setTargetLanguage] = useState<Language>("vi");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [originalTitle, setOriginalTitle] = useState("");
@@ -33,6 +36,8 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -112,10 +117,9 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
     loadLocales();
   }, [isOpen]);
 
-  // Get default locale from category
+  // Get default locale from property settings
   const getDefaultLocale = (): Language => {
-    // Assume 'en' is default, or you can add a field to Category type
-    return "en";
+    return propertySettings.defaultLanguage as Language;
   };
 
   // Load category data and translations when modal opens
@@ -221,9 +225,9 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[200] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden relative">
         {/* Header */}
-        <header className="p-5 border-b border-slate-200 flex justify-between items-center">
+        <header className="p-5 border-b border-slate-200 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faLanguage} className="text-xl text-slate-600" />
             <h2 className="text-lg font-bold text-slate-800">AI Translation</h2>
@@ -233,15 +237,30 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
           </button>
         </header>
 
-        {/* Language Selection */}
-        <div className="p-6 border-b border-slate-200">
+        {/* Language Selection - Outside scrollable area */}
+        <div className="p-6 pb-0 flex-shrink-0 border-b border-slate-200">
           <label className="font-semibold text-slate-700 mb-3 block">Translate to:</label>
 
           {/* Dropdown Select */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative">
             <button
+              ref={buttonRef}
               type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => {
+                console.log('🖱️ [Categories] Dropdown clicked! Current:', isDropdownOpen, '→ New:', !isDropdownOpen, 'Locales:', availableLocales.length);
+
+                if (!isDropdownOpen && buttonRef.current) {
+                  const rect = buttonRef.current.getBoundingClientRect();
+                  console.log('[Categories] Button position:', rect);
+                  setDropdownPosition({
+                    top: rect.bottom + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                  });
+                }
+
+                setIsDropdownOpen(!isDropdownOpen);
+              }}
               disabled={isRegenerating}
               className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-lg text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -262,9 +281,29 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
               />
             </button>
 
-            {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+            {/* Dropdown Menu - Using Portal */}
+          </div>
+
+          {/* Render dropdown via Portal */}
+          {isDropdownOpen && ReactDOM.createPortal(
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[250]"
+                onClick={() => setIsDropdownOpen(false)}
+              />
+
+              {/* Dropdown */}
+              <div
+                ref={dropdownRef}
+                className="fixed bg-white border-2 border-slate-300 rounded-lg shadow-2xl max-h-80 overflow-hidden"
+                style={{
+                  zIndex: 251,
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`
+                }}
+              >
                 {/* Search Box */}
                 <div className="p-3 border-b border-slate-200 sticky top-0 bg-white">
                   <div className="relative">
@@ -360,8 +399,9 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
                   )}
                 </div>
               </div>
-            )}
-          </div>
+            </>,
+            document.body
+          )}
 
           {/* Helper Text */}
           <p className="mt-2 text-xs text-slate-500">
@@ -431,17 +471,17 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-5 py-2 border border-slate-300 rounded-lg text-slate-700 bg-white hover:bg-slate-50 font-medium"
+            className="px-5 py-2 border border-slate-300 rounded-lg text-slate-700 bg-white hover:bg-slate-50 font-medium transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isRegenerating}
-            className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Use Translation
           </button>

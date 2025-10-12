@@ -5,7 +5,7 @@ import { IconSelector } from './IconSelector';
 import { ColorSelector } from './ColorSelector';
 import type { Hotel, HotelFormData } from '../../types/properties';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSave, faSpinner, faImage } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 interface AddHotelModalProps {
   isOpen: boolean;
@@ -33,7 +33,6 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
     icon: hotel?.icon || 'fa-building',
     color: hotel?.color || 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
   });
-  const [bannerPreviews, setBannerPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Update form data when hotel prop changes (for editing)
@@ -70,14 +69,6 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const previews = Array.from(files).map(file => URL.createObjectURL(file));
-      setBannerPreviews(previews);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone || !formData.address) {
@@ -94,7 +85,6 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
         description: '<p>Enter a description for the new hotel here.</p>',
         status: 'active', icon: 'fa-building', color: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
       });
-      setBannerPreviews([]);
     } catch (error) {
       console.error('Error saving hotel:', error);
       alert('Error saving hotel. Please try again.');
@@ -175,22 +165,6 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
               <div>
                 <label className="font-semibold text-slate-700 mb-1.5 block">Color</label>
                 <ColorSelector selectedColor={formData.color} onSelect={(color) => handleInputChange('color', color)} />
-              </div>
-              <div>
-                <label className="font-semibold text-slate-700 mb-1.5 block">Banners</label>
-                <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg text-center">
-                  <FontAwesomeIcon icon={faImage} className="text-3xl text-slate-400 mb-2" />
-                  <p className="text-sm text-slate-500 mb-2">Drag & drop images here or click to upload.</p>
-                  <input type="file" id="banner-upload-add" multiple onChange={handleBannerChange} className="hidden" />
-                  <label htmlFor="banner-upload-add" className="cursor-pointer text-blue-600 font-semibold text-sm hover:underline">
-                    Browse files
-                  </label>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {bannerPreviews.map((src, index) => (
-                    <img key={index} src={src} alt={`Preview ${index}`} className="w-full h-20 object-cover rounded-md" />
-                  ))}
-                </div>
               </div>
             </div>
           </div>

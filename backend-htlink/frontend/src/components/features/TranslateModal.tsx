@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { translationsApi } from '../../services/translationsApi';
 import { localesApi } from '../../services/localesApi';
+import { usePropertySettings } from '../../hooks/usePropertySettings';
 
 interface Post {
   id: number;
@@ -31,6 +33,7 @@ interface Locale {
 }
 
 const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, onTranslate }) => {
+  const { settings: propertySettings } = usePropertySettings();
   const [targetLanguage, setTargetLanguage] = useState('vi');
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [translatedContent, setTranslatedContent] = useState('');
@@ -40,6 +43,8 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
   // Debug: Log state changes
   useEffect(() => {
@@ -220,8 +225,8 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[200] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        <header className="p-5 border-b border-slate-200 flex justify-between items-center">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <header className="p-5 border-b border-slate-200 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faLanguage} className="text-xl text-slate-600" />
             <h2 className="text-lg font-bold text-slate-800">AI Translation</h2>
@@ -231,16 +236,28 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
           </button>
         </header>
 
-        <div className="p-6 flex-grow overflow-y-auto">
+        {/* Language Selector - Outside scrollable area */}
+        <div className="p-6 pb-0 flex-shrink-0 border-b border-slate-200">
           <div className="mb-6">
             <label className="font-semibold text-slate-700 mb-2 block">Translate to:</label>
 
-            {/* Dropdown Select */}
-            <div className="relative" ref={dropdownRef}>
+            {/* Dropdown Select - Use Portal for proper rendering */}
+            <div className="relative">
               <button
+                ref={buttonRef}
                 type="button"
                 onClick={() => {
                   console.log('🖱️ Dropdown clicked! Current state:', isDropdownOpen, 'Available locales:', availableLocales.length);
+
+                  if (!isDropdownOpen && buttonRef.current) {
+                    const rect = buttonRef.current.getBoundingClientRect();
+                    setDropdownPosition({
+                      top: rect.bottom + window.scrollY,
+                      left: rect.left + window.scrollX,
+                      width: rect.width
+                    });
+                  }
+
                   setIsDropdownOpen(!isDropdownOpen);
                 }}
                 disabled={isRegenerating}
@@ -262,10 +279,28 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
                   className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
                 />
               </button>
+            </div>
 
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+            {/* Dropdown Menu - Using Portal */}
+            {isDropdownOpen && ReactDOM.createPortal(
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-[250]"
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+
+                {/* Dropdown */}
+                <div
+                  ref={dropdownRef}
+                  className="fixed bg-white border-2 border-slate-300 rounded-lg shadow-2xl max-h-80 overflow-hidden"
+                  style={{
+                    zIndex: 251,
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`
+                  }}
+                >
                   {/* Search Box */}
                   <div className="p-3 border-b border-slate-200 sticky top-0 bg-white">
                     <div className="relative">
@@ -363,15 +398,19 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              </>,
+              document.body
+            )}
 
             {/* Helper Text */}
             <p className="mt-2 text-xs text-slate-500">
               💡 Tip: Only languages enabled in Settings → Localization are shown here
             </p>
           </div>
+        </div>
 
+        {/* Scrollable Content Area */}
+        <div className="p-6 pt-4 flex-grow overflow-y-auto">
           <div className="grid grid-cols-2 gap-6">
             {/* Original Content */}
             <div className="space-y-4">

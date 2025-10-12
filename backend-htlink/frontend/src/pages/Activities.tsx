@@ -172,10 +172,18 @@ const Activities: React.FC = () => {
                         <i className="fas fa-clock"></i>
                         {activity.time}
                       </span>
+                      {activity.ip_address && (
+                        <span className="flex items-center gap-1">
+                          <i className="fas fa-map-marker-alt"></i>
+                          {activity.ip_address}
+                        </span>
+                      )}
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         activity.type.includes('create') ? 'bg-green-100 text-green-800' :
                         activity.type.includes('update') ? 'bg-blue-100 text-blue-800' :
                         activity.type.includes('delete') ? 'bg-red-100 text-red-800' :
+                        activity.type.includes('login') ? 'bg-green-100 text-green-800' :
+                        activity.type.includes('logout') ? 'bg-orange-100 text-orange-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {activity.type.replace('_', ' ')}

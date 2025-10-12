@@ -90,6 +90,7 @@ export interface ActivityItem {
   icon: string;
   iconBg: string;
   iconColor: string;
+  ip_address?: string;
 }
 
 export interface LoginResponse {
@@ -626,13 +627,15 @@ const transformActivityLogs = (logs: any[]): ActivityItem[] => {
         iconColor = '#0369a1';
         break;
       case 'login':
-        text = details.message || `User logged in`;
+        const loginIP = details.ip_address || log.ip_address;
+        text = details.message || `User logged in${loginIP ? ` from ${loginIP}` : ''}`;
         icon = 'fas fa-sign-in-alt';
         iconBg = '#f0fdf4';
         iconColor = '#16a34a';
         break;
       case 'logout':
-        text = details.message || `User logged out`;
+        const logoutIP = details.ip_address || log.ip_address;
+        text = details.message || `User logged out${logoutIP ? ` from ${logoutIP}` : ''}`;
         icon = 'fas fa-sign-out-alt';
         iconBg = '#fef3c7';
         iconColor = '#d97706';
@@ -654,6 +657,7 @@ const transformActivityLogs = (logs: any[]): ActivityItem[] => {
       icon,
       iconBg,
       iconColor,
+      ip_address: details.ip_address || log.ip_address || undefined,
     };
   });
 };
@@ -663,6 +667,17 @@ const getMockActivities = (limit: number): ActivityItem[] => {
   const mockActivities: ActivityItem[] = [
     {
       id: "1",
+      type: "login",
+      text: 'User logged in from 192.168.1.100',
+      time: "30 minutes ago",
+      user_name: "Admin User",
+      icon: "fas fa-sign-in-alt",
+      iconBg: "#f0fdf4",
+      iconColor: "#16a34a",
+      ip_address: "192.168.1.100",
+    },
+    {
+      id: "2",
       type: "create_feature",
       text: 'New feature "WiFi Information" was added to Services category',
       time: "2 hours ago",
@@ -672,7 +687,18 @@ const getMockActivities = (limit: number): ActivityItem[] => {
       iconColor: "#2563eb",
     },
     {
-      id: "2",
+      id: "3",
+      type: "logout",
+      text: 'User logged out from 192.168.1.100',
+      time: "3 hours ago",
+      user_name: "Editor User",
+      icon: "fas fa-sign-out-alt",
+      iconBg: "#fef3c7",
+      iconColor: "#d97706",
+      ip_address: "192.168.1.100",
+    },
+    {
+      id: "4",
       type: "update_category",
       text: 'Category "Services" was updated with new translations',
       time: "4 hours ago",
@@ -682,7 +708,7 @@ const getMockActivities = (limit: number): ActivityItem[] => {
       iconColor: "#16a34a",
     },
     {
-      id: "3",
+      id: "5",
       type: "create_post",
       text: 'New post "Hotel Amenities Guide" was created',
       time: "1 day ago",
@@ -692,7 +718,18 @@ const getMockActivities = (limit: number): ActivityItem[] => {
       iconColor: "#2563eb",
     },
     {
-      id: "4",
+      id: "6",
+      type: "login",
+      text: 'User logged in from 203.162.4.191',
+      time: "1 day ago",
+      user_name: "Content Manager",
+      icon: "fas fa-sign-in-alt",
+      iconBg: "#f0fdf4",
+      iconColor: "#16a34a",
+      ip_address: "203.162.4.191",
+    },
+    {
+      id: "7",
       type: "upload_media",
       text: 'New image "hotel-lobby.jpg" was uploaded',
       time: "2 days ago",
@@ -702,7 +739,7 @@ const getMockActivities = (limit: number): ActivityItem[] => {
       iconColor: "#0369a1",
     },
     {
-      id: "5",
+      id: "8",
       type: "publish_post",
       text: 'Post "Welcome to our hotel" was published',
       time: "3 days ago",

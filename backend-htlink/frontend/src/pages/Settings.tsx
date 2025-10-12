@@ -376,9 +376,29 @@ const Settings: React.FC = () => {
         }
       };
       
+      console.log('💾 [Settings] Saving localization settings:', localizationSettings);
+      console.log('💾 [Settings] Supported languages:', localizationSettings.supportedLanguages);
+      
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Localization settings saved successfully!');
       await loadProperties();
+      
+      // Save to localStorage for CategoryModal to use
+      const settingsToSave = {
+        defaultLanguage: localizationSettings.defaultLanguage,
+        fallbackLanguage: localizationSettings.fallbackLanguage,
+        supportedLanguages: localizationSettings.supportedLanguages,
+        timezone: localizationSettings.timezone,
+        dateFormat: localizationSettings.dateFormat
+      };
+      localStorage.setItem('property_settings', JSON.stringify(settingsToSave));
+      console.log('💾 [Settings] Updated localStorage after save:', settingsToSave);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('property-settings-updated', {
+        detail: settingsToSave
+      }));
+      console.log('✅ [Settings] Property changed event dispatched');
     } catch (error) {
       console.error('Error saving localization settings:', error);
       showSuccess('Failed to save localization settings. Please try again.');
@@ -730,11 +750,27 @@ const Settings: React.FC = () => {
       const propertiesData = await propertiesApi.getProperties();
       setProperties(propertiesData);
 
-      // Auto-select first property if available
-      if (propertiesData.length > 0 && !selectedPropertyId) {
-        setSelectedPropertyId(propertiesData[0].id);
-        setSelectedProperty(propertiesData[0]);
-        updateFormWithPropertyData(propertiesData[0]);
+      // Auto-select first property if available (or load from localStorage)
+      const savedPropertyId = localStorage.getItem('selected_property_id');
+      
+      if (savedPropertyId) {
+        // Load saved property
+        const propertyId = parseInt(savedPropertyId);
+        const property = propertiesData.find(p => p.id === propertyId);
+        if (property) {
+          setSelectedPropertyId(propertyId);
+          setSelectedProperty(property);
+          updateFormWithPropertyData(property);
+          console.log('✅ [Settings] Loaded saved property from localStorage:', propertyId);
+        }
+      } else if (propertiesData.length > 0) {
+        // Auto-select first property and save to localStorage
+        const firstProperty = propertiesData[0];
+        setSelectedPropertyId(firstProperty.id);
+        setSelectedProperty(firstProperty);
+        localStorage.setItem('selected_property_id', firstProperty.id.toString());
+        updateFormWithPropertyData(firstProperty);
+        console.log('✅ [Settings] Auto-selected first property and saved:', firstProperty.id);
       }
     } catch (error) {
       console.error('Error loading properties:', error);
@@ -791,14 +827,22 @@ const Settings: React.FC = () => {
     
     // Update Localization Settings
     const localizationData = (property as any).settings_json?.localization || {};
-    setLocalizationSettings(prev => ({
-      ...prev,
+    const finalLocalizationSettings = {
       defaultLanguage: property.default_locale || 'en',
       fallbackLanguage: localizationData.fallbackLanguage || 'en',
       supportedLanguages: localizationData.supportedLanguages || ['en', 'vi'],
       timezone: localizationData.timezone || 'Asia/Ho_Chi_Minh',
       dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
+    };
+    
+    setLocalizationSettings(prev => ({
+      ...prev,
+      ...finalLocalizationSettings
     }));
+    
+    // Save to localStorage for CategoryModal to use
+    localStorage.setItem('property_settings', JSON.stringify(finalLocalizationSettings));
+    console.log('💾 [Settings] Saved settings to localStorage:', finalLocalizationSettings);
     
     // Update Advanced Settings - Read from property fields directly
     const advancedData = (property as any).settings_json?.advanced || {};
@@ -822,7 +866,15 @@ const Settings: React.FC = () => {
     if (property) {
       setSelectedPropertyId(propertyId);
       setSelectedProperty(property);
+      
+      // Save to localStorage for other components to use
+      localStorage.setItem('selected_property_id', propertyId.toString());
+      console.log('✅ [Settings] Property selected and saved to localStorage:', propertyId);
+      
       updateFormWithPropertyData(property);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event('propertyChanged'));
     }
   };
 

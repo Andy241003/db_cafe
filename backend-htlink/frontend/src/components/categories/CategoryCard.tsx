@@ -49,6 +49,43 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   onTranslate,
 }) => {
   const gradient = GRADIENT_COLORS[category.icon] ?? 'from-gray-500 to-gray-600';
+  
+  // Get default language from localStorage
+  const getDefaultLanguage = () => {
+    try {
+      const storedSettings = localStorage.getItem('property_settings');
+      if (storedSettings) {
+        const parsed = JSON.parse(storedSettings);
+        return parsed.defaultLanguage || 'en';
+      }
+    } catch (error) {
+      // Silent fallback
+    }
+    return 'en';
+  };
+  
+  const defaultLanguage = getDefaultLanguage();
+  
+  // Get title and description in default language with fallback
+  const getLocalizedText = (field: 'title' | 'description') => {
+    // Try default language first
+    const defaultText = category.translations?.[defaultLanguage]?.[field];
+    if (defaultText) return defaultText;
+    
+    // Try fallback language (en)
+    const fallbackText = category.translations?.en?.[field];
+    if (fallbackText) return fallbackText;
+    
+    // Try any available language
+    const availableTranslations = Object.values(category.translations || {});
+    for (const translation of availableTranslations) {
+      if ((translation as any)?.[field]) {
+        return (translation as any)[field];
+      }
+    }
+    
+    return field === 'title' ? 'Untitled' : 'No description available';
+  };
 
   const handleEdit = () => onEdit(category);
   const handleDelete = () => onDelete(category.id);
@@ -81,10 +118,10 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
       {/* Title and description */}
       <div className="px-4 pb-3">
         <h3 className="text-base font-semibold text-gray-900 mb-1.5">
-          {category.translations?.en?.title ?? 'Untitled'}
+          {getLocalizedText('title')}
         </h3>
         <p className="text-gray-600 text-xs leading-snug">
-          {category.translations?.en?.description ?? 'No description available'}
+          {getLocalizedText('description')}
         </p>
       </div>
 

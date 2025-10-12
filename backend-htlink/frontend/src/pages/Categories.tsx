@@ -7,6 +7,7 @@ import { SearchFilters } from '../components/categories/SearchFilters';
 import { CategoryCard } from '../components/categories/CategoryCard';
 import { CategoryModal } from '../components/categories/CategoryModal';
 import { TranslateModal } from '../components/categories/TranslateModal';
+import { t } from '../utils/i18n';
 import type { Category, CategoryFormData, Language } from '../types/categories';
 
 const Categories: React.FC = () => {
@@ -26,7 +27,7 @@ const Categories: React.FC = () => {
       }
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Error saving category. Please try again.');
+      alert(t('errorSavingCategory'));
     }
   };
 
@@ -35,11 +36,25 @@ const Categories: React.FC = () => {
   };
 
   const handleDeleteCategory = async (id: number): Promise<void> => {
+    // Tìm category để kiểm tra featureCount
+    const category = categories.find(c => c.id === id);
+
+    if (!category) {
+      alert(t('categoryNotFound'));
+      return;
+    }
+
+    // Kiểm tra xem category có feature con không
+    if (category.featureCount > 0) {
+      alert(t('cannotDeleteCategoryWithFeatures'));
+      return;
+    }
+
     try {
       await deleteCategory(id);
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Error deleting category. Please try again.');
+      alert(t('errorDeletingCategory'));
     }
   };
 
@@ -86,7 +101,7 @@ const Categories: React.FC = () => {
             short_desc: translatedData.description || '',
           }
         );
-        alert(`Translation for ${targetLang.toUpperCase()} updated successfully!`);
+        alert(t('translationUpdated', { lang: targetLang.toUpperCase() }));
       } else {
         // Create new translation
         console.log('Creating new translation:', translationPayload);
@@ -97,7 +112,7 @@ const Categories: React.FC = () => {
 
         const result = await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
         console.log('Translation created successfully:', result);
-        alert(`Translation for ${targetLang.toUpperCase()} created successfully!`);
+        alert(t('translationCreated', { lang: targetLang.toUpperCase() }));
       }
 
       translateModal.closeModal();
@@ -111,7 +126,7 @@ const Categories: React.FC = () => {
       console.error('Error config:', error.config);
 
       // Show detailed error message
-      let errorMessage = 'Error saving translation';
+      let errorMessage = t('errorSavingTranslation');
       if (error.response?.data?.detail) {
         errorMessage += `: ${error.response.data.detail}`;
       } else if (error.response?.data) {
