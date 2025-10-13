@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import type { UIPost } from '../../services/api';
 import { localesApi, type Locale } from '../../services/localesApi';
+import { usePropertySettings } from '../../hooks/usePropertySettings';
 
 interface EditPostModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface EditPostModalProps {
 
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
   const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
+  const { settings: propertySettings } = usePropertySettings();
   const quillRef = React.useRef<any>(null);
   const [isHtmlMode, setIsHtmlMode] = useState(false);
 
@@ -211,11 +213,14 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
               required
             >
               <option value="">Select language...</option>
-              {availableLocales.map((locale) => (
-                <option key={locale.code} value={locale.code}>
-                  {locale.code.toUpperCase()} - {locale.name}
-                </option>
-              ))}
+              {availableLocales
+                .filter(locale => propertySettings.supportedLanguages.includes(locale.code))
+                .map((locale) => (
+                  <option key={locale.code} value={locale.code}>
+                    {locale.code.toUpperCase()} - {locale.name}
+                  </option>
+                ))
+              }
             </select>
           </div>
 

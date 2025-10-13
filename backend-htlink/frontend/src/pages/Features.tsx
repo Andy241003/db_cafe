@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AddFeatureModal from '../components/features/AddFeatureModal';
 import EditFeatureModal from '../components/features/EditFeatureModal';
 import EditPostModal from '../components/features/EditPostModal';
@@ -38,6 +39,9 @@ const Features: React.FC = () => {
   const { categories, loading: categoriesLoading } = useCategories();
   const { settings: propertySettings } = usePropertySettings();
   
+  // Read URL query params
+  const [searchParams] = useSearchParams();
+  
   // Convert API features to LocalFeature format for UI compatibility
   const [features, setFeatures] = useState<LocalFeature[]>([]);
 
@@ -45,6 +49,14 @@ const Features: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(new Set());
+
+  // Set category filter from URL query param
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setCategoryFilter(categoryParam);
+    }
+  }, [searchParams]);
 
   // Load posts for all features
   const loadPostsForFeatures = async (features: any[]) => {

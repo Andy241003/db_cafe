@@ -59,7 +59,14 @@ const Categories: React.FC = () => {
   };
 
   const handleViewFeatures = (categoryId: number): void => {
-    navigate(`/features?category=${categoryId}`);
+    // Find category to get its slug
+    const category = categories.find(c => c.id === categoryId);
+    if (category) {
+      // Navigate to Features page with category slug as filter
+      navigate(`/features?category=${category.slug}`);
+    } else {
+      navigate('/features');
+    }
   };
 
   const handleTranslateCategory = (category: Category): void => {
