@@ -846,12 +846,20 @@ const Settings: React.FC = () => {
     
     // Update Advanced Settings - Read from property fields directly
     const advancedData = (property as any).settings_json?.advanced || {};
+    const bannerImagesFromProperty = property.banner_images || [];
+    
+    console.log('🖼️ [Settings] Loading banner images:', {
+      from_property_field: bannerImagesFromProperty,
+      from_settings_json: advancedData.bannerImages,
+      count: bannerImagesFromProperty.length
+    });
+    
     setAdvancedSettings(prev => ({
       ...prev,
       propertyActive: property.is_active,
       introVideoUrl: property.intro_video_url || '',
       vr360Url: property.vr360_url || '',
-      bannerImages: property.banner_images || [],
+      bannerImages: bannerImagesFromProperty,
       autoLanguageDetection: advancedData.autoLanguageDetection ?? true,
       analyticsTracking: advancedData.analyticsTracking ?? true,
       cacheSystem: advancedData.cacheSystem ?? true
@@ -875,6 +883,36 @@ const Settings: React.FC = () => {
       
       // Dispatch event to notify other components
       window.dispatchEvent(new Event('propertyChanged'));
+    }
+  };
+
+  // Helper function to save banner images immediately
+  const saveAdvancedSettingsWithBanners = async (bannerImages: string[]) => {
+    if (!selectedProperty || !selectedPropertyId) {
+      console.error('❌ No property selected');
+      return;
+    }
+
+    try {
+      console.log('💾 Auto-saving banner images:', bannerImages);
+      const propertyUpdateData = {
+        banner_images: bannerImages,
+        settings_json: {
+          ...selectedProperty.settings_json,
+          advanced: {
+            ...selectedProperty.settings_json?.advanced,
+            bannerImages: bannerImages
+          }
+        }
+      };
+
+      await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      console.log('✅ Banner images saved to database');
+      
+      // Update selected property to reflect changes
+      await loadProperties();
+    } catch (error) {
+      console.error('❌ Error auto-saving banner images:', error);
     }
   };
 
@@ -946,6 +984,10 @@ const Settings: React.FC = () => {
       showSuccess(`${newUrls.length} image(s) uploaded successfully!`);
       console.log('✅ Updated banner images:', [...advancedSettings.bannerImages, ...newUrls]);
       
+      // Auto-save banner images to database immediately
+      const updatedBannerImages = [...advancedSettings.bannerImages, ...newUrls];
+      await saveAdvancedSettingsWithBanners(updatedBannerImages);
+      
     } catch (error: any) {
       const token = localStorage.getItem('access_token');
       const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -1004,11 +1046,17 @@ const Settings: React.FC = () => {
     setDragOver(false);
   };
 
-  const removeBannerImage = (index: number) => {
+  const removeBannerImage = async (index: number) => {
+    const updatedBannerImages = advancedSettings.bannerImages.filter((_, i) => i !== index);
+    
     setAdvancedSettings(prev => ({
       ...prev,
-      bannerImages: prev.bannerImages.filter((_, i) => i !== index)
+      bannerImages: updatedBannerImages
     }));
+    
+    // Auto-save after removing banner
+    await saveAdvancedSettingsWithBanners(updatedBannerImages);
+    showSuccess('Banner image removed successfully!');
   };
 
   // Load languages from database
@@ -1141,14 +1189,39 @@ const Settings: React.FC = () => {
       }
     };
 
+    // Periodic check to sync banner images from server
+    const bannerSyncInterval = setInterval(() => {
+      if (selectedPropertyId && properties.length > 0) {
+        const currentProperty = properties.find(p => p.id === selectedPropertyId);
+        if (currentProperty && currentProperty.banner_images) {
+          const serverBanners = currentProperty.banner_images || [];
+          const localBanners = advancedSettings.bannerImages || [];
+          
+          // Check if banners are out of sync
+          if (JSON.stringify(serverBanners) !== JSON.stringify(localBanners)) {
+            console.log('🔄 [Settings] Banner sync detected difference:', {
+              server: serverBanners,
+              local: localBanners,
+              syncing: true
+            });
+            setAdvancedSettings(prev => ({
+              ...prev,
+              bannerImages: serverBanners
+            }));
+          }
+        }
+      }
+    }, 30000); // Check every 30 seconds
+
     window.addEventListener('authStateChanged', handleAuthChange);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('authStateChanged', handleAuthChange);
       window.removeEventListener('storage', handleStorageChange);
+      clearInterval(bannerSyncInterval);
     };
-  }, []);
+  }, [selectedPropertyId, properties, advancedSettings.bannerImages]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
