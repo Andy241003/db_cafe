@@ -5,6 +5,7 @@ import EditPostModal from '../components/features/EditPostModal';
 import TranslateModal from '../components/features/TranslateModal';
 import { useFeatures } from '../hooks/useFeatures';
 import { useCategories } from '../hooks/useCategories';
+import { usePropertySettings } from '../hooks/usePropertySettings';
 import type { UIPost } from '../services/api';
 import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
 
@@ -35,6 +36,7 @@ const Features: React.FC = () => {
   // Use real API data
   const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeatures();
   const { categories, loading: categoriesLoading } = useCategories();
+  const { settings: propertySettings } = usePropertySettings();
   
   // Convert API features to LocalFeature format for UI compatibility
   const [features, setFeatures] = useState<LocalFeature[]>([]);
@@ -780,11 +782,22 @@ const Features: React.FC = () => {
           {categoriesLoading ? (
             <option disabled>Loading categories...</option>
           ) : (
-            categories.map(category => (
-              <option key={category.id} value={category.slug}>
-                {category.slug.charAt(0).toUpperCase() + category.slug.slice(1)}
-              </option>
-            ))
+            categories.map(category => {
+              // Get default locale from property settings
+              const defaultLocale = propertySettings.defaultLanguage || 'en';
+              
+              // Get translated title with fallback chain: defaultLocale -> en -> name -> slug
+              const categoryTitle = category.translations?.[defaultLocale]?.title || 
+                                   category.translations?.en?.title || 
+                                   category.name || 
+                                   category.slug.charAt(0).toUpperCase() + category.slug.slice(1);
+              
+              return (
+                <option key={category.id} value={category.slug}>
+                  {categoryTitle}
+                </option>
+              );
+            })
           )}
         </select>
         <select

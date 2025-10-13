@@ -17,10 +17,15 @@ const Activities: React.FC = () => {
     try {
       setLoading(true);
       const data = await analyticsAPI.getAllActivities(100, days);
-      let filteredData = data;
+      
+      // Filter out analytics_event - only show CRUD operations and auth events
+      let filteredData = data.filter(activity => 
+        activity.type !== 'analytics_event' && 
+        activity.type !== 'system_update'
+      );
 
       if (filter !== "all") {
-        filteredData = data.filter(activity => activity.type === filter);
+        filteredData = filteredData.filter(activity => activity.type === filter);
       }
 
       setActivities(filteredData);

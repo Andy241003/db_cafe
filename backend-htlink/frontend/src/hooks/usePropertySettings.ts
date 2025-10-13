@@ -13,18 +13,40 @@ export interface PropertySettings {
  * Reads from localStorage selected_property_id and fetches settings
  */
 export const usePropertySettings = () => {
+  // Try to get settings from localStorage (saved by Settings page)
+  const storedSettings = localStorage.getItem('property_settings');
+  let defaultLanguage = 'vi'; // Default fallback
+  let supportedLanguages = ['en', 'vi', 'ja', 'ko', 'fr', 'zh'];
+  
+  if (storedSettings) {
+    try {
+      const parsed = JSON.parse(storedSettings);
+      defaultLanguage = parsed.defaultLanguage || 'vi';
+      supportedLanguages = parsed.supportedLanguages || supportedLanguages;
+      console.log('✅ [usePropertySettings] Loaded from localStorage:', parsed);
+    } catch (e) {
+      console.error('❌ [usePropertySettings] Failed to parse property_settings:', e);
+    }
+  } else {
+    // Fallback: check old locale keys
+    const storedDefaultLang = localStorage.getItem('default_locale') || 
+                             localStorage.getItem('locale');
+    if (storedDefaultLang) {
+      defaultLanguage = storedDefaultLang;
+      console.log('⚠️ [usePropertySettings] Using fallback locale from localStorage:', storedDefaultLang);
+    }
+  }
+  
   const settings = {
-    defaultLanguage: 'en',
+    defaultLanguage,
     fallbackLanguage: 'en',
-    supportedLanguages: ['en', 'vi'],
+    supportedLanguages,
     timezone: 'Asia/Ho_Chi_Minh',
     dateFormat: 'DD/MM/YYYY'
   };
   const loading = false;
 
-  // Temporarily disabled to prevent 400 errors
-  // Will use localStorage approach instead
-  console.log('⚠️ [usePropertySettings] Hook temporarily disabled - using localStorage approach');
+  console.log('🔧 [usePropertySettings] Final default language:', settings.defaultLanguage);
 
   return { settings, loading };
 };

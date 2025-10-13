@@ -24,12 +24,10 @@ async def translate_batch_endpoint(
     is_html: bool = False,
     concurrent: int = 8,
     libre_url: str | None = None,
-    current_user: CurrentUser = None,
-    session: SessionDep = None,
 ):
     """Batch translate an array of texts. Returns list of translated strings.
 
-    This endpoint is intended for internal use by authenticated users/services.
+    This endpoint is public and does not require authentication.
     """
     from app.services.universal_translation import translate_batch
 

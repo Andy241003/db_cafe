@@ -18,12 +18,34 @@ export const useFilters = (categories: Category[]): UseFiltersReturn => {
 
   const filteredCategories = useMemo<Category[]>(() => {
     return categories.filter((category: Category) => {
-      const title: string = category.translations.en?.title?.toLowerCase() || '';
-      const description: string = category.translations.en?.description?.toLowerCase() || '';
+      // Search in ALL translations (all languages) + slug
+      const searchLower = filters.search.toLowerCase();
       
-      const matchesSearch: boolean = !filters.search || 
-        title.includes(filters.search.toLowerCase()) ||
-        description.includes(filters.search.toLowerCase());
+      let matchesSearch = false;
+      
+      if (!filters.search) {
+        matchesSearch = true;
+      } else {
+        // Check slug
+        const slug = category.slug?.toLowerCase() || '';
+        if (slug.includes(searchLower)) {
+          matchesSearch = true;
+        }
+        
+        // Check all translations
+        if (!matchesSearch && category.translations) {
+          for (const lang in category.translations) {
+            const translation = category.translations[lang];
+            const title = translation?.title?.toLowerCase() || '';
+            const description = translation?.description?.toLowerCase() || '';
+            
+            if (title.includes(searchLower) || description.includes(searchLower)) {
+              matchesSearch = true;
+              break;
+            }
+          }
+        }
+      }
       
       const matchesStatus: boolean = !filters.status || category.status === filters.status;
       const matchesType: boolean = !filters.type || category.type === filters.type;

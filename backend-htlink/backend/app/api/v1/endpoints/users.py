@@ -185,21 +185,36 @@ def delete_user(
     user_id: int,
 ) -> Any:
     """
-    Delete a user. Only owners can delete users.
+    Delete a user. Owners can delete anyone. Admins can delete editors and viewers.
     """
     print(f"🗑️ DELETE USER: current_user_role={current_user.role.lower()}, current_user_tenant_id={current_user.tenant_id}, header_tenant_id={tenant_id}")
     
-    # Only owners can delete users (case-insensitive)
-    if current_user.role.lower() != "owner":
-        print(f"❌ DELETE USER: Role check failed - {current_user.role.lower()} != owner")
-        raise HTTPException(status_code=403, detail="Only owners can delete users")
-    
+    # Get target user first to check their role
     user = crud.admin_user.get(session, id=user_id)
     if not user:
         print(f"❌ DELETE USER: User {user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
     
-    print(f"🗑️ DELETE USER: target_user_id={user_id}, target_user_tenant_id={user.tenant_id}")
+    print(f"🗑️ DELETE USER: target_user_id={user_id}, target_user_role={user.role.lower()}, target_user_tenant_id={user.tenant_id}")
+    
+    # Permission check (case-insensitive)
+    current_role = current_user.role.lower()
+    target_role = user.role.lower()
+    
+    # OWNER can delete anyone except other owners
+    if current_role == "owner":
+        if target_role == "owner":
+            print(f"❌ DELETE USER: Cannot delete another owner")
+            raise HTTPException(status_code=403, detail="Cannot delete another owner")
+    # ADMIN can only delete editors and viewers
+    elif current_role == "admin":
+        if target_role not in ["editor", "viewer"]:
+            print(f"❌ DELETE USER: Admin cannot delete {target_role}")
+            raise HTTPException(status_code=403, detail=f"Admins can only delete editors and viewers, not {target_role}")
+    # Other roles cannot delete
+    else:
+        print(f"❌ DELETE USER: Role check failed - {current_role} cannot delete users")
+        raise HTTPException(status_code=403, detail="Only owners and admins can delete users")
     
     # Ensure user belongs to the same tenant
     if user.tenant_id != tenant_id:

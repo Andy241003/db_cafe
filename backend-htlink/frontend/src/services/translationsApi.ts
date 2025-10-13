@@ -5,7 +5,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 60000, // 60 seconds for long content translation
 });
 
 const getTenantCode = (): string => {
@@ -34,9 +34,10 @@ apiClient.interceptors.request.use((config) => {
 });
 
 export const translationsApi = {
-  async translateBatch(texts: string[], target = 'en', source = 'auto', is_html = false, concurrent = 8, libre_url?: string) {
+  async translateBatch(texts: string[], target = 'en', source = 'auto', is_html = false, concurrent = 3, libre_url?: string) {
     const response = await apiClient.post('/translations/translate', texts, {
       params: { target, source, is_html: is_html ? 'true' : 'false', concurrent, libre_url },
+      timeout: 120000, // 2 minutes for very long content
     });
     return response.data;
   }

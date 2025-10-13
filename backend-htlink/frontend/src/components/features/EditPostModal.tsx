@@ -16,6 +16,7 @@ interface EditPostModalProps {
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
   const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
   const quillRef = React.useRef<any>(null);
+  const [isHtmlMode, setIsHtmlMode] = useState(false);
 
   const [postForm, setPostForm] = useState({
     locale: '',
@@ -290,21 +291,39 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Content</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">Content</label>
+              <button
+                type="button"
+                onClick={() => setIsHtmlMode(!isHtmlMode)}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition-colors"
+              >
+                {isHtmlMode ? '👁️ Visual' : '</> HTML'}
+              </button>
+            </div>
             <div className="border border-slate-300 rounded-lg overflow-hidden">
-              <ReactQuill
-                ref={quillRef}
-                theme="snow"
-                value={postForm.content}
-                onChange={(value) => setPostForm(prev => ({ ...prev, content: value }))}
-                modules={quillModules}
-                formats={quillFormats}
-                placeholder="Write your content here..."
-                style={{ minHeight: '200px' }}
-              />
+              {isHtmlMode ? (
+                <textarea
+                  className="w-full px-3 py-2 font-mono text-xs min-h-[200px] focus:outline-none"
+                  value={postForm.content}
+                  onChange={(e) => setPostForm(prev => ({ ...prev, content: e.target.value }))}
+                  placeholder="<p>Write HTML here...</p>"
+                />
+              ) : (
+                <ReactQuill
+                  ref={quillRef}
+                  theme="snow"
+                  value={postForm.content}
+                  onChange={(value) => setPostForm(prev => ({ ...prev, content: value }))}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="Write your content here..."
+                  style={{ minHeight: '200px' }}
+                />
+              )}
             </div>
             <p className="mt-1.5 text-xs text-gray-500">
-              💡 Click the image icon to upload images. They will be saved on the server.
+              💡 Click the image icon to upload images. They will be saved on the server. Toggle HTML mode to edit raw HTML.
             </p>
           </div>
 
