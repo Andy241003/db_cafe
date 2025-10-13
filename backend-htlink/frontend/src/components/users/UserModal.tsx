@@ -33,6 +33,7 @@ const UserModal: React.FC<UserModalProps> = ({
   onSave,
 }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<UserFormData>({
     id: undefined,
     name: '',
@@ -157,17 +158,29 @@ const UserModal: React.FC<UserModalProps> = ({
           {!initialData && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Password
+                Password <span className="text-red-500">*</span>
               </label>
-              <input
-                type="password"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm bg-white transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                value={formData.password || ''}
-                onChange={(e) => handleChange('password', e.target.value)}
-                placeholder="Leave empty for default password"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Default: TempPassword123! (if left empty)
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 pr-12 text-sm bg-white transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  value={formData.password || ''}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  placeholder="Enter password (min 8 characters)"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Password must be at least 8 characters long
               </p>
             </div>
           )}
@@ -184,7 +197,6 @@ const UserModal: React.FC<UserModalProps> = ({
                 required
               >
                 <option value="" disabled>Select a role</option>
-                <option value="owner">Owner</option>
                 <option value="admin">Admin</option>
                 <option value="editor">Editor</option>
                 <option value="viewer">Viewer</option>

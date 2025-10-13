@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, 
@@ -13,6 +15,7 @@ interface EditFeatureFormData {
   slug: string;
   icon: string;
   status: string;
+  content?: string;
 }
 
 interface Feature {
@@ -22,7 +25,8 @@ interface Feature {
   category_id: number;
   tenant_id: number;
   is_system: boolean;
-  title?: string; // Optional title from posts
+  title?: string;
+  content?: string;
 }
 
 interface EditFeatureModalProps {
@@ -42,8 +46,29 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
     category: '',
     slug: '',
     icon: 'star',
-    status: 'active'
+    status: 'active',
+    content: ''
   });
+
+  // Quill editor configuration
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'align': [] }],
+      ['link', 'image'],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'align',
+    'link', 'image'
+  ];
 
   // Update form when feature changes
   useEffect(() => {
@@ -69,7 +94,8 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
         category: category?.slug || '',
         slug: feature.slug,
         icon: normalizedIcon,
-        status: feature.is_system ? 'inactive' : 'active'
+        status: feature.is_system ? 'inactive' : 'active',
+        content: feature.content || ''
       };
       
       console.log('EditFeatureModal: Setting form data:', formData);
@@ -144,7 +170,7 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4" onClick={handleModalClick}>
-      <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800">Edit Feature</h3>
           <button className="text-gray-400 hover:text-gray-600 text-2xl" onClick={onClose}>
@@ -263,6 +289,25 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Content Editor - Full Width */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Content</label>
+            <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <ReactQuill
+                theme="snow"
+                value={featureForm.content || ''}
+                onChange={(value) => setFeatureForm(prev => ({ ...prev, content: value }))}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Write feature description with rich text formatting..."
+                style={{ minHeight: '200px' }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              You can use HTML formatting in your content. Images will be preserved when translating.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">

@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faTimes, faInfoCircle, faLink, faBold, faItalic, faUnderline, faStrikethrough,
-  faListOl, faListUl, faIndent, faOutdent, faAlignLeft, faAlignCenter, faAlignRight,
-  faImage, faTable, faCode
-} from '@fortawesome/free-solid-svg-icons';
-
+import { faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import type { UIPost } from '../../services/api';
 import { localesApi, type Locale } from '../../services/localesApi';
 
@@ -17,8 +14,8 @@ interface EditPostModalProps {
 }
 
 const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, onSave }) => {
-  const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
   const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
+  const quillRef = React.useRef<any>(null);
 
   const [postForm, setPostForm] = useState({
     locale: '',
@@ -29,6 +26,95 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
     status: 'draft' as 'draft' | 'published' | 'archived',
     vrLink: ''
   });
+
+  // Image upload handler for Quill
+  const imageHandler = React.useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      // Upload to server
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const tenantCode = localStorage.getItem('tenant_code') || '';
+        const token = localStorage.getItem('access_token') || '';
+        
+        const response = await fetch('/api/v1/media/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Tenant-Code': tenantCode
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Image uploaded successfully:', data);
+          
+          const imageUrl = data.url || data.file_path || data.public_url || data.path;
+          console.log('📷 Image URL to insert:', imageUrl);
+          
+          if (!imageUrl) {
+            console.error('❌ No URL found in response:', data);
+            alert('Image uploaded but URL not found in response');
+            return;
+          }
+          
+          // Insert image into editor
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            const range = quill.getSelection();
+            const index = range?.index || 0;
+            quill.insertEmbed(index, 'image', imageUrl);
+            quill.setSelection(index + 1);
+            console.log('✅ Image inserted at position:', index);
+          } else {
+            console.error('❌ Quill editor not found');
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Upload failed:', response.status, errorText);
+          alert(`Failed to upload image: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        alert('Error uploading image');
+      }
+    };
+  }, []);
+
+  // Quill editor configuration with custom image handler
+  const quillModules = React.useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'align': [] }],
+        ['link', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    },
+  }), [imageHandler]);
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'align',
+    'link', 'image'
+  ];
 
   // Load available locales from API
   useEffect(() => {
@@ -85,45 +171,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
       });
 
     }
-    setEditorMode('visual');
   }, [post]);
-
-  // Simplified editor mode toggle
-  const toggleEditorMode = () => {
-    setEditorMode(editorMode === 'visual' ? 'html' : 'visual');
-  };
-
-  // Editor content state
-  const [editorContent, setEditorContent] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
-
-  // Editor utility functions
-  const formatText = (command: string) => {
-    // Simple text formatting - placeholder implementation
-    console.log('Format text:', command);
-  };
-
-  const formatHeading = (level: string) => {
-    // Simple heading formatting - placeholder implementation
-    console.log('Format heading:', level);
-  };
-
-  const insertLink = () => {
-    // Simple link insertion - placeholder implementation
-    console.log('Insert link');
-  };
-
-  const insertImage = () => {
-    // Simple image insertion - placeholder implementation
-    console.log('Insert image');
-  };
-
-  const insertTable = () => {
-    // Simple table insertion - placeholder implementation
-    console.log('Insert table');
-  };
-
-  // Simplified - no sync needed since we're using controlled components
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,107 +291,21 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Content</label>
-            <div className="border border-slate-300 rounded-lg bg-white overflow-hidden">
-              <div className="bg-slate-50 border-b border-slate-300 p-2 flex gap-2 flex-wrap items-center">
-                <div className="flex gap-1 items-center pr-2 border-r border-slate-300">
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('bold')} title="Bold">
-                    <FontAwesomeIcon icon={faBold} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('italic')} title="Italic">
-                    <FontAwesomeIcon icon={faItalic} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('underline')} title="Underline">
-                    <FontAwesomeIcon icon={faUnderline} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('strikeThrough')} title="Strikethrough">
-                    <FontAwesomeIcon icon={faStrikethrough} />
-                  </button>
-                </div>
-                <div className="flex gap-1 items-center pr-2 border-r border-slate-300">
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('insertOrderedList')} title="Numbered List">
-                    <FontAwesomeIcon icon={faListOl} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('insertUnorderedList')} title="Bullet List">
-                    <FontAwesomeIcon icon={faListUl} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('indent')} title="Indent">
-                    <FontAwesomeIcon icon={faIndent} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('outdent')} title="Outdent">
-                    <FontAwesomeIcon icon={faOutdent} />
-                  </button>
-                </div>
-                <div className="flex gap-1 items-center pr-2 border-r border-slate-300">
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('justifyLeft')} title="Align Left">
-                    <FontAwesomeIcon icon={faAlignLeft} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('justifyCenter')} title="Align Center">
-                    <FontAwesomeIcon icon={faAlignCenter} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={() => formatText('justifyRight')} title="Align Right">
-                    <FontAwesomeIcon icon={faAlignRight} />
-                  </button>
-                </div>
-                <div className="flex gap-1 items-center pr-2 border-r border-slate-300">
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={insertLink} title="Insert Link">
-                    <FontAwesomeIcon icon={faLink} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={insertImage} title="Insert Image">
-                    <FontAwesomeIcon icon={faImage} />
-                  </button>
-                  <button type="button" className="bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all w-8 h-8 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400" onClick={insertTable} title="Insert Table">
-                    <FontAwesomeIcon icon={faTable} />
-                  </button>
-                </div>
-                <div className="flex gap-1 items-center pr-2 border-r border-slate-300 last:border-r-0">
-                  <select className="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-500 min-w-[100px] h-8" onChange={(e) => formatHeading(e.target.value)}>
-                    <option value="">Normal Text</option>
-                    <option value="h1">Heading 1</option>
-                    <option value="h2">Heading 2</option>
-                    <option value="h3">Heading 3</option>
-                    <option value="h4">Heading 4</option>
-                    <option value="blockquote">Quote</option>
-                  </select>
-                </div>
-                <div className="flex gap-1 items-center">
-                  <button
-                    type="button"
-                    className={`bg-white border border-slate-300 rounded p-1.5 cursor-pointer text-slate-500 text-xs transition-all h-8 flex items-center justify-center gap-1.5 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 ${editorMode === 'html' ? 'bg-blue-600 text-white border-blue-600' : ''}`}
-                    onClick={toggleEditorMode}
-                    title="Toggle HTML/Visual"
-                  >
-                    <FontAwesomeIcon icon={faCode} />
-                    {editorMode === 'html' ? 'Visual' : 'HTML'}
-                  </button>
-                </div>
-              </div>
-              
-              {editorMode === 'visual' ? (
-                <textarea
-                  className="w-full min-h-[250px] p-4 border-none outline-none text-sm leading-relaxed text-gray-800 resize-none"
-                  value={postForm.content}
-                  onChange={(e) => {
-                    const newContent = e.target.value;
-                    setPostForm(prev => ({ ...prev, content: newContent }));
-                    setEditorContent(newContent);
-                    setHtmlContent(newContent);
-                  }}
-                  placeholder="Write your content here..."
-                />
-              ) : (
-                <textarea
-                  className="font-mono text-sm leading-normal bg-slate-50 border-none outline-none resize-y min-h-[250px] p-4 w-full box-border"
-                  value={postForm.content}
-                  onChange={(e) => {
-                    const newContent = e.target.value;
-                    setPostForm(prev => ({ ...prev, content: newContent }));
-                    setEditorContent(newContent);
-                    setHtmlContent(newContent);
-                  }}
-                  placeholder="Enter HTML content here..."
-                />
-              )}
+            <div className="border border-slate-300 rounded-lg overflow-hidden">
+              <ReactQuill
+                ref={quillRef}
+                theme="snow"
+                value={postForm.content}
+                onChange={(value) => setPostForm(prev => ({ ...prev, content: value }))}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Write your content here..."
+                style={{ minHeight: '200px' }}
+              />
             </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              💡 Click the image icon to upload images. They will be saved on the server.
+            </p>
           </div>
 
           <div className="mb-4">

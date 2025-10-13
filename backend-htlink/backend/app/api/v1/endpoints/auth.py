@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlmodel import select
@@ -9,6 +9,7 @@ from sqlmodel import select
 from app.api.deps import SessionDep, get_current_user, CurrentUser
 from app.core import security
 from app.core.config import settings
+from app.core.security import get_client_ip
 from app.models import AdminUser, Tenant
 from app.models.activity_log import ActivityType
 from app.utils.activity_logger import log_activity
@@ -32,6 +33,7 @@ router = APIRouter()
 
 @router.post("/login")
 def login(
+    request: Request,
     session: SessionDep,
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
@@ -86,16 +88,20 @@ def login(
         expires_delta=access_token_expires
     )
     
-    # Log successful login
+    # Get client IP
+    client_ip = get_client_ip(request)
+    
+    # Log successful login with IP
     log_activity(
         db=session,
         tenant_id=tenant.id,
         activity_type=ActivityType.LOGIN,
         details={
-            "message": f"User {user.email} logged in",
+            "message": f"User {user.email} logged in from {client_ip}",
             "user_id": user.id,
             "username": user.email
-        }
+        },
+        ip_address=client_ip
     )
     
     # Return token with user info
@@ -157,6 +163,7 @@ def auto_generate_token_for_docs(
 
 @router.post("/logout")
 def logout(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUser,
 ):
@@ -166,16 +173,20 @@ def logout(
     POST /api/v1/auth/logout
     Requires valid authentication token
     """
-    # Log logout activity
+    # Get client IP
+    client_ip = get_client_ip(request)
+    
+    # Log logout activity with IP
     log_activity(
         db=session,
         tenant_id=current_user.tenant_id,
         activity_type=ActivityType.LOGOUT,
         details={
-            "message": f"User {current_user.email} logged out",
+            "message": f"User {current_user.email} logged out from {client_ip}",
             "user_id": current_user.id,
             "username": current_user.email
-        }
+        },
+        ip_address=client_ip
     )
     
     # In a stateless JWT system, logout is handled client-side by discarding the token

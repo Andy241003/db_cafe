@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models import Tenant, Property, Event, ActivityLog, AnalyticsSummary, EventType, DeviceType, UserRole
+from app.models.activity_log import ActivityType
 from app.core.security import get_client_ip
 
 router = APIRouter()
@@ -194,7 +195,7 @@ async def track_analytics_event(
         
         activity_log = ActivityLog(
             tenant_id=property_obj.tenant_id,
-            activity_type="analytics_event",  # Simplified for debugging
+            activity_type=ActivityType.ANALYTICS_EVENT,
             details=activity_details
         )
         

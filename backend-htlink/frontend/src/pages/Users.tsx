@@ -22,9 +22,23 @@ const convertApiUser = (apiUser: ApiUser): User => ({
 const canManageUsers = (role: string) => ['owner', 'admin'].includes(role.toLowerCase());
 
 const canEditUser = (currentRole: string, targetRole: string, isSelf: boolean) => {
+  // Can always edit yourself
   if (isSelf) return true;
+  
+  // Only OWNER and ADMIN can edit others
   if (!canManageUsers(currentRole)) return false;
-  return !(currentRole.toLowerCase() !== 'owner' && targetRole.toLowerCase() === 'owner');
+  
+  // OWNER can edit ADMIN, EDITOR, VIEWER (not other OWNERs)
+  if (currentRole.toLowerCase() === 'owner') {
+    return targetRole.toLowerCase() !== 'owner';
+  }
+  
+  // ADMIN can only edit EDITOR and VIEWER (not OWNER or other ADMINs)
+  if (currentRole.toLowerCase() === 'admin') {
+    return targetRole.toLowerCase() !== 'owner' && targetRole.toLowerCase() !== 'admin';
+  }
+  
+  return false;
 };
 
 const Users: React.FC = () => {
@@ -170,16 +184,6 @@ const Users: React.FC = () => {
     }
   };
 
-  // Generate secure random password
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-  };
-
   const handleSave = async (data: UserFormData) => {
     try {
       if (data.id) {
@@ -198,8 +202,13 @@ const Users: React.FC = () => {
         
         alert('✅ User updated successfully!');
       } else {
-        // Create new user
-        const userPassword = data.password?.trim() || generatePassword();
+        // Create new user - password is required
+        if (!data.password || data.password.trim().length < 8) {
+          alert('❌ Password is required and must be at least 8 characters long.');
+          return;
+        }
+        
+        const userPassword = data.password.trim();
         const tenantId = localStorage.getItem('tenant_id');
         
         if (!tenantId) {
@@ -221,18 +230,7 @@ const Users: React.FC = () => {
         
         setUsers(prev => [newUser, ...prev]);
         
-        // Show credentials to admin
-        const message = `✅ User created successfully!
-        
-📧 Email: ${data.email}
-🔑 Password: ${userPassword}
-👤 Role: ${data.role?.toUpperCase()}
-
-⚠️ IMPORTANT: Please share these credentials with the user securely and ask them to change the password on first login.
-
-💡 TIP: Save these credentials now as they won't be shown again.`;
-        
-        alert(message);
+        alert('✅ User created successfully!');
       }
       
       setModalOpen(false);
@@ -352,7 +350,6 @@ const Users: React.FC = () => {
               <tr>
                 <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">User</th>
                 <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Role</th>
-                <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Tenant</th>
                 <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Status</th>
                 <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Last Login</th>
                 <th className="px-5 py-3 text-xs font-semibold tracking-wider text-left text-slate-600 uppercase">Actions</th>
@@ -362,7 +359,7 @@ const Users: React.FC = () => {
             <tbody className="divide-y divide-slate-200">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
                     No users found
                   </td>
                 </tr>
@@ -391,16 +388,6 @@ const Users: React.FC = () => {
                     </td>
 
                     <td className="px-5 py-4 whitespace-nowrap">
-                      <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${
-                        user.tenant_id === 1 ? 'bg-blue-100 text-blue-800' : 
-                        user.tenant_id === 2 ? 'bg-purple-100 text-purple-800' : 
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.tenant_id === 1 ? 'DEMO' : user.tenant_id === 2 ? 'PREMIER' : `T${user.tenant_id}`}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {user.status === 'active' ? 'Active' : 'Inactive'}
                       </span>
@@ -423,11 +410,12 @@ const Users: React.FC = () => {
                           </button>
                         )}
                         
-                        {/* Remove button - only OWNER can delete, cannot delete OWNER users or self */}
+                        {/* Remove button - OWNER can delete ADMIN/EDITOR/VIEWER, ADMIN can only delete EDITOR/VIEWER */}
                         {currentUser && 
-                         currentUser.role === 'owner' && 
-                         user.role !== 'owner' && 
                          currentUser.id !== user.id && (
+                           (currentUser.role === 'owner' && user.role !== 'owner') ||
+                           (currentUser.role === 'admin' && user.role !== 'owner' && user.role !== 'admin')
+                         ) && (
                           <button 
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200" 
                             onClick={() => handleDelete(user.id)}

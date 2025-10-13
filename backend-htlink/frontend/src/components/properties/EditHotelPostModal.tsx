@@ -1,6 +1,7 @@
 // src/components/properties/EditHotelPostModal.tsx
 import React, { useState, useEffect } from 'react';
-import { RichTextEditor } from './RichTextEditor';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import type { HotelPost } from '../../types/properties';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
@@ -20,6 +21,7 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
   post,
   onSave
 }) => {
+  const quillRef = React.useRef<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -32,6 +34,94 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
     { code: 'vi', name: 'Vietnamese (VI)' },
     { code: 'ja', name: 'Japanese (JA)' }
   ]);
+
+  // Image upload handler for Quill
+  const imageHandler = React.useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const tenantCode = localStorage.getItem('tenant_code') || '';
+        const token = localStorage.getItem('access_token') || '';
+        
+        const response = await fetch('/api/v1/media/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Tenant-Code': tenantCode
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Image uploaded successfully:', data);
+          
+          // Try multiple possible URL fields
+          const imageUrl = data.url || data.file_path || data.public_url || data.path;
+          console.log('📷 Image URL to insert:', imageUrl);
+          
+          if (!imageUrl) {
+            console.error('❌ No URL found in response:', data);
+            alert('Image uploaded but URL not found in response');
+            return;
+          }
+          
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            const range = quill.getSelection();
+            const index = range?.index || 0;
+            quill.insertEmbed(index, 'image', imageUrl);
+            quill.setSelection(index + 1);
+            console.log('✅ Image inserted at position:', index);
+          } else {
+            console.error('❌ Quill editor not found');
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Upload failed:', response.status, errorText);
+          alert(`Failed to upload image: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        alert('Error uploading image');
+      }
+    };
+  }, []);
+
+  // Quill editor configuration with custom image handler
+  const quillModules = React.useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'align': [] }],
+        ['link', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    },
+  }), [imageHandler]);
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'align',
+    'link', 'image'
+  ];
 
   useEffect(() => {
     if (post) {
@@ -136,10 +226,21 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
               </div>
               <div>
                 <label className="font-semibold text-slate-700 mb-1.5 block">Content</label>
-                <RichTextEditor
-                  content={formData.content}
-                  onChange={(content) => handleInputChange('content', content)}
-                />
+                <div className="border border-slate-300 rounded-lg overflow-hidden">
+                  <ReactQuill
+                    ref={quillRef}
+                    theme="snow"
+                    value={formData.content}
+                    onChange={(value: string) => handleInputChange('content', value)}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="Write your amazing hotel post here..."
+                    style={{ minHeight: '300px' }}
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  💡 Click the image icon to upload images. They will be saved on the server.
+                </p>
               </div>
             </div>
 

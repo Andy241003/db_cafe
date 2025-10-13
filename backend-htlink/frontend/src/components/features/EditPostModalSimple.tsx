@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faInfoCircle, faLink } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import type { UIPost } from '../../services/api';
 import { localesApi, type Locale } from '../../services/localesApi';
 

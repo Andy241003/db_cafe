@@ -272,25 +272,21 @@ export const featuresAPI = {
     return response.data;
   },
 
-  create: async (feature: Partial<Feature>): Promise<Feature> => {
-    console.log('featuresAPI: Creating feature with data:', feature);
+  create: async (feature: any): Promise<Feature> => {
     const response: AxiosResponse<Feature> = await apiClient.post('/features/', feature);
     return response.data;
   },
 
-  update: async (id: number, feature: Partial<Feature>): Promise<Feature> => {
-    console.log('featuresAPI: Updating feature with data:', feature);
+  update: async (id: number, feature: any): Promise<Feature> => {
     const response: AxiosResponse<Feature> = await apiClient.put(`/features/${id}`, feature);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
-    console.log('featuresAPI: Deleting feature:', id);
     await apiClient.delete(`/features/${id}`);
   },
 
-  createTranslation: async (featureId: number, locale: string, data: { title: string; short_desc?: string }): Promise<any> => {
-    console.log('featuresAPI: Creating feature translation:', { featureId, locale, data });
+  createTranslation: async (featureId: number, locale: string, data: { title: string; description?: string; short_desc?: string }): Promise<void> => {
     const payload = {
       feature_id: featureId,
       locale: locale,
@@ -302,7 +298,6 @@ export const featuresAPI = {
   },
 
   updateTranslation: async (featureId: number, locale: string, data: { title?: string; short_desc?: string }): Promise<any> => {
-    console.log('featuresAPI: Updating feature translation:', { featureId, locale, data });
     const response = await apiClient.put(`/translations/features/${featureId}/${locale}`, data);
     return response.data;
   },
@@ -321,9 +316,7 @@ export const categoriesAPI = {
   },
 
   create: async (category: FeatureCategoryCreate): Promise<FeatureCategory> => {
-    console.log('categoriesAPI.create: Calling /categories/ with data:', category);
     const response: AxiosResponse<FeatureCategory> = await apiClient.post('/categories/', category);
-    console.log('categoriesAPI.create: Response:', response.data);
     return response.data;
   },
 
@@ -423,14 +416,12 @@ export const analyticsAPI = {
       const response = await apiClient.get(`/activity-logs/?limit=${limit}&days=7`);
       // Handle both array and object with 'value' key
       const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
-      console.log('✅ getRecentActivities: Loaded', logs.length, 'activities from authenticated endpoint');
       return transformActivityLogs(logs);
     } catch (error) {
       try {
         // Fallback to public endpoint
         const response = await apiClient.get(`/activity-logs/public?limit=${limit}&days=7&tenant_id=1`);
         const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
-        console.log('✅ getRecentActivities: Loaded', logs.length, 'activities from public endpoint');
         return transformActivityLogs(logs);
       } catch (publicError) {
         console.warn('Activity logs API not available, using mock data');
@@ -445,17 +436,14 @@ export const analyticsAPI = {
       const response = await apiClient.get(`/activity-logs/?limit=${limit}&days=${days}`);
       // Handle both array and object with 'value' key
       const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
-      console.log('✅ getAllActivities: Loaded', logs.length, 'activities from authenticated endpoint');
       return transformActivityLogs(logs);
     } catch (error) {
       try {
         // Fallback to public endpoint
         const response = await apiClient.get(`/activity-logs/public?limit=${limit}&days=${days}&tenant_id=1`);
         const logs = Array.isArray(response.data) ? response.data : (response.data.value || []);
-        console.log('✅ getAllActivities: Loaded', logs.length, 'activities from public endpoint');
         return transformActivityLogs(logs);
       } catch (publicError) {
-        console.warn('Activity logs API not available, using mock data');
         return getMockActivities(limit);
       }
     }
@@ -474,7 +462,6 @@ const getSessionId = (): string => {
 
 // Helper function to transform activity logs from backend
 const transformActivityLogs = (logs: any[]): ActivityItem[] => {
-  console.log('🔄 transformActivityLogs: Processing', logs.length, 'logs');
   return logs.map(log => {
     const details = log.details || {};
     const activityType = log.activity_type;
@@ -487,14 +474,6 @@ const transformActivityLogs = (logs: any[]): ActivityItem[] => {
       createdAtStr += 'Z';
     }
     const createdAt = new Date(createdAtStr);
-
-    console.log('📝 Processing log:', {
-      id: log.id,
-      activityType,
-      created_at: log.created_at,
-      parsed: createdAt.toISOString(),
-      details
-    });
 
     // Calculate relative time
     const now = new Date();

@@ -7,7 +7,6 @@ import type { Locale } from '../../services/localesApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { translationsApi } from '../../services/translationsApi';
-import { usePropertySettings } from '../../hooks/usePropertySettings';
 
 interface TranslateModalProps {
   isOpen: boolean;
@@ -22,7 +21,6 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
   post,
   onSave
 }) => {
-  const { settings: propertySettings } = usePropertySettings();
   const [languages, setLanguages] = useState<Array<Locale>>([]);
   const [targetLanguage, setTargetLanguage] = useState<string>('en');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -133,7 +131,8 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         translationsApi.translateBatch([post.content || ''], defaultLang, 'auto', true, 4)
           .then(results => {
             if (Array.isArray(results) && results.length > 0) {
-              setTranslatedContent(results[0]);
+              const formattedContent = formatHTML(results[0]);
+              setTranslatedContent(formattedContent);
             } else {
               setTranslatedContent(getTranslatedContent(defaultLang, post.content));
             }
@@ -151,6 +150,22 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
     }
   }, [post, languages]);
 
+  // Format HTML for better readability
+  const formatHTML = (html: string): string => {
+    if (!html) return '';
+    
+    return html
+      // Add newlines after closing tags
+      .replace(/<\/(h[1-6]|p|div|ul|ol|li|blockquote)>/gi, '</$1>\n')
+      // Add newlines before opening tags
+      .replace(/<(h[1-6]|p|div|ul|ol|li|blockquote)/gi, '\n<$1')
+      // Add indentation for list items
+      .replace(/<li>/gi, '  <li>')
+      // Clean up multiple newlines
+      .replace(/\n\n+/g, '\n\n')
+      // Trim leading/trailing whitespace
+      .trim();
+  };
 
   const getTranslatedContent = (lang: string, original: string) => {
     if (lang === 'vi') return '<strong>Chào mừng đến với Khách sạn Tabi Tower</strong><br>Trải nghiệm sự sang trọng và thoải mái...';
@@ -164,7 +179,8 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
       // Use translation service to translate the original content into targetLanguage
       const results = await translationsApi.translateBatch([originalContent], targetLanguage, 'auto', true, 4);
       if (Array.isArray(results) && results.length > 0) {
-        setTranslatedContent(results[0]);
+        const formattedContent = formatHTML(results[0]);
+        setTranslatedContent(formattedContent);
       }
     } catch (e) {
       console.warn('Translation regenerate failed, falling back to mock', e);
@@ -186,7 +202,8 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
     try {
       const results = await translationsApi.translateBatch([originalContent], lang, 'auto', true, 4);
       if (Array.isArray(results) && results.length > 0) {
-        setTranslatedContent(results[0]);
+        const formattedContent = formatHTML(results[0]);
+        setTranslatedContent(formattedContent);
       }
     } catch (e) {
       console.warn('[TranslateModal] translateToLanguage failed', e);
@@ -406,7 +423,16 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
             <h3 className="font-semibold text-slate-800 border-b pb-2">Translation ({targetLanguage})</h3>
             <div>
               <label className="text-sm font-medium text-slate-600">Content</label>
-              <textarea value={translatedContent} onChange={e => setTranslatedContent(e.target.value)} rows={10} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
+              <textarea 
+                value={translatedContent} 
+                onChange={e => setTranslatedContent(e.target.value)} 
+                rows={10} 
+                className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm font-mono"
+                placeholder="Translated content (HTML with images preserved)..."
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                💡 Images from original content are automatically preserved in translation
+              </p>
             </div>
           </div>
         </div>

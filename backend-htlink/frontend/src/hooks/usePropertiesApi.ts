@@ -259,26 +259,26 @@ export const usePropertiesApi = () => {
   const updateHotelPost = async (postData: HotelPost) => {
     console.log('Updating property post:', postData);
 
-  // Prepare update data for propertyPostsApi - backend expects translations with locale + content
+    // Prepare update data for propertyPostsApi - backend expects translations with locale + content
     const locale = postData.locale || (postData.translations && postData.translations[0]?.locale) || 'en';
-    const rawContent = postData.content || (postData.translations && postData.translations[0]?.content) || '';
+    
+    // IMPORTANT: Use the NEW content from form, not old content from database
+    const rawContent = postData.content || '';
     const title = postData.title || '';
-    let finalContentUpdate = rawContent;
-    if (title) {
-      if (/(<h[1-3][\s\S]*?>)([\s\S]*?)(<\/h[1-3]>)/i.test(rawContent)) {
-        // Replace first heading with new title
-        finalContentUpdate = rawContent.replace(/(<h[1-3][^>]*>)([\s\S]*?)(<\/h[1-3]>)/i, `<h2>${title}</h2>`);
-      } else {
-        finalContentUpdate = `<h2>${title}</h2>\n${rawContent}`;
-      }
-    }
+    
+    console.log('📝 Content to save:', rawContent);
+    console.log('📝 Title:', title);
+    
+    // Don't prepend title to content - React Quill already has full formatted content
+    const finalContentUpdate = rawContent;
 
     const updateData = {
       status: postData.status,
       translations: [
         {
           locale,
-          content: finalContentUpdate
+          content: finalContentUpdate,
+          title: title
         }
       ]
     };

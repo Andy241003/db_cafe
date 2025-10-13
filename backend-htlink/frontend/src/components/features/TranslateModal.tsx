@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { translationsApi } from '../../services/translationsApi';
 import { localesApi } from '../../services/localesApi';
-import { usePropertySettings } from '../../hooks/usePropertySettings';
 
 interface Post {
   id: number;
@@ -33,7 +32,6 @@ interface Locale {
 }
 
 const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, onTranslate }) => {
-  const { settings: propertySettings } = usePropertySettings();
   const [targetLanguage, setTargetLanguage] = useState('vi');
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [translatedContent, setTranslatedContent] = useState('');
@@ -135,6 +133,23 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
     loadLocales();
   }, [isOpen]);
 
+  // Format HTML for better readability
+  const formatHTML = (html: string): string => {
+    if (!html) return '';
+    
+    return html
+      // Add newlines after closing tags
+      .replace(/<\/(h[1-6]|p|div|ul|ol|li|blockquote)>/gi, '</$1>\n')
+      // Add newlines before opening tags
+      .replace(/<(h[1-6]|p|div|ul|ol|li|blockquote)/gi, '\n<$1')
+      // Add indentation for list items
+      .replace(/<li>/gi, '  <li>')
+      // Clean up multiple newlines
+      .replace(/\n\n+/g, '\n\n')
+      // Trim leading/trailing whitespace
+      .trim();
+  };
+
   useEffect(() => {
     if (post && isOpen) {
       // Set original content
@@ -168,7 +183,9 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
             );
 
             setTranslatedTitle(titleResult[0] || post.title);
-            setTranslatedContent(contentResult[0] || '');
+            // Format HTML for better readability
+            const formattedContent = formatHTML(contentResult[0] || '');
+            setTranslatedContent(formattedContent);
           } catch (error) {
             console.error('Auto-translation failed:', error);
             // Fallback to original
@@ -203,7 +220,9 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
       );
 
       setTranslatedTitle(titleResult[0] || post?.title || '');
-      setTranslatedContent(contentResult[0] || '');
+      // Format HTML for better readability
+      const formattedContent = formatHTML(contentResult[0] || '');
+      setTranslatedContent(formattedContent);
     } catch (error) {
       console.error('Regeneration failed:', error);
       alert('Failed to regenerate translation. Please try again.');
@@ -434,7 +453,16 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-600">Content</label>
-                <textarea value={translatedContent} onChange={e => setTranslatedContent(e.target.value)} rows={10} className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm" />
+                <textarea 
+                  value={translatedContent} 
+                  onChange={e => setTranslatedContent(e.target.value)} 
+                  rows={10} 
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-md text-sm font-mono"
+                  placeholder="Translated content (HTML with images preserved)..."
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  💡 Images from original content are automatically preserved in translation
+                </p>
               </div>
             </div>
           </div>

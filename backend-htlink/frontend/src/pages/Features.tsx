@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AddFeatureModal from '../components/features/AddFeatureModal';
 import EditFeatureModal from '../components/features/EditFeatureModal';
-import EditPostModal from '../components/features/EditPostModalSimple';
+import EditPostModal from '../components/features/EditPostModal';
 import TranslateModal from '../components/features/TranslateModal';
 import { useFeatures } from '../hooks/useFeatures';
 import { useCategories } from '../hooks/useCategories';

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, 
@@ -25,9 +27,8 @@ interface AddFeatureModalProps {
   onSave: (featureData: FormData) => void;
 }
 
-const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSave }) => {
+export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSave }) => {
   const [selectedIcon, setSelectedIcon] = useState('star');
-  const [selectedColor, setSelectedColor] = useState('linear-gradient(135deg, #3b82f6, #1d4ed8)');
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const { categories, loading: categoriesLoading } = useCategories();
 
@@ -60,6 +61,24 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
     status: 'active'
   });
 
+  // Quill editor configuration
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline',
+    'list', 'bullet',
+    'link', 'image'
+  ];
+
   const icons = [
     { icon: faStar, name: 'star' }, 
     { icon: faSwimmingPool, name: 'swimming-pool' }, 
@@ -84,26 +103,10 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
     { icon: faInfoCircle, name: 'info-circle' } // mặc định hoặc fallback
   ];
 
-  const colors = [
-    'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-    'linear-gradient(135deg, #ef4444, #dc2626)',
-    'linear-gradient(135deg, #10b981, #059669)',
-    'linear-gradient(135deg, #f59e0b, #d97706)',
-    'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-    'linear-gradient(135deg, #06b6d4, #0891b2)',
-    'linear-gradient(135deg, #ec4899, #db2777)',
-    'linear-gradient(135deg, #667eea, #764ba2)'
-  ];
-
   const selectIcon = (iconName: string) => {
     setSelectedIcon(iconName);
     setFeatureForm(prev => ({ ...prev, icon: iconName }));
     setIconPickerOpen(false);
-  };
-
-  const selectColor = (color: string) => {
-    setSelectedColor(color);
-    setFeatureForm(prev => ({ ...prev, color }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,7 +129,6 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
       status: 'active'
     });
     setSelectedIcon('star');
-    setSelectedColor('linear-gradient(135deg, #3b82f6, #1d4ed8)');
     onClose();
   };
 
@@ -290,13 +292,17 @@ const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClose, onSa
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              value={featureForm.description}
-              onChange={(e) => setFeatureForm(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Feature description..."
-              rows={3}
-            />
+            <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <ReactQuill
+                theme="snow"
+                value={featureForm.description}
+                onChange={(value: string) => setFeatureForm(prev => ({ ...prev, description: value }))}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Feature description..."
+                style={{ minHeight: '150px' }}
+              />
+            </div>
           </div>
 
           <div className="mb-6">

@@ -43,6 +43,7 @@ class ActivityType(str, enum.Enum):
     UPDATE_TRANSLATION = "update_translation"
     DELETE_TRANSLATION = "delete_translation"
 
+    ANALYTICS_EVENT = "analytics_event"
     SYSTEM_UPDATE = "system_update"
 
 
