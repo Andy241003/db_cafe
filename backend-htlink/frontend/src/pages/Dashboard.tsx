@@ -5,8 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { authAPI, categoriesAPI, featuresAPI, analyticsAPI, type User, type ActivityItem } from "../services/api";
 
 const Dashboard: React.FC = () => {
-  console.log('🚀 Dashboard component is being rendered!');
-  
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,11 +20,8 @@ const Dashboard: React.FC = () => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
-    console.log('Dashboard: Component mounted');
     const loadDashboardData = async () => {
       try {
-        console.log('Dashboard: Loading data...');
-        
         // Track page view
         try {
           await analyticsAPI.trackPageView('/dashboard');
@@ -63,14 +58,6 @@ const Dashboard: React.FC = () => {
         // Get recent activity data
         const recentActivities = await analyticsAPI.getRecentActivities(5);
 
-        console.log('Dashboard: Data loaded successfully', {
-          categories: categories.length,
-          features: features.length,
-          stats: dashboardStats,
-          activities: recentActivities.length,
-          activitiesData: recentActivities
-        });
-
         setStats({
           totalCategories: categories.length,
           activeFeatures: features.length,
@@ -80,7 +67,6 @@ const Dashboard: React.FC = () => {
           featuresAddedThisWeek: dashboardStats.features_this_month
         });
 
-        console.log('Dashboard: Setting activities state with', recentActivities.length, 'items');
         setActivities(recentActivities);
         setLoading(false);
       } catch (error) {
@@ -121,8 +107,7 @@ const Dashboard: React.FC = () => {
 
 
 
-  const handleCardClick = (title: string) => {
-    console.log(`Clicked on ${title} card`);
+  const handleCardClick = () => {
     // Add navigation or modal logic here
   };
 
@@ -216,7 +201,7 @@ const Dashboard: React.FC = () => {
             changeType={card.changeType}
             icon={card.icon}
             iconBg={card.iconBg}
-            onClick={() => handleCardClick(card.title)}
+            onClick={handleCardClick}
           />
         ))}
       </section>

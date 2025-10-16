@@ -116,9 +116,7 @@ export const propertyPostsApi = {
    * Create a new property post
    */
   async createPropertyPost(data: PropertyPostCreate): Promise<PropertyPost> {
-    console.log('📝 Creating property post:', data);
     const response = await apiClient.post('/property-posts/', data);
-    console.log('✅ Property post created:', response.data);
     return response.data;
   },
 
@@ -126,9 +124,7 @@ export const propertyPostsApi = {
    * Update a property post
    */
   async updatePropertyPost(postId: number, data: PropertyPostUpdate): Promise<PropertyPost> {
-    console.log('📝 Updating property post:', postId, data);
     const response = await apiClient.put(`/property-posts/${postId}`, data);
-    console.log('✅ Property post updated:', response.data);
     return response.data;
   },
 
@@ -136,9 +132,7 @@ export const propertyPostsApi = {
    * Delete a property post
    */
   async deletePropertyPost(postId: number): Promise<void> {
-    console.log('🗑️ Deleting property post:', postId);
     await apiClient.delete(`/property-posts/${postId}`);
-    console.log('✅ Property post deleted');
   },
 
   /**
@@ -153,9 +147,7 @@ export const propertyPostsApi = {
    * Create a translation for a property post
    */
   async createPropertyPostTranslation(postId: number, data: Omit<PropertyPostTranslation, 'post_id'>): Promise<PropertyPostTranslation> {
-    console.log('📝 Creating translation for post:', postId, data);
     const response = await apiClient.post(`/property-posts/${postId}/translations`, data);
-    console.log('✅ Translation created:', response.data);
     return response.data;
   },
 
@@ -163,9 +155,7 @@ export const propertyPostsApi = {
    * Update a translation for a property post
    */
   async updatePropertyPostTranslation(postId: number, locale: string, data: Partial<PropertyPostTranslation>): Promise<PropertyPostTranslation> {
-    console.log('📝 Updating translation for post:', postId, locale, data);
     const response = await apiClient.put(`/property-posts/${postId}/translations/${locale}`, data);
-    console.log('✅ Translation updated:', response.data);
     return response.data;
   },
 
@@ -173,9 +163,7 @@ export const propertyPostsApi = {
    * Delete a translation for a property post
    */
   async deletePropertyPostTranslation(postId: number, locale: string): Promise<void> {
-    console.log('🗑️ Deleting translation for post:', postId, locale);
     await apiClient.delete(`/property-posts/${postId}/translations/${locale}`);
-    console.log('✅ Translation deleted');
   },
 
   /**

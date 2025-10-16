@@ -44,17 +44,6 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
-  // Debug: Log state changes
-  useEffect(() => {
-    console.log('🔍 [TranslateModal] State updated:', {
-      isOpen,
-      isDropdownOpen,
-      availableLocales: availableLocales.length,
-      targetLanguage,
-      postLocale: post?.locale
-    });
-  }, [isOpen, isDropdownOpen, availableLocales, targetLanguage, post]);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -79,17 +68,13 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
 
     const loadLocales = async () => {
       try {
-        console.log('🔄 Loading locales for TranslateModal...');
-
         // Get property settings to check supported languages
         const propertyId = localStorage.getItem('selected_property_id');
 
         // Always get all locales first
         const allLocales = await localesApi.getLocales();
-        console.log('📋 All locales from API:', allLocales.length, allLocales.map(l => l.code));
 
         if (!propertyId) {
-          console.log('⚠️ No property selected, using all locales');
           setAvailableLocales(allLocales);
           return;
         }
@@ -105,15 +90,12 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
         if (response.ok) {
           const property = await response.json();
           const supportedLanguages = property.settings_json?.localization?.supportedLanguages || ['en', 'vi'];
-          console.log('✅ Property supported languages:', supportedLanguages);
 
           // Filter by supported languages
           const filtered = allLocales.filter(locale => supportedLanguages.includes(locale.code));
-          console.log('✅ Filtered locales:', filtered.length, filtered.map(l => l.code));
 
           setAvailableLocales(filtered.length > 0 ? filtered : allLocales);
         } else {
-          console.log('⚠️ Failed to fetch property, using all locales');
           setAvailableLocales(allLocales);
         }
       } catch (error) {
@@ -125,7 +107,6 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
           { code: 'ja', name: 'Japanese', native_name: '日本語' },
           { code: 'ko', name: 'Korean', native_name: '한국어' }
         ];
-        console.log('⚠️ Using fallback locales:', fallback.map(l => l.code));
         setAvailableLocales(fallback);
       }
     };
@@ -249,6 +230,9 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faLanguage} className="text-xl text-slate-600" />
             <h2 className="text-lg font-bold text-slate-800">AI Translation</h2>
+            <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold rounded-full">
+              ⚡ DeepL Powered
+            </span>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
             <FontAwesomeIcon icon={faTimes} className="text-slate-600" />
@@ -266,8 +250,6 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
                 ref={buttonRef}
                 type="button"
                 onClick={() => {
-                  console.log('🖱️ Dropdown clicked! Current state:', isDropdownOpen, 'Available locales:', availableLocales.length);
-
                   if (!isDropdownOpen && buttonRef.current) {
                     const rect = buttonRef.current.getBoundingClientRect();
                     setDropdownPosition({
@@ -423,7 +405,7 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
 
             {/* Helper Text */}
             <p className="mt-2 text-xs text-slate-500">
-              💡 Tip: Only languages enabled in Settings → Localization are shown here
+              💡 <strong>DeepL Translation:</strong> High-quality AI translation with hotel industry glossary (25+ terms)
             </p>
           </div>
         </div>

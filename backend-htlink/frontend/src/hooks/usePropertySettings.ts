@@ -23,9 +23,8 @@ export const usePropertySettings = () => {
       const parsed = JSON.parse(storedSettings);
       defaultLanguage = parsed.defaultLanguage || 'vi';
       supportedLanguages = parsed.supportedLanguages || supportedLanguages;
-      console.log('✅ [usePropertySettings] Loaded from localStorage:', parsed);
     } catch (e) {
-      console.error('❌ [usePropertySettings] Failed to parse property_settings:', e);
+      // Failed to parse, use defaults
     }
   } else {
     // Fallback: check old locale keys
@@ -33,7 +32,6 @@ export const usePropertySettings = () => {
                              localStorage.getItem('locale');
     if (storedDefaultLang) {
       defaultLanguage = storedDefaultLang;
-      console.log('⚠️ [usePropertySettings] Using fallback locale from localStorage:', storedDefaultLang);
     }
   }
   
@@ -45,8 +43,6 @@ export const usePropertySettings = () => {
     dateFormat: 'DD/MM/YYYY'
   };
   const loading = false;
-
-  console.log('🔧 [usePropertySettings] Final default language:', settings.defaultLanguage);
 
   return { settings, loading };
 };

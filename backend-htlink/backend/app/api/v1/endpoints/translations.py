@@ -1,7 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from sqlmodel import select
+from pydantic import BaseModel
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
@@ -16,41 +17,72 @@ from app.utils.decorators.track_activity import track_activity
 router = APIRouter()
 
 
-@router.post('/translate')
-async def translate_batch_endpoint(
-    texts: list[str],
-    target: str = 'en',
-    source: str = 'auto',
-    is_html: bool = False,
-    concurrent: int = 8,
-    libre_url: str | None = None,
-):
-    """Batch translate an array of texts. Returns list of translated strings.
+# Request model for translation endpoint
+class TranslateRequest(BaseModel):
+    texts: list[str]
+    target: str = 'en'
+    source: str = 'auto'
+    is_html: bool = False
+    concurrent: int = 8
+    prefer_deepl: bool = True
+    apply_glossary: bool = True
 
+
+@router.post('/translate')
+async def translate_batch_endpoint(request: TranslateRequest = Body(...)):
+    """
+    Enhanced translation endpoint with DeepL/Google Cloud support.
+    
+    Features:
+    - DeepL API for best quality (if DEEPL_API_KEY is set)
+    - Google Cloud Translation (if GOOGLE_CLOUD_API_KEY is set)
+    - Falls back to free Google Translate
+    - Smart chunking for long texts
+    - Hotel industry glossary (25+ terms)
+    
     This endpoint is public and does not require authentication.
     """
-    from app.services.universal_translation import translate_batch
-
     # Basic input validation
-    if not isinstance(texts, list) or not all(isinstance(t, str) for t in texts):
+    if not isinstance(request.texts, list) or not all(isinstance(t, str) for t in request.texts):
         raise HTTPException(status_code=400, detail='`texts` must be a list of strings')
 
     try:
-        # DEBUG: log incoming request for troubleshooting
-        print(f"[TRANSLATE_ENDPOINT] incoming texts count={len(texts)} target={target} source={source} is_html={is_html}", flush=True)
-        for i, t in enumerate(texts[:5]):
-            print(f"[TRANSLATE_ENDPOINT] text[{i}] len={len(t)} snippet={repr(t[:100])}", flush=True)
-
-        results = await translate_batch(texts, target=target, source=source, is_html=is_html, concurrent=concurrent, libre_url=libre_url)
-
-        # DEBUG: log results for quick inspection
-        print(f"[TRANSLATE_ENDPOINT] results_count={len(results)}", flush=True)
-        for i, r in enumerate(results[:5]):
-            print(f"[TRANSLATE_ENDPOINT] result[{i}] len={len(r)} snippet={repr(r[:200])}", flush=True)
-
+        # Try enhanced translation first
+        from app.services.enhanced_translation import translate_batch_enhanced
+        
+        print(f"[TRANSLATE] 🚀 Enhanced: {len(request.texts)} texts → {request.target} (html={request.is_html}, glossary={request.apply_glossary})", flush=True)
+        
+        results = await translate_batch_enhanced(
+            texts=request.texts,
+            target=request.target,
+            source=request.source,
+            is_html=request.is_html,
+            concurrent=request.concurrent,
+            prefer_deepl=request.prefer_deepl,
+            apply_glossary=request.apply_glossary
+        )
+        
+        print(f"[TRANSLATE] ✅ Complete: {len(results)} results", flush=True)
         return results
+        
+    except ImportError:
+        # Fallback to old service
+        print("[TRANSLATE] ⚠️ Enhanced unavailable, using fallback", flush=True)
+        from app.services.universal_translation import translate_batch
+        
+        results = await translate_batch(
+            request.texts, 
+            target=request.target, 
+            source=request.source, 
+            is_html=request.is_html, 
+            concurrent=request.concurrent
+        )
+        return results
+        
     except Exception as e:
-        print(f"[TRANSLATE_ENDPOINT] exception: {e}", flush=True)
+        print(f"[TRANSLATE] ❌ Error: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -8,13 +8,15 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
 import Settings from '../pages/Settings';
-import TenantSettings from '../pages/TenantSettings';
 import Categories from '../pages/Categories';
 import Features from '../pages/Features';
 import Properties from '../pages/Properties';
 import Media from '../pages/Media';
 import Analytics from '../pages/Analytics';
 import Activities from '../pages/Activities';
+
+// Lazy load TenantSettings to avoid type-only import issue
+const TenantSettings = React.lazy(() => import('../pages/TenantSettings'));
 
 const MainLayout: React.FC = () => {
   const location = useLocation();
@@ -56,13 +58,11 @@ const MainLayout: React.FC = () => {
 
   const pageInfo = getPageInfo(location.pathname);
 
-  const handleSearch = (query: string) => {
-    console.log('Search query:', query);
+  const handleSearch = (_query: string) => {
     // Implement global search logic here
   };
 
   const handleNotifications = () => {
-    console.log('Notification icon clicked');
     // Implement notification logic here
   };
 
@@ -98,7 +98,9 @@ const MainLayout: React.FC = () => {
               path="/tenant-settings"
               element={
                 <ProtectedRoute requireOwner>
-                  <TenantSettings />
+                  <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                    <TenantSettings />
+                  </React.Suspense>
                 </ProtectedRoute>
               }
             />

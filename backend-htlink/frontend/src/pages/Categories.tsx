@@ -26,7 +26,6 @@ const Categories: React.FC = () => {
         await createCategory(formData);
       }
     } catch (error) {
-      console.error('Error saving category:', error);
       alert(t('errorSavingCategory'));
     }
   };
@@ -53,7 +52,6 @@ const Categories: React.FC = () => {
     try {
       await deleteCategory(id);
     } catch (error) {
-      console.error('Error deleting category:', error);
       alert(t('errorDeletingCategory'));
     }
   };
@@ -79,11 +77,6 @@ const Categories: React.FC = () => {
 
   const handleAcceptTranslation = async (categoryId: number, targetLang: Language, translatedData: any): Promise<void> => {
     try {
-      console.log('=== SAVING CATEGORY TRANSLATION ===');
-      console.log('Category ID:', categoryId);
-      console.log('Target Language:', targetLang);
-      console.log('Translation Data:', translatedData);
-
       // Import categoriesApi for translation operations
       const { categoriesApi } = await import('../services/categoriesApi');
 
@@ -99,7 +92,6 @@ const Categories: React.FC = () => {
 
       if (existingTranslation) {
         // Update existing translation
-        console.log('Updating existing translation:', translationPayload);
         await categoriesApi.updateCategoryTranslation(
           categoryId,
           targetLang,
@@ -111,14 +103,7 @@ const Categories: React.FC = () => {
         alert(t('translationUpdated', { lang: targetLang.toUpperCase() }));
       } else {
         // Create new translation
-        console.log('Creating new translation:', translationPayload);
-        console.log('Full payload with category_id:', {
-          category_id: categoryId,
-          ...translationPayload
-        });
-
-        const result = await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
-        console.log('Translation created successfully:', result);
+        await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
         alert(t('translationCreated', { lang: targetLang.toUpperCase() }));
       }
 
@@ -127,22 +112,9 @@ const Categories: React.FC = () => {
       // Refresh categories to show updated translations
       window.location.reload();
     } catch (error: any) {
-      console.error('Error saving translation:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error config:', error.config);
-
-      // Show detailed error message
-      let errorMessage = t('errorSavingTranslation');
-      if (error.response?.data?.detail) {
-        errorMessage += `: ${error.response.data.detail}`;
-      } else if (error.response?.data) {
-        errorMessage += `: ${JSON.stringify(error.response.data)}`;
-      } else {
-        errorMessage += `: ${error.message}`;
-      }
-
-      alert(errorMessage);
+      // Show error message
+      const errorMessage = error.response?.data?.detail || error.message || t('errorSavingTranslation');
+      alert(`${t('errorSavingTranslation')}: ${errorMessage}`);
     }
   };
 
@@ -218,4 +190,3 @@ const Categories: React.FC = () => {
 };
 
 export default Categories;
-

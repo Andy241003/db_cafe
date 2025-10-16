@@ -65,7 +65,6 @@ const Features: React.FC = () => {
         const posts = await postsAPI.getAll(feature.id, true);
         return { featureId: feature.id, posts };
       } catch (error) {
-        console.error(`Error loading posts for feature ${feature.id}:`, error);
         return { featureId: feature.id, posts: [] };
       }
     });
@@ -121,7 +120,7 @@ const Features: React.FC = () => {
               }
             }
 
-            // If post has translations, create UI entries for each translation
+            // Always create UI entries for each translation
             if (translationsArray.length > 0) {
               translationsArray.forEach((t: any) => {
                 const tInfo = getLocaleInfo(t.locale);
@@ -129,7 +128,7 @@ const Features: React.FC = () => {
                 const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
                 uiPosts.push({
                   ...post,
-                  uiKey: `${post.id}-${t.locale}`,
+                  uiKey: `post-${post.id}-${t.locale}-${Date.now()}`, // Make truly unique
                   title: t.title || `Post ${post.id}`,
                   excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
                   locale: t.locale || 'en',
@@ -137,32 +136,12 @@ const Features: React.FC = () => {
                   flagClass: tInfo.flagClass,
                   content: tRaw,
                   slug: post.slug || '',
-                  vr360_url: post.vr360_url || '',  // Preserve vr360_url
+                  vr360_url: post.vr360_url || '',
                   status: post.status ? post.status.toLowerCase() : 'draft',
                   updatedAt: post.updated_at || post.created_at,
                   content_html: t.content_html,
-                  translations: translationsArray // Keep translations for modal
+                  translations: translationsArray
                 });
-              });
-            } else {
-              // If no translations, show a placeholder entry indicating translations are needed
-              const defaultLocale = 'en';
-              const defaultInfo = getLocaleInfo(defaultLocale);
-              uiPosts.push({
-                ...post,
-                uiKey: `${post.id}-${defaultLocale}`,
-                title: `Post ${post.id} (No translations)`,
-                excerpt: 'This post has no translations yet. Click Translate to add one.',
-                locale: defaultLocale,
-                localeName: defaultInfo.localeName,
-                flagClass: defaultInfo.flagClass,
-                content: '',
-                slug: post.slug || '',
-                vr360_url: post.vr360_url || '',  // Preserve vr360_url
-                status: post.status ? post.status.toLowerCase() : 'draft',
-                updatedAt: post.updated_at || post.created_at,
-                content_html: '',
-                translations: [] // Empty translations array
               });
             }
           });
@@ -255,7 +234,6 @@ const Features: React.FC = () => {
   };
 
   const deletePost = async (postId: number, locale: string, translations: any[]) => {
-
     // Check if this post has multiple translations
     const hasMultipleTranslations = translations && translations.length > 1;
 
@@ -266,8 +244,6 @@ const Features: React.FC = () => {
           const { postsApi } = await import('../services/postsApi');
           await postsApi.deleteTranslation(postId, locale);
           alert(`${locale.toUpperCase()} translation deleted successfully!`);
-
-          // Refresh features to update posts list
           await refreshFeatures();
         }
       } else {
@@ -275,13 +251,10 @@ const Features: React.FC = () => {
         if (window.confirm('This is the last translation. Deleting it will remove the entire post. Continue?')) {
           await postsAPI.delete(postId);
           alert('Post deleted successfully!');
-
-          // Refresh features to update posts list
           await refreshFeatures();
         }
       }
     } catch (error: any) {
-      console.error('Error deleting post:', error);
       alert(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
     }
   };
@@ -290,11 +263,9 @@ const Features: React.FC = () => {
     const apiFeature = apiFeatures.find(f => f.id === featureId);
     const localFeature = features.find(f => f.id === featureId);
     if (apiFeature && localFeature) {
-      // Pass both API feature and local feature title
       setSelectedFeature({ ...apiFeature, title: localFeature.name });
       setIsEditFeatureModalOpen(true);
     } else {
-      console.error('Feature not found for ID:', featureId);
       alert('Feature not found');
     }
   };
@@ -302,11 +273,9 @@ const Features: React.FC = () => {
   const handleDeleteFeature = async (featureId: number) => {
     if (window.confirm('Are you sure you want to delete this feature? This will also delete all associated posts.')) {
       try {
-        console.log('Deleting feature:', featureId);
         await deleteFeature(featureId);
         alert('Feature deleted successfully!');
       } catch (error) {
-        console.error('Error deleting feature:', error);
         alert('Failed to delete feature. Please try again.');
       }
     }
@@ -368,7 +337,6 @@ const Features: React.FC = () => {
             propertyId = defaultProperty.id;
           }
         } catch (propertyError) {
-          console.error('Failed to get/create property:', propertyError);
           throw new Error('Failed to get property information. Please contact administrator.');
         }
       }
@@ -409,55 +377,42 @@ const Features: React.FC = () => {
           const updatedFeatures = features.map(feature => {
             const freshPosts = postsMap.get(feature.id) || [];
             const uiPosts: UIPost[] = [];
+            
             freshPosts.forEach((post: any) => {
-              const mainLocale = post.locale || 'en';
-              const mainInfo = getLocaleInfo(mainLocale);
-              const mainRaw = post.content_html || '';
-              const mainExcerpt = mainRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-              uiPosts.push({
-                ...post,
-                uiKey: `${post.id}-${mainLocale}`,
-                title: post.title || `Post ${post.id}`,
-                excerpt: mainExcerpt ? mainExcerpt + '...' : 'No content',
-                locale: mainLocale,
-                localeName: mainInfo.localeName,
-                flagClass: mainInfo.flagClass,
-                content: mainRaw || '',
-                slug: post.slug || '',
-                vr360_url: post.vr360_url || '',  // Preserve vr360_url
-                status: post.status ? post.status.toLowerCase() : 'draft',
-                updatedAt: post.updated_at || post.created_at,
-                content_html: post.content_html
-              });
-
-              const translationsArray3: any[] = [];
+              // Normalize translations to array
+              const translationsArray: any[] = [];
               if (post.translations) {
                 if (Array.isArray(post.translations)) {
-                  translationsArray3.push(...post.translations);
+                  translationsArray.push(...post.translations);
                 } else if (typeof post.translations === 'object') {
-                  Object.keys(post.translations).forEach(k => translationsArray3.push({ locale: k, ...post.translations[k] }));
+                  Object.keys(post.translations).forEach(k => translationsArray.push({ locale: k, ...post.translations[k] }));
                 }
               }
-              translationsArray3.forEach((t: any) => {
-                const tInfo = getLocaleInfo(t.locale);
-                const tRaw = t.content_html || '';
-                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-                uiPosts.push({
-                  ...post,
-                  uiKey: `${post.id}-${t.locale}`,
-                  title: t.title || post.title || `Post ${post.id}`,
-                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
-                  locale: t.locale || 'en',
-                  localeName: tInfo.localeName,
-                  flagClass: tInfo.flagClass,
-                  content: tRaw || '',
-                  slug: post.slug || '',
-                  vr360_url: post.vr360_url || '',  // Preserve vr360_url
-                  status: post.status ? post.status.toLowerCase() : 'draft',
-                  updatedAt: post.updated_at || post.created_at,
-                  content_html: t.content_html
+
+              // Only create UI entries for translations (don't duplicate with main post)
+              if (translationsArray.length > 0) {
+                translationsArray.forEach((t: any) => {
+                  const tInfo = getLocaleInfo(t.locale);
+                  const tRaw = t.content_html || '';
+                  const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+                  uiPosts.push({
+                    ...post,
+                    uiKey: `post-${post.id}-trans-${t.locale}`,
+                    title: t.title || post.title || `Post ${post.id}`,
+                    excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+                    locale: t.locale || 'en',
+                    localeName: tInfo.localeName,
+                    flagClass: tInfo.flagClass,
+                    content: tRaw || '',
+                    slug: post.slug || '',
+                    vr360_url: post.vr360_url || '',
+                    status: post.status ? post.status.toLowerCase() : 'draft',
+                    updatedAt: post.updated_at || post.created_at,
+                    content_html: t.content_html,
+                    translations: translationsArray
+                  });
                 });
-              });
+              }
             });
             
             return {
@@ -469,13 +424,9 @@ const Features: React.FC = () => {
           setFeatures(updatedFeatures);
         }
       } catch (refreshError) {
-        console.error('Failed to refresh data:', refreshError);
         window.location.reload();
       }
     } catch (error: any) {
-      console.error('Error saving post:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       alert(`Failed to save post: ${error.response?.data?.detail || error.message}`);
     }
   };
@@ -492,10 +443,9 @@ const Features: React.FC = () => {
 
       // Create feature first
       const newFeature = await createFeature(featureData);
-      console.log('✅ Feature created:', newFeature);
 
       // Create feature translation for default locale (en)
-      if (newFeature && newFeature.id) {
+      if (newFeature?.id) {
         try {
           await featuresAPI.createTranslation(
             newFeature.id,
@@ -505,20 +455,15 @@ const Features: React.FC = () => {
               short_desc: formData.description || ''
             }
           );
-          console.log('✅ Feature translation created for locale: en');
         } catch (translationError) {
-          console.error('❌ Error creating feature translation:', translationError);
           // Don't fail the whole operation if translation fails
         }
-      } else {
-        console.error('❌ Feature created but no ID returned');
       }
 
       alert('Feature created successfully!');
       setIsAddFeatureModalOpen(false);
-      await refreshFeatures(); // Refresh to show new feature with translation
+      await refreshFeatures();
     } catch (error) {
-      console.error('Error creating feature:', error);
       alert('Failed to create feature. Please try again.');
     }
   };
@@ -537,29 +482,26 @@ const Features: React.FC = () => {
 
       // Update feature translations if name changed
       if (formData.name) {
-        try {
-          const currentFeature = apiFeatures.find(f => f.id === featureId);
-          if (currentFeature && currentFeature.translations) {
-            const locales = Object.keys(currentFeature.translations);
-
-            for (const locale of locales) {
-              try {
+        const currentFeature = apiFeatures.find(f => f.id === featureId);
+        if (currentFeature?.translations) {
+          const locales = Object.keys(currentFeature.translations);
+          
+          await Promise.all(locales.map(async (locale) => {
+            try {
+              if (currentFeature.translations) {
                 await featuresAPI.updateTranslation(
                   featureId,
                   locale,
                   {
                     title: formData.name,
-                    short_desc: currentFeature.translations[locale].short_desc // Keep existing short_desc
+                    short_desc: currentFeature.translations[locale].short_desc
                   }
                 );
-                console.log(`✅ Updated translation for locale ${locale}`);
-              } catch (transError) {
-                console.error(`❌ Error updating translation for locale ${locale}:`, transError);
               }
+            } catch (transError) {
+              // Silently fail individual translation updates
             }
-          }
-        } catch (error) {
-          console.error('❌ Error updating feature translations:', error);
+          }));
         }
       }
 
@@ -568,16 +510,12 @@ const Features: React.FC = () => {
       setIsEditFeatureModalOpen(false);
       setSelectedFeature(null);
     } catch (error) {
-      console.error('Error updating feature:', error);
       alert('Failed to update feature. Please try again.');
     }
   };
 
   const handleTranslate = async (translationData: any) => {
-    if (!selectedPost) {
-      console.error('No post selected for translation');
-      return;
-    }
+    if (!selectedPost) return;
 
     try {
       // Import postsApi for translation operations
@@ -620,27 +558,9 @@ const Features: React.FC = () => {
         const updatedFeatures = features.map(feature => {
           const freshPosts = postsMap.get(feature.id) || [];
           const uiPosts: UIPost[] = [];
+          
           freshPosts.forEach((post: any) => {
-            const mainLocale = post.locale || 'en';
-            const mainInfo = getLocaleInfo(mainLocale);
-            const mainRaw = post.content_html || '';
-            const mainExcerpt = mainRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-            uiPosts.push({
-              ...post,
-              uiKey: `${post.id}-${mainLocale}`,
-              title: post.title || `Post ${post.id}`,
-              excerpt: mainExcerpt ? mainExcerpt + '...' : 'No content',
-              locale: mainLocale,
-              localeName: mainInfo.localeName,
-              flagClass: mainInfo.flagClass,
-              content: mainRaw || '',
-              slug: post.slug || '',
-              vr360_url: post.vr360_url || '',  // Preserve vr360_url
-              status: post.status ? post.status.toLowerCase() : 'draft',
-              updatedAt: post.updated_at || post.created_at,
-              content_html: post.content_html
-            });
-
+            // Normalize translations to array
             const translationsArray: any[] = [];
             if (post.translations) {
               if (Array.isArray(post.translations)) {
@@ -649,26 +569,31 @@ const Features: React.FC = () => {
                 Object.keys(post.translations).forEach(k => translationsArray.push({ locale: k, ...post.translations[k] }));
               }
             }
-            translationsArray.forEach((t: any) => {
-              const tInfo = getLocaleInfo(t.locale);
-              const tRaw = t.content_html || '';
-              const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-              uiPosts.push({
-                ...post,
-                uiKey: `${post.id}-${t.locale}`,
-                title: t.title || post.title || `Post ${post.id}`,
-                excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
-                locale: t.locale || 'en',
-                localeName: tInfo.localeName,
-                flagClass: tInfo.flagClass,
-                content: tRaw || '',
-                slug: post.slug || '',
-                vr360_url: post.vr360_url || '',  // Preserve vr360_url
-                status: post.status ? post.status.toLowerCase() : 'draft',
-                updatedAt: post.updated_at || post.created_at,
-                content_html: t.content_html
+
+            // Only create UI entries for translations (don't duplicate with main post)
+            if (translationsArray.length > 0) {
+              translationsArray.forEach((t: any) => {
+                const tInfo = getLocaleInfo(t.locale);
+                const tRaw = t.content_html || '';
+                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+                uiPosts.push({
+                  ...post,
+                  uiKey: `post-${post.id}-trans-${t.locale}`,
+                  title: t.title || post.title || `Post ${post.id}`,
+                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+                  locale: t.locale || 'en',
+                  localeName: tInfo.localeName,
+                  flagClass: tInfo.flagClass,
+                  content: tRaw || '',
+                  slug: post.slug || '',
+                  vr360_url: post.vr360_url || '',
+                  status: post.status ? post.status.toLowerCase() : 'draft',
+                  updatedAt: post.updated_at || post.created_at,
+                  content_html: t.content_html,
+                  translations: translationsArray
+                });
               });
-            });
+            }
           });
 
           return {
@@ -678,14 +603,8 @@ const Features: React.FC = () => {
         });
 
         setFeatures(updatedFeatures);
-        console.log('✅ Features updated with new translation');
       }
     } catch (error: any) {
-      console.error('Error saving translation:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error config:', error.config);
-
       // Show detailed error message
       let errorMessage = 'Failed to save translation';
       if (error.response?.data?.detail) {

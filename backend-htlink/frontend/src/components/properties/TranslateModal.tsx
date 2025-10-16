@@ -227,6 +227,9 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faLanguage} className="text-xl text-slate-600" />
             <h2 className="text-lg font-bold text-slate-800">Translate Post</h2>
+            <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold rounded-full">
+              ⚡ DeepL Powered
+            </span>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
             <FontAwesomeIcon icon={faTimes} className="text-slate-600" />
@@ -406,7 +409,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
             {/* Helper Text */}
             <p className="mt-2 text-xs text-slate-500">
-              💡 Tip: Only languages enabled in Settings → Localization are shown here
+              💡 <strong>DeepL Translation:</strong> Premium AI translation with hotel glossary (Check-in → Nhận phòng, Ocean view → View biển, etc.)
             </p>
           </div>
         </div>

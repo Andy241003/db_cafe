@@ -34,11 +34,38 @@ apiClient.interceptors.request.use((config) => {
 });
 
 export const translationsApi = {
-  async translateBatch(texts: string[], target = 'en', source = 'auto', is_html = false, concurrent = 3, libre_url?: string) {
-    const response = await apiClient.post('/translations/translate', texts, {
-      params: { target, source, is_html: is_html ? 'true' : 'false', concurrent, libre_url },
+  /**
+   * Enhanced translation with DeepL/Google Cloud support
+   * 
+   * @param texts - Array of texts to translate
+   * @param target - Target language code (e.g., 'vi', 'ja', 'ko')
+   * @param source - Source language code (default: 'auto' for auto-detection)
+   * @param is_html - Whether the text contains HTML (preserves tags and images)
+   * @param concurrent - Number of parallel translation requests
+   * @param prefer_deepl - Prefer DeepL over Google Cloud (default: true)
+   * @param apply_glossary - Apply hotel industry glossary (default: true)
+   */
+  async translateBatch(
+    texts: string[], 
+    target = 'en', 
+    source = 'auto', 
+    is_html = false, 
+    concurrent = 4,
+    prefer_deepl = true,
+    apply_glossary = true
+  ) {
+    const response = await apiClient.post('/translations/translate', {
+      texts,
+      target,
+      source,
+      is_html,
+      concurrent,
+      prefer_deepl,
+      apply_glossary
+    }, {
       timeout: 120000, // 2 minutes for very long content
     });
+    
     return response.data;
   }
 };

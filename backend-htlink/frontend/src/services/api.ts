@@ -462,7 +462,10 @@ const getSessionId = (): string => {
 
 // Helper function to transform activity logs from backend
 const transformActivityLogs = (logs: any[]): ActivityItem[] => {
-  return logs.map(log => {
+  // Filter out analytics_event activities
+  const filteredLogs = logs.filter(log => log.activity_type !== 'analytics_event');
+  
+  return filteredLogs.map(log => {
     const details = log.details || {};
     const activityType = log.activity_type;
     const username = details.username || 'System User';

@@ -14,18 +14,15 @@ const getTenantCode = (): string => {
   // First check if user is logged in and has tenant from backend
   const userTenantCode = localStorage.getItem('tenant_code');
   if (userTenantCode) {
-    console.log('🏢 Using tenant from login:', userTenantCode);
     return userTenantCode;
   }
   
   // Fallback: Legacy domain-based detection for backward compatibility
   const hostname = window.location.hostname;
   if (hostname.includes('zalominiapp.vtlink.vn')) {
-    console.log('🏢 Using domain-based tenant: premier_admin');
     return 'premier_admin';
   }
   
-  console.log('🏢 Using default tenant: demo');
   return 'demo';
 };
 
@@ -34,13 +31,6 @@ usersApiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
-    
-    console.log('🔐 UsersAPI Request:', {
-      url: config.url,
-      method: config.method,
-      tenantCode,
-      hasToken: !!token
-    });
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -139,31 +129,12 @@ class UsersApiService {
    * Get all users in current tenant
    */
   async getUsers(skip = 0, limit = 100): Promise<ApiUser[]> {
-    console.log('📋 getUsers called with:', { skip, limit });
-    console.log('📋 Current tenant context:', {
-      tenant_code: localStorage.getItem('tenant_code'),
-      tenant_id: localStorage.getItem('tenant_id')
-    });
-    
     try {
       const response = await usersApiClient.get('/users/', {
         params: { skip, limit }
       });
-      console.log('📋 getUsers success:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('📋 getUsers failed - Full Error:', error);
-      console.error('📋 getUsers failed - Response:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
-      });
       throw error;
     }
   }
@@ -172,22 +143,10 @@ class UsersApiService {
    * Create new user
    */
   async createUser(userData: ApiUserCreate): Promise<ApiUser> {
-    console.log('👤 Creating user with data:', { 
-      ...userData, 
-      password: '[HIDDEN]' // Don't log actual password
-    });
-    
     try {
       const response = await usersApiClient.post('/users/', userData);
-      console.log('✅ User created successfully:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ Create user failed:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        headers: error.config?.headers
-      });
       throw error;
     }
   }

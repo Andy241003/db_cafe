@@ -20,19 +20,11 @@ export const useCategories = (): UseCategoriesReturn => {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading categories from API...');
-      console.log('🏢 Current tenant context:', {
-        tenant_code: localStorage.getItem('tenant_code'),
-        tenant_id: localStorage.getItem('tenant_id'),
-        currentUser: JSON.parse(localStorage.getItem('currentUser') || '{}')
-      });
       const apiCategories = await categoriesAPI.getAll();
-      console.log('✅ Categories loaded for current tenant:', apiCategories);
 
       // Also load features to count features per category
       const { featuresAPI } = await import('../services/api');
       const apiFeatures = await featuresAPI.getAll();
-      console.log('📊 Features loaded for counting:', apiFeatures);
 
       // Load translations for all categories
       const { categoriesApi } = await import('../services/categoriesApi');
@@ -43,13 +35,10 @@ export const useCategories = (): UseCategoriesReturn => {
         const featuresInCategory = apiFeatures.filter(feature => feature.category_id === cat.id);
         const featureCount = featuresInCategory.length;
 
-        console.log(`📊 Category "${cat.slug}" has ${featureCount} features:`, featuresInCategory.map(f => f.slug));
-
         // Load translations from API
         let translations: Record<string, { title: string; description: string }> = {};
         try {
           const apiTranslations = await categoriesApi.getCategoryTranslations(cat.id);
-          console.log(`📝 Loaded translations for category ${cat.id}:`, apiTranslations);
 
           // Convert API translations to UI format
           apiTranslations.forEach((t: any) => {
@@ -59,7 +48,6 @@ export const useCategories = (): UseCategoriesReturn => {
             };
           });
         } catch (error) {
-          console.warn(`Failed to load translations for category ${cat.id}:`, error);
           // Fallback to default translations
           translations = {
             en: {
@@ -82,9 +70,7 @@ export const useCategories = (): UseCategoriesReturn => {
       }));
 
       setCategories(convertedCategories);
-      console.log('✅ Categories converted for UI:', convertedCategories);
     } catch (error) {
-      console.error('❌ Failed to load categories:', error);
       // Fallback to empty array on error
       setCategories([]);
     } finally {
@@ -101,55 +87,29 @@ export const useCategories = (): UseCategoriesReturn => {
       const englishTranslation = formData.translations.en;
 
       // 1. Create category first
-      console.log('📝 Creating category with data:', {
-        slug: formData.slug,
-        icon_key: formData.icon,
-        is_system: false
-      });
-
       const apiCategory = await categoriesAPI.create({
         slug: formData.slug,
         icon_key: formData.icon,
         is_system: false
       });
 
-      console.log('✅ Category created - Full response:', apiCategory);
-      console.log('✅ Category ID:', apiCategory.id);
-      console.log('✅ Category type:', typeof apiCategory.id);
-
       // 2. Create translations for all locales
       const { categoriesApi } = await import('../services/categoriesApi');
 
-      console.log('📝 Creating translations for category:', apiCategory.id, formData.translations);
-
       for (const [locale, translation] of Object.entries(formData.translations)) {
         try {
-          console.log(`📝 Creating translation for locale ${locale}:`, {
-            category_id: apiCategory.id,
+          await categoriesApi.createCategoryTranslation(apiCategory.id, {
             locale: locale,
             title: translation.title,
             short_desc: translation.description || ''
           });
-
-          const createdTranslation = await categoriesApi.createCategoryTranslation(apiCategory.id, {
-            locale: locale,
-            title: translation.title,
-            short_desc: translation.description || ''
-          });
-
-          console.log(`✅ Category translation created for locale ${locale}:`, createdTranslation);
         } catch (translationError: any) {
-          console.error(`❌ Error creating translation for locale ${locale}:`, translationError);
-          console.error(`❌ Error response data:`, translationError.response?.data);
-          console.error(`❌ Error status:`, translationError.response?.status);
-          console.error(`❌ Full error:`, JSON.stringify(translationError.response?.data, null, 2));
           // Don't fail the whole operation if translation fails
         }
       }
 
       // 3. Reload categories to get fresh data with translations
       await loadCategories();
-      console.log('✅ Categories reloaded after creation');
 
       // Return a placeholder - the UI will update when loadCategories completes
       return {
@@ -163,7 +123,6 @@ export const useCategories = (): UseCategoriesReturn => {
         translations: formData.translations
       };
     } catch (error) {
-      console.error('API Error creating category:', error);
       throw error;
     }
   };
@@ -175,7 +134,6 @@ export const useCategories = (): UseCategoriesReturn => {
         slug: formData.slug,
         icon_key: formData.icon
       });
-      console.log('✅ Category updated:', id);
 
       // 2. Update translations for all locales
       const { categoriesApi } = await import('../services/categoriesApi');
@@ -186,16 +144,13 @@ export const useCategories = (): UseCategoriesReturn => {
             title: translation.title,
             short_desc: translation.description || ''
           });
-          console.log(`✅ Category translation updated for locale: ${locale}`);
         } catch (translationError) {
-          console.error(`❌ Error updating translation for locale ${locale}:`, translationError);
           // Don't fail the whole operation if translation fails
         }
       }
 
       // 3. Reload categories to get fresh data with translations
       await loadCategories();
-      console.log('✅ Categories reloaded after update');
 
       // Return placeholder - UI will update when loadCategories completes
       return {
@@ -209,7 +164,6 @@ export const useCategories = (): UseCategoriesReturn => {
         translations: formData.translations
       };
     } catch (error) {
-      console.error('API Error updating category:', error);
       throw error;
     }
   };
@@ -219,7 +173,6 @@ export const useCategories = (): UseCategoriesReturn => {
       await categoriesAPI.delete(id);
       setCategories((prev: Category[]) => prev.filter((cat: Category) => cat.id !== id));
     } catch (error) {
-      console.error('API Error deleting category:', error);
       throw error;
     }
   };

@@ -24,7 +24,6 @@ const Login: React.FC = () => {
 
   // Auto clear localStorage when entering login page to prevent cache issues
   useEffect(() => {
-    console.log('🔴 Login page: Auto clearing localStorage');
     localStorage.clear();
   }, []);
 
@@ -52,16 +51,13 @@ const Login: React.FC = () => {
 
       // Step 2: Get user data to determine tenant
       const userData = await authAPI.getCurrentUser();
-      console.log('🔍 Login Debug - User Data:', userData);
 
       // ✅ IMPORTANT: Save user data to localStorage for permissions
       localStorage.setItem('user', JSON.stringify(userData));
-      console.log('✅ Saved user to localStorage:', userData);
 
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
         const tenantUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`;
-        console.log('🔍 Login Debug - Fetching tenant from:', tenantUrl);
 
         const tenantResponse = await fetch(tenantUrl, {
           headers: {
@@ -72,28 +68,17 @@ const Login: React.FC = () => {
 
         if (tenantResponse.ok) {
           const tenantData = await tenantResponse.json();
-          console.log('🔍 Login Debug - Tenant Data:', tenantData);
 
           // Save tenant info to localStorage
           localStorage.setItem('tenant_code', tenantData.code);
           localStorage.setItem('tenant_id', userData.tenant_id.toString());
           localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
-
-          console.log('🔍 Login Debug - Saved to localStorage:', {
-            tenant_code: tenantData.code,
-            tenant_id: userData.tenant_id,
-            tenant_name: tenantData.name,
-            user: userData
-          });
         } else if (tenantResponse.status === 404) {
-          console.error('❌ Tenant not found! User assigned to deleted tenant.');
           throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);
         } else {
-          console.error('Failed to fetch tenant data, response:', tenantResponse.status);
           throw new Error('Failed to load tenant information. Please try again.');
         }
       } catch (tenantError) {
-        console.error('Error fetching tenant data:', tenantError);
         // Re-throw tenant errors for user to see
         throw tenantError;
       }
@@ -120,8 +105,6 @@ const Login: React.FC = () => {
       }, 1000);
       
     } catch (err: any) {
-      console.error('Login failed:', err);
-      
       if (err.response?.data?.detail) {
         setError(err.response.data.detail);
       } else if (err.message) {

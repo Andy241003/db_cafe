@@ -41,22 +41,6 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('access_token');
     const tenantCode = getTenantCode();
     
-    // Debug log for ALL API calls to see headers
-    console.log('� API Request:', {
-      url: config.url,
-      method: config.method?.toUpperCase(),
-      tenantCode: tenantCode,
-      headers: {
-        'X-Tenant-Code': tenantCode,
-        'Authorization': token ? 'Bearer [TOKEN]' : 'None'
-      },
-      localStorage: {
-        tenant_code: localStorage.getItem('tenant_code'),
-        tenant_id: localStorage.getItem('tenant_id'),
-        tenant_name: localStorage.getItem('tenant_name')
-      }
-    });
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -60,10 +60,8 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Image uploaded successfully:', data);
           
           const imageUrl = data.url || data.file_path || data.public_url || data.path;
-          console.log('📷 Image URL to insert:', imageUrl);
           
           if (!imageUrl) {
             console.error('❌ No URL found in response:', data);
@@ -78,7 +76,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             const index = range?.index || 0;
             quill.insertEmbed(index, 'image', imageUrl);
             quill.setSelection(index + 1);
-            console.log('✅ Image inserted at position:', index);
           } else {
             console.error('❌ Quill editor not found');
           }
@@ -125,7 +122,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
       try {
         const locales = await localesApi.getLocales();
         setAvailableLocales(locales);
-        console.log('Loaded locales for post modal:', locales);
       } catch (error) {
         console.error('Failed to load locales:', error);
         // Fallback to default locales
@@ -142,16 +138,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
   }, [isOpen]);
 
   useEffect(() => {
-    console.log('=== EditPostModal useEffect ===');
-    console.log('Post prop:', post);
-
     if (post) {
-      console.log('Setting up form with post data:');
-      console.log('- Title:', post.title);
-      console.log('- Content:', post.content);
-      console.log('- Slug:', post.slug);
-      console.log('- VR360 URL:', post.vr360_url);
-
       setPostForm({
         locale: post.locale || 'en',
         title: post.title || '',
@@ -178,8 +165,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('=== SUBMITTING POST ===');
-    console.log('Post form data:', postForm);
     onSave(postForm);
   };
 

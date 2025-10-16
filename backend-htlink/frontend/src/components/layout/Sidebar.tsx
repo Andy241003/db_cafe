@@ -15,18 +15,6 @@ const Sidebar: React.FC = () => {
   const [currentPropertyName, setCurrentPropertyName] = useState<string>('Loading...');
   const permissions = usePermissions();
 
-  // Debug permissions
-  useEffect(() => {
-    console.log('🔐 Sidebar Permissions:', {
-      role: permissions.role,
-      isOwner: permissions.isOwner,
-      isAdmin: permissions.isAdmin,
-      canManageUsers: permissions.canManageUsers,
-      canManageTenant: permissions.canManageTenant,
-      allPermissions: permissions
-    });
-  }, [permissions]);
-
   // Load current property name
   useEffect(() => {
     const loadPropertyName = async () => {
@@ -103,7 +91,6 @@ const Sidebar: React.FC = () => {
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
       // In a real app, you'd clear tokens, etc.
-      console.log("Logging out...");
       navigate("/login");
     }
   };

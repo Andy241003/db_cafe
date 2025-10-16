@@ -67,11 +67,9 @@ export const usePermissions = (): Permissions => {
   useEffect(() => {
     // Get user from localStorage
     const userStr = localStorage.getItem('user');
-    console.log('🔍 usePermissions - localStorage user:', userStr);
     if (userStr) {
       try {
         const userData = JSON.parse(userStr);
-        console.log('🔍 usePermissions - parsed user:', userData);
         setUser(userData);
       } catch (error) {
         console.error('Failed to parse user data:', error);
@@ -80,7 +78,6 @@ export const usePermissions = (): Permissions => {
   }, []);
 
   const role = user?.role?.toUpperCase() as UserRole | null;
-  console.log('🔍 usePermissions - computed role:', role, 'from user.role:', user?.role);
 
   // Helper functions
   const isOwner = role === 'OWNER';

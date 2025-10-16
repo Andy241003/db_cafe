@@ -92,7 +92,6 @@ class MediaApiService {
     
     // Use kind directly since backend now expects lowercase
     const backendKind = kind;
-    console.log('🔄 Converting kind:', kind, '→', backendKind);
 
     // Kind goes in query params, not form data - BACK TO ORIGINAL
     const response = await mediaApiClient.post(`/media/upload?kind=${backendKind}`, formData, {
@@ -118,7 +117,6 @@ class MediaApiService {
     files: File[], 
     kind: 'image' | 'video' | 'file' = 'image'
   ): Promise<UploadResponse[]> {
-    console.log('🔄 Uploading', files.length, 'files with kind:', kind);
     const uploadPromises = files.map(file => this.uploadFile(file, kind));
     return Promise.all(uploadPromises);
   }
@@ -155,7 +153,6 @@ class MediaApiService {
     try {
       await mediaApiClient.delete(`/media/${mediaId}`);
     } catch (error) {
-      console.error('Delete API error:', error);
       throw error;
     }
   }
@@ -165,16 +162,10 @@ class MediaApiService {
    */
   async downloadMediaFile(mediaId: number, filename: string): Promise<void> {
     try {
-      console.log(`🔽 Downloading file ID: ${mediaId}, filename: ${filename}`);
-      
       const response = await mediaApiClient.get(`/media/${mediaId}/download`, {
         responseType: 'blob',
         timeout: 30000, // 30 second timeout for large files
       });
-      
-      console.log(`📦 Received blob:`, response.data);
-      console.log(`📋 Content type:`, response.headers['content-type']);
-      console.log(`📏 File size:`, response.data.size);
       
       // Create blob with proper content type
       const contentType = response.headers['content-type'] || 'application/octet-stream';
@@ -189,8 +180,6 @@ class MediaApiService {
           downloadFilename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
-      
-      console.log(`💾 Downloading as: ${downloadFilename}`);
       
       // Create blob URL and trigger download
       const url = window.URL.createObjectURL(blob);
@@ -207,7 +196,6 @@ class MediaApiService {
         window.URL.revokeObjectURL(url);
       }, 100);
     } catch (error) {
-      console.error('Download API error:', error);
       throw error;
     }
   }
