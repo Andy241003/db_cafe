@@ -28,6 +28,7 @@ class ActivityType(str, enum.Enum):
     CREATE_POST = "create_post"
     UPDATE_POST = "update_post"
     DELETE_POST = "delete_post"
+    TRANSLATE_POST = "translate_post"
     PUBLISH_POST = "publish_post"
     ARCHIVE_POST = "archive_post"
 

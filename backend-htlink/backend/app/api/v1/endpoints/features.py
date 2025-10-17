@@ -7,7 +7,7 @@ from app import crud
 from app.api.deps import SessionDep, CurrentUser, CurrentTenantId
 from app.models import Feature, FeatureCategory
 from app.models.activity_log import ActivityType
-from app.utils.decorators.track_activity import track_activity
+from app.utils.activity_logger import log_activity
 from app.schemas import (
     FeatureCategoryCreate,
     FeatureCategoryResponse,
@@ -158,7 +158,6 @@ def create_feature_test(
     return feature
 
 @router.post("/", response_model=FeatureResponse)
-@track_activity(ActivityType.CREATE_FEATURE, message_template="Feature '{feature_in.title}' created by {current_user.email}")
 def create_feature(
     *,
     session: SessionDep,
@@ -176,6 +175,21 @@ def create_feature(
     
     feature_in.tenant_id = tenant_id
     feature = crud.feature.create(session, obj_in=feature_in)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=tenant_id,
+        activity_type=ActivityType.CREATE_FEATURE,
+        details={
+            "message": f"Feature '{feature.slug}' created by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "feature_id": feature.id,
+            "feature_slug": feature.slug
+        }
+    )
+    
     return feature
 
 
@@ -195,7 +209,6 @@ def read_feature(
 
 
 @router.put("/{feature_id}", response_model=FeatureResponse)
-@track_activity(ActivityType.UPDATE_FEATURE, message_template="Feature updated by {current_user.email}")
 def update_feature(
     *,
     session: SessionDep,
@@ -216,11 +229,25 @@ def update_feature(
         raise HTTPException(status_code=404, detail="Feature not found")
     
     feature = crud.feature.update(session, db_obj=feature, obj_in=feature_in)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.UPDATE_FEATURE,
+        details={
+            "message": f"Feature '{feature.slug}' updated by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "feature_id": feature.id,
+            "feature_slug": feature.slug
+        }
+    )
+    
     return feature
 
 
 @router.delete("/{feature_id}")
-@track_activity(ActivityType.DELETE_FEATURE, message_template="Feature deleted by {current_user.email}")
 def delete_feature(
     *,
     session: SessionDep,
@@ -239,5 +266,21 @@ def delete_feature(
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
 
+    feature_slug = feature.slug  # Save before deletion
     crud.feature.remove(session, id=feature_id)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.DELETE_FEATURE,
+        details={
+            "message": f"Feature '{feature_slug}' deleted by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "feature_id": feature_id,
+            "feature_slug": feature_slug
+        }
+    )
+    
     return {"detail": "Feature deleted"}

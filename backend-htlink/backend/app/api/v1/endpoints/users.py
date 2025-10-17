@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentUser, SessionDep, TenantUser, get_tenant_from_header
 from app.models import AdminUser
 from app.models.activity_log import ActivityType
-from app.utils.decorators.track_activity import track_activity
+from app.utils.activity_logger import log_activity
 from app.schemas import (
     AdminUserCreate, AdminUserResponse, AdminUserUpdate, 
     AdminUserPasswordUpdate
@@ -95,7 +95,6 @@ def read_users(
 
 
 @router.post("/", response_model=AdminUserResponse)
-@track_activity(ActivityType.CREATE_USER, message_template="User '{user_in.email}' created by {current_user.email}")
 def create_user(
     *,
     session: SessionDep,
@@ -114,11 +113,25 @@ def create_user(
     user_in.tenant_id = tenant_id
     
     user = crud.admin_user.create(session, obj_in=user_in)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=tenant_id,
+        activity_type=ActivityType.CREATE_USER,
+        details={
+            "message": f"User '{user.email}' created by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "created_user_id": user.id,
+            "created_user_email": user.email
+        }
+    )
+    
     return user
 
 
 @router.put("/{user_id}", response_model=AdminUserResponse)
-@track_activity(ActivityType.UPDATE_USER, message_template="User updated by {current_user.email}")
 def update_user(
     *,
     session: SessionDep,
@@ -147,6 +160,21 @@ def update_user(
         raise HTTPException(status_code=403, detail="Cannot modify owner user")
     
     user = crud.admin_user.update(session, db_obj=user, obj_in=user_in)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=tenant_id,
+        activity_type=ActivityType.UPDATE_USER,
+        details={
+            "message": f"User '{user.email}' updated by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "updated_user_id": user.id,
+            "updated_user_email": user.email
+        }
+    )
+    
     return user
 
 
@@ -176,7 +204,6 @@ def read_user(
 
 
 @router.delete("/{user_id}")
-@track_activity(ActivityType.DELETE_USER, message_template="User deleted by {current_user.email}")
 def delete_user(
     *,
     session: SessionDep,
@@ -196,6 +223,8 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     print(f"🗑️ DELETE USER: target_user_id={user_id}, target_user_role={user.role.lower()}, target_user_tenant_id={user.tenant_id}")
+    
+    user_email = user.email  # Save before deletion
     
     # Permission check (case-insensitive)
     current_role = current_user.role.lower()
@@ -226,4 +255,19 @@ def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
     
     crud.admin_user.remove(session, id=user_id)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=tenant_id,
+        activity_type=ActivityType.DELETE_USER,
+        details={
+            "message": f"User '{user_email}' deleted by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "deleted_user_id": user_id,
+            "deleted_user_email": user_email
+        }
+    )
+    
     return {"message": "User deleted successfully"}

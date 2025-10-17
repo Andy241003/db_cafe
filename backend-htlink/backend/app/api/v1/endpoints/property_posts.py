@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 
 from app.api.deps import get_current_user, SessionDep
 from app.models import AdminUser
+from app.models.activity_log import ActivityType
+from app.utils.activity_logger import log_activity
 from app.models.property_posts import (
     PropertyPost,
     PropertyPostCreate,
@@ -31,6 +33,21 @@ def create_property_post(
     # This would require additional logic to verify property belongs to user's tenant
     
     post = crud_property_posts.create_property_post(session, post_in)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.CREATE_POST,
+        details={
+            "message": f"Post '{post.slug}' created by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "post_id": post.id,
+            "post_slug": post.slug
+        }
+    )
+    
     return post
 
 
@@ -110,6 +127,21 @@ def update_property_post(
     post = crud_property_posts.update_property_post(session, post_id, post_in)
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.UPDATE_POST,
+        details={
+            "message": f"Post '{post.slug}' updated by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "post_id": post.id,
+            "post_slug": post.slug
+        }
+    )
+    
     return post
 
 
@@ -123,9 +155,29 @@ def delete_property_post(
     """
     Delete a property post.
     """
-    success = crud_property_posts.delete_property_post(session, post_id)
-    if not success:
+    # Get post info before deletion for logging
+    post = crud_property_posts.get_property_post(session, post_id)
+    if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
+    
+    post_slug = post.slug
+    success = crud_property_posts.delete_property_post(session, post_id)
+    
+    if success:
+        # Log activity
+        log_activity(
+            db=session,
+            tenant_id=current_user.tenant_id,
+            activity_type=ActivityType.DELETE_POST,
+            details={
+                "message": f"Post '{post_slug}' deleted by {current_user.email}",
+                "user_id": current_user.id,
+                "username": current_user.email,
+                "post_id": post_id,
+                "post_slug": post_slug
+            }
+        )
+    
     return {"message": "Property post deleted successfully"}
 
 
@@ -179,6 +231,21 @@ def create_property_post_translation(
     session.refresh(db_translation)
 
     print(f"[PROPERTY_POSTS] Translation created id=(post_id={db_translation.post_id}, locale={db_translation.locale})", flush=True)
+    
+    # Log activity
+    log_activity(
+        db=session,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.TRANSLATE_POST,
+        details={
+            "message": f"Post translation ({translation_in.locale}) created by {current_user.email}",
+            "user_id": current_user.id,
+            "username": current_user.email,
+            "post_id": post_id,
+            "locale": translation_in.locale
+        }
+    )
+    
     return db_translation
 
 
