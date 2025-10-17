@@ -790,12 +790,26 @@ const Features: React.FC = () => {
   };
 
   const getIconClass = (iconName: string) => {
+    // If iconName is empty or undefined, return default
+    if (!iconName) {
+      return 'fas fa-file-alt';
+    }
+
     // Map custom icon names to actual FontAwesome class names
     const iconMap: Record<string, string> = {
+      // Common icons
+      'lock': 'lock',
+      'safe': 'lock',
+      'vault': 'vault',
+      'shield': 'shield-alt',
+      'security': 'shield-alt',
+      
       // Check-in/out & Access
       'check-in': 'sign-in-alt',
       'check-out': 'sign-out-alt',
       'access': 'key',
+      'key': 'key',
+      'door': 'door-open',
       
       // Amenities & Services
       'hot-tub-person': 'hot-tub',
@@ -867,14 +881,123 @@ const Features: React.FC = () => {
       'evacuation-plan': 'route',
       'covid-measures': 'shield-virus',
       'accommodation-terms': 'file-contract',
+      
+      // Additional common icons
+      'wifi': 'wifi',
+      'parking': 'parking',
+      'restaurant': 'utensils',
+      'gym': 'dumbbell',
+      'spa': 'spa',
+      'swimming-pool': 'swimming-pool',
+      'bar': 'glass-martini-alt',
+      'coffee': 'coffee',
+      'breakfast': 'bacon',
+      'luggage': 'suitcase-rolling',
+      'taxi': 'taxi',
+      'airport': 'plane',
+      'train': 'train',
+      'metro': 'subway',
+      'bus': 'bus',
+      'car': 'car',
+      'bicycle': 'bicycle',
+      'walk': 'walking',
+      'wheelchair': 'wheelchair',
+      'elevator': 'elevator',
+      'stairs': 'stairs',
+      'smoking': 'smoking',
+      'no-smoking': 'smoking-ban',
+      'pet': 'paw',
+      'child': 'child',
+      'family': 'users',
+      'laundry': 'tshirt',
+      'iron': 'iron',
+      'hairdryer': 'fan',
+      'tv': 'tv',
+      'phone': 'phone',
+      'computer': 'desktop',
+      'printer': 'print',
+      'fax': 'fax',
+      'meeting': 'handshake',
+      'presentation': 'presentation',
+      'conference': 'users',
+      'event': 'calendar-alt',
+      'wedding': 'ring',
+      'party': 'glass-cheers',
+      'music': 'music',
+      'cinema': 'film',
+      'game': 'gamepad',
+      'book': 'book',
+      'newspaper': 'newspaper',
+      'shopping': 'shopping-bag',
+      'gift': 'gift',
+      'credit-card': 'credit-card',
+      'money': 'money-bill',
+      'atm': 'money-bill-wave',
+      'exchange': 'exchange-alt',
+      'first-aid': 'first-aid',
+      'pharmacy': 'pills',
+      'doctor': 'user-md',
+      'hospital': 'hospital',
+      'ambulance': 'ambulance',
+      'fire': 'fire-extinguisher',
+      'police': 'shield-alt',
+      'info': 'info-circle',
+      'help': 'question-circle',
+      'warning': 'exclamation-triangle',
+      'danger': 'exclamation-circle',
+      'success': 'check-circle',
+      'error': 'times-circle',
+      'star': 'star',
+      'heart': 'heart',
+      'home': 'home',
+      'building': 'building',
+      'hotel': 'hotel',
+      'bed': 'bed',
+      'bath': 'bath',
+      'shower': 'shower',
+      'toilet': 'toilet',
+      'kitchen': 'utensils',
+      'fridge': 'cube',
+      'microwave': 'cube',
+      'oven': 'fire',
+      'dishwasher': 'sink',
+      'washer': 'tshirt',
+      'dryer': 'wind',
+      'ac': 'snowflake',
+      'heat': 'fire',
+      'fan': 'fan',
+      'light': 'lightbulb',
+      'window': 'window-maximize',
+      'balcony': 'door-open',
+      'terrace': 'umbrella-beach',
+      'garden': 'tree',
+      'view': 'eye',
+      'mountain': 'mountain',
+      'beach': 'umbrella-beach',
+      'sea': 'water',
+      'lake': 'water',
+      'river': 'water',
+      'forest': 'tree',
+      'park': 'tree',
+      'city': 'city',
+      'map': 'map-marked-alt',
+      'location': 'map-marker-alt',
+      'compass': 'compass',
+      'flag': 'flag',
     };
 
-    // Get mapped icon or use original
-    const mappedIcon = iconMap[iconName] || iconName;
+    // Normalize iconName (lowercase, trim)
+    const normalizedName = iconName.toLowerCase().trim();
     
+    // Get mapped icon or use original
+    const mappedIcon = iconMap[normalizedName] || normalizedName;
+    
+    // If already has fa- prefix, return as is with fas
     if (mappedIcon.startsWith('fa-')) {
       return `fas ${mappedIcon}`;
     }
+    
+    // Otherwise add fa- prefix
     return `fas fa-${mappedIcon}`;
   }
 
