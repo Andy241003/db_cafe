@@ -35,18 +35,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       editorRef.current?.focus();
 
       // Execute the command
-      const success = document.execCommand(command, false, value);
-
-      if (!success) {
-        console.warn(`Command "${command}" failed to execute`);
-      }
+      document.execCommand(command, false, value);
 
       // Update the content
       if (editorRef.current) {
         onChange(editorRef.current.innerHTML);
       }
     } catch (error) {
-      console.error(`Error executing command "${command}":`, error);
+      // Command execution failed silently
     }
   };
 

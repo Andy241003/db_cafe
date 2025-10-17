@@ -71,11 +71,9 @@ const Properties: React.FC = () => {
   const handleCloseAddHotelModal = () => setIsAddHotelModalOpen(false);
 
   const handleAddPost = (hotelId: string) => {
-    console.log('Add Post clicked for hotel:', hotelId);
     setCurrentHotelId(hotelId);
     setCurrentEditingPost(null);
     setIsEditPostModalOpen(true);
-    console.log('Modal should be open now');
   };
 
   const handleEditPost = (post: HotelPost) => {
@@ -103,7 +101,6 @@ const Properties: React.FC = () => {
           await deleteHotelPost(postId);
           toast.success("Hotel post deleted successfully!");
         } catch (error) {
-          console.error("Error deleting post:", error);
           toast.error("Failed to delete hotel post.");
         }
       },
@@ -116,28 +113,21 @@ const Properties: React.FC = () => {
       handleCloseAddHotelModal();
       showNotification("Hotel created successfully!", "success");
     } catch (error) {
-      console.error("Error creating hotel:", error);
       showNotification("Failed to create hotel.", "error");
     }
   };
 
   const handleSavePost = async (postData: any) => {
-    console.log('Save Post called with data:', postData);
-    console.log('Current hotel ID:', currentHotelId);
-    console.log('Is editing?', !!currentEditingPost);
-    
     try {
       if (currentEditingPost) {
         await updateHotelPost({ ...currentEditingPost, ...postData });
         showNotification("Post updated successfully!", "success");
       } else {
-        console.log('Creating new post...');
         await createHotelPost(currentHotelId, postData);
         showNotification("Post created successfully!", "success");
       }
       setIsEditPostModalOpen(false);
     } catch (error) {
-      console.error("Error saving post:", error);
       showNotification("Failed to save post.", "error");
     }
   };
@@ -152,14 +142,12 @@ const Properties: React.FC = () => {
           locale: translationData.locale,
           status: 'draft'
         };
-        console.log('Creating new property post from translation for hotel:', currentHotelId, postData);
         await createHotelPost(currentHotelId, postData);
         setIsTranslateModalOpen(false);
         showNotification('Post created from translation successfully!', 'success');
         // Force refresh to ensure the newly created post appears in the list
         await refreshProperties();
       } catch (error) {
-        console.error('Error creating post from translation:', error);
         showNotification('Failed to create post from translation.', 'error');
       }
       return;
@@ -173,7 +161,6 @@ const Properties: React.FC = () => {
         showNotification('Translation saved successfully!', 'success');
         await refreshProperties();
       } catch (error) {
-        console.error('Error saving translation (fallback):', error);
         showNotification('Failed to save translation.', 'error');
       }
     }
@@ -196,7 +183,6 @@ const Properties: React.FC = () => {
           await deleteHotel(hotelId);
           toast.success("Hotel deleted successfully!");
         } catch (error) {
-          console.error("Error deleting hotel:", error);
           toast.error("Failed to delete hotel.");
         }
       },
@@ -211,7 +197,6 @@ const Properties: React.FC = () => {
       setIsEditHotelModalOpen(false);
       setCurrentEditingHotel(null);
     } catch (error) {
-      console.error("Error updating hotel:", error);
       showNotification("Failed to update hotel.", "error");
     }
   };

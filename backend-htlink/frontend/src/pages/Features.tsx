@@ -7,7 +7,7 @@ import EditPostModal from '../components/features/EditPostModal';
 import TranslateModal from '../components/features/TranslateModal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useFeaturesQuery } from '../hooks/useFeaturesQuery';
-import { useCategoriesQuery } from '../hooks/useCategoriesQuery';
+import { useCategories } from '../hooks/useCategories';
 import type { UIPost } from '../services/api';
 import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
 import { autoDetectLanguage } from '../utils/languageDetection';
@@ -38,7 +38,7 @@ interface FormData {
 const Features: React.FC = () => {
   // Use React Query hooks for data fetching
   const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeaturesQuery();
-  const { categories, loading: categoriesLoading } = useCategoriesQuery();
+  const { categories, loading: categoriesLoading } = useCategories();
   
   // Read URL query params
   const [searchParams] = useSearchParams();
@@ -51,6 +51,9 @@ const Features: React.FC = () => {
   
   // Track posts count per feature (lightweight - loaded upfront)
   const [postsCounts, setPostsCounts] = useState<Map<number, number>>(new Map());
+
+  // Track current UI locale for translations
+  const [currentLocale, setCurrentLocale] = useState<string>((localStorage.getItem('locale') || 'en').toLowerCase());
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -161,7 +164,14 @@ const Features: React.FC = () => {
 
   // Trigger auto-detect on mount
   useEffect(() => {
-    autoDetectLanguage();
+    const initLocale = async () => {
+      await autoDetectLanguage();
+      // Force update current locale state after auto-detect completes
+      const locale = (localStorage.getItem('locale') || 'en').toLowerCase();
+      setCurrentLocale(locale);
+    };
+    
+    initLocale();
   }, []);
 
   // Convert API features to LocalFeature format when data loads (WITHOUT loading posts)
@@ -170,9 +180,7 @@ const Features: React.FC = () => {
     if (apiFeatures.length > 0 && categories.length > 0) {
       const convertFeatures = () => {
         // Get current locale from localStorage (set by auto-detect or user selection)
-        const uiLocale = (localStorage.getItem('locale') || 'en').toLowerCase();
-        
-        console.log(`🌍 Converting features with UI locale: ${uiLocale}`);
+        const uiLocale = currentLocale;
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
           // Find category by id to get slug for filtering
@@ -213,32 +221,34 @@ const Features: React.FC = () => {
 
       convertFeatures();
     }
-  }, [apiFeatures, categories, loadedPosts]); // Re-run when posts cache updates
+  }, [apiFeatures, categories, loadedPosts, currentLocale]); // Re-run when posts cache updates OR locale changes
   
   // Listen for locale changes from localStorage
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'locale' && e.newValue) {
-        console.log(`🔄 Locale changed to: ${e.newValue}, re-converting features...`);
+        // Update current locale state
+        setCurrentLocale((e.newValue || 'en').toLowerCase());
         // Trigger re-conversion by updating a state that's in the dependency array
         // Features will auto-update via the useEffect above
-        window.location.reload(); // Simple approach: reload page
+        // window.location.reload(); // Simple approach: reload page - NO LONGER NEEDED
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     
-    // Also listen for custom event for same-tab updates
-    const handleLocaleChange = () => {
-      console.log('🔄 Locale changed (same tab), re-converting features...');
-      window.location.reload();
-    };
+    // Also listen for custom event for same-tab updates (match event name from languageDetection.ts)
     
-    window.addEventListener('localeChanged', handleLocaleChange);
+    const handleLocaleChange = () => {
+      const newLocale = (localStorage.getItem('locale') || 'en').toLowerCase();
+      setCurrentLocale(newLocale);
+      // window.location.reload(); - NO LONGER NEEDED
+    };
+        window.addEventListener('locale-changed', handleLocaleChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('localeChanged', handleLocaleChange);
+      window.removeEventListener('locale-changed', handleLocaleChange);
     };
   }, []);
   
@@ -350,8 +360,6 @@ const Features: React.FC = () => {
               
               // Reload posts if expanded
               if (expandedFeatures.has(featureId)) {
-                console.log(`🔄 Auto-refreshing after deleting translation...`);
-                
                 const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
                 
                 // Update cache
@@ -364,7 +372,6 @@ const Features: React.FC = () => {
                     f.id === featureId ? { ...f, posts: freshPosts } : f
                   )
                 );
-                console.log(`✅ Posts refreshed! Remaining: ${freshPosts.length} posts`);
               }
             } catch (refreshError) {
               console.error('Refresh error:', refreshError);
@@ -400,8 +407,6 @@ const Features: React.FC = () => {
               
               // Reload posts if expanded
               if (expandedFeatures.has(featureId)) {
-                console.log(`🔄 Auto-refreshing after deleting post...`);
-                
                 const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
                 
                 // Update cache
@@ -414,7 +419,6 @@ const Features: React.FC = () => {
                     f.id === featureId ? { ...f, posts: freshPosts } : f
                   )
                 );
-                console.log(`✅ Posts refreshed! Remaining: ${freshPosts.length} posts`);
               }
             } catch (refreshError) {
               console.error('Refresh error:', refreshError);
@@ -569,7 +573,6 @@ const Features: React.FC = () => {
           
           // 3. Force reload posts immediately (if feature is expanded)
           if (expandedFeatures.has(featureId)) {
-            console.log(`🔄 Auto-refreshing posts for feature ${featureId}...`);
             const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
             
             // Update cache
@@ -583,7 +586,6 @@ const Features: React.FC = () => {
                 f.id === featureId ? { ...f, posts: freshPosts } : f
               )
             );
-            console.log(`✅ Posts refreshed successfully! Found ${freshPosts.length} posts`);
           }
         } catch (refreshError) {
           console.error('Refresh error:', refreshError);
@@ -762,7 +764,6 @@ const Features: React.FC = () => {
           
           // 3. Force reload posts (if feature is expanded)
           if (expandedFeatures.has(featureId)) {
-            console.log(`🔄 Auto-refreshing posts after translation for feature ${featureId}...`);
             
             const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
             
@@ -776,7 +777,6 @@ const Features: React.FC = () => {
                 f.id === featureId ? { ...f, posts: freshPosts } : f
               )
             );
-            console.log(`✅ Translation refreshed successfully! Found ${freshPosts.length} posts`);
           }
         } catch (refreshError) {
           console.error('Translation refresh error:', refreshError);
@@ -1098,12 +1098,8 @@ const Features: React.FC = () => {
             <option disabled>Loading categories...</option>
           ) : (
             categories.map(category => {
-              // Use same locale detection as features
-              const storedLocale = localStorage.getItem('locale');
-              const browserLang = (navigator.language || (navigator as any).userLanguage || 'en').split('-')[0].toLowerCase();
-              const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-              const userLocale = currentUser.default_locale || currentUser.locale;
-              const uiLocale = (storedLocale || browserLang || userLocale || 'en').toLowerCase();
+              // Use current locale from state (synced with auto-detect and user selection)
+              const uiLocale = currentLocale;
               
               // Get translated title with fallback chain: uiLocale → en → name → formatted slug
               const categoryTitle = category.translations?.[uiLocale]?.title || 

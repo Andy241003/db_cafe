@@ -39,7 +39,6 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   // Removed click outside handler since we're using inline grid now
 
   const handleIconSelect = (iconName: string) => {
-    console.log('Icon selected:', iconName);
     onSelect(iconName);
   };
 
@@ -65,7 +64,6 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Icon selected:', name);
                 handleIconSelect(name);
               }}
               title={name.replace('fa-', '').replace('-', ' ')}

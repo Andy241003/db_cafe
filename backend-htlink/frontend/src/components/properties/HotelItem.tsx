@@ -144,7 +144,6 @@ export const HotelItem: React.FC<HotelItemProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   if (hotel.posts.length > 0) return; // disable when posts exist
-                  console.log('Add Post button clicked');
                   onAddPost();
                 }}
                 title={hotel.posts.length > 0 ? 'Post already exists — use Translate button to add another locale' : 'Add Post'}

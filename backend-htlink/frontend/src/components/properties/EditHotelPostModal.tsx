@@ -64,14 +64,11 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Image uploaded successfully:', data);
           
           // Try multiple possible URL fields
           const imageUrl = data.url || data.file_path || data.public_url || data.path;
-          console.log('📷 Image URL to insert:', imageUrl);
           
           if (!imageUrl) {
-            console.error('❌ No URL found in response:', data);
             alert('Image uploaded but URL not found in response');
             return;
           }
@@ -82,17 +79,11 @@ export const EditHotelPostModal: React.FC<EditHotelPostModalProps> = ({
             const index = range?.index || 0;
             quill.insertEmbed(index, 'image', imageUrl);
             quill.setSelection(index + 1);
-            console.log('✅ Image inserted at position:', index);
-          } else {
-            console.error('❌ Quill editor not found');
           }
         } else {
-          const errorText = await response.text();
-          console.error('❌ Upload failed:', response.status, errorText);
           alert(`Failed to upload image: ${response.status}`);
         }
       } catch (error) {
-        console.error('Image upload error:', error);
         alert('Error uploading image');
       }
     };

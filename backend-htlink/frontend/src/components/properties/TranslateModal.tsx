@@ -56,17 +56,13 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
     const loadLocales = async () => {
       try {
-        console.log('🔄 [Properties] Loading locales for TranslateModal...');
-
         // Get property settings to check supported languages
         const propertyId = localStorage.getItem('selected_property_id');
 
         // Always get all locales first
         const allLocales = await localesApi.getLocales();
-        console.log('📋 [Properties] All locales from API:', allLocales.length, allLocales.map(l => l.code));
 
         if (!propertyId) {
-          console.log('⚠️ [Properties] No property selected, using all locales');
           setLanguages(allLocales);
           return;
         }
@@ -82,19 +78,15 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         if (response.ok) {
           const property = await response.json();
           const supportedLanguages = property.settings_json?.localization?.supportedLanguages || ['en', 'vi'];
-          console.log('✅ [Properties] Property supported languages:', supportedLanguages);
 
           // Filter by supported languages
           const filtered = allLocales.filter(locale => supportedLanguages.includes(locale.code));
-          console.log('✅ [Properties] Filtered locales:', filtered.length, filtered.map(l => l.code));
 
           setLanguages(filtered.length > 0 ? filtered : allLocales);
         } else {
-          console.log('⚠️ [Properties] Failed to fetch property, using all locales');
           setLanguages(allLocales);
         }
       } catch (error) {
-        console.error('❌ [Properties] Failed to load locales:', error);
         // Fallback to basic locales
         const fallback = [
           { code: 'en', name: 'English', native_name: 'English' },
@@ -102,7 +94,6 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
           { code: 'ja', name: 'Japanese', native_name: '日本語' },
           { code: 'ko', name: 'Korean', native_name: '한국어' }
         ];
-        console.log('⚠️ [Properties] Using fallback locales:', fallback.map(l => l.code));
         setLanguages(fallback);
       }
     };
@@ -137,8 +128,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
               setTranslatedContent(getTranslatedContent(defaultLang, post.content));
             }
           })
-          .catch(e => {
-            console.warn('[TranslateModal] auto-translate failed on open, using fallback', e);
+          .catch(() => {
             setTranslatedContent(getTranslatedContent(defaultLang, post.content));
           })
           .finally(() => {
@@ -182,8 +172,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         const formattedContent = formatHTML(results[0]);
         setTranslatedContent(formattedContent);
       }
-    } catch (e) {
-      console.warn('Translation regenerate failed, falling back to mock', e);
+    } catch {
       setTranslatedContent(getTranslatedContent(targetLanguage, originalContent) + ' (regenerated)');
     } finally {
       setIsRegenerating(false);
@@ -205,8 +194,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         const formattedContent = formatHTML(results[0]);
         setTranslatedContent(formattedContent);
       }
-    } catch (e) {
-      console.warn('[TranslateModal] translateToLanguage failed', e);
+    } catch {
       setTranslatedContent(getTranslatedContent(lang, originalContent));
     } finally {
       setIsRegenerating(false);
@@ -227,9 +215,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faLanguage} className="text-xl text-slate-600" />
             <h2 className="text-lg font-bold text-slate-800">Translate Post</h2>
-            <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold rounded-full">
-              ⚡ DeepL Powered
-            </span>
+            
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
             <FontAwesomeIcon icon={faTimes} className="text-slate-600" />

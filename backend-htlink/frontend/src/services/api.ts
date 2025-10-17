@@ -274,7 +274,7 @@ export const propertiesAPI = {
 // Features API
 export const featuresAPI = {
   getAll: async (): Promise<Feature[]> => {
-    const response: AxiosResponse<Feature[]> = await apiClient.get('/features/');
+    const response: AxiosResponse<Feature[]> = await apiClient.get('/features/?include_translations=true');
     return response.data;
   },
 

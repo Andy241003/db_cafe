@@ -92,7 +92,6 @@ export const usePropertiesApi = () => {
             const posts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotel.id));
             return { ...hotel, posts };
           } catch (error) {
-            console.error(`Error loading posts for hotel ${hotel.id}:`, error);
             return { ...hotel, posts: [] };
           }
         })
@@ -100,7 +99,6 @@ export const usePropertiesApi = () => {
       
       setHotels(hotelsWithPosts);
     } catch (error) {
-      console.error('Error loading properties:', error);
       // Set empty array on error
       setHotels([]);
     } finally {
@@ -147,7 +145,6 @@ export const usePropertiesApi = () => {
       
       return newHotel;
     } catch (error) {
-      console.error('Error creating hotel:', error);
       throw error;
     }
   };
@@ -156,7 +153,6 @@ export const usePropertiesApi = () => {
   const updateHotel = async (hotelId: string, formData: Partial<HotelFormData>) => {
     try {
       const apiData = transformUIToApiPropertyUpdate(formData);
-      console.log('Updating hotel with data:', apiData);
       const updatedProperty = await propertiesApi.updateProperty(parseInt(hotelId), apiData);
       const updatedHotel = transformApiPropertyToUI(updatedProperty);
       
@@ -165,12 +161,6 @@ export const usePropertiesApi = () => {
       ));
       return updatedHotel;
     } catch (error) {
-      console.error('Error updating hotel:', error);
-      if (error instanceof Error && 'response' in error) {
-        const axiosError = error as any;
-        console.error('Response data:', axiosError.response?.data);
-        console.error('Response status:', axiosError.response?.status);
-      }
       throw error;
     }
   };
@@ -181,7 +171,6 @@ export const usePropertiesApi = () => {
       await propertiesApi.deleteProperty(parseInt(hotelId));
       setHotels(prev => prev.filter(hotel => hotel.id !== hotelId));
     } catch (error) {
-      console.error('Error deleting hotel:', error);
       throw error;
     }
   };
@@ -214,9 +203,7 @@ export const usePropertiesApi = () => {
         ]
       };
 
-      console.log('Creating property post via API (with translations):', apiPostData);
       const createdPost = await propertyPostsApi.createPropertyPost(apiPostData);
-      console.log('Property post created successfully:', createdPost);
 
       // Reload posts for this specific hotel to get fresh data
       try {
@@ -230,35 +217,23 @@ export const usePropertiesApi = () => {
         setHotels(prev => prev.map(hotel => {
           if (hotel.id === hotelId) {
             const updatedPosts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotelId));
-
-            console.log(`Updated hotel ${hotel.name} with ${updatedPosts.length} posts`);
             return { ...hotel, posts: updatedPosts };
           }
           return hotel;
         }));
 
-        console.log('=== Property post creation completed ===');
         return createdPost;
       } catch (reloadError) {
-        console.error('Error reloading posts after creation:', reloadError);
         // Fallback: reload all data if post reload fails
         await loadProperties();
         return createdPost;
       }
     } catch (error) {
-      console.error('Error creating property post:', error);
-      if (error instanceof Error && 'response' in error) {
-        const axiosError = error as any;
-        console.error('Response data:', axiosError.response?.data);
-        console.error('Response status:', axiosError.response?.status);
-      }
       throw error;
     }
   };
 
   const updateHotelPost = async (postData: HotelPost) => {
-    console.log('Updating property post:', postData);
-
     // Prepare update data for propertyPostsApi - backend expects translations with locale + content
     const locale = postData.locale || (postData.translations && postData.translations[0]?.locale) || 'en';
     
