@@ -55,19 +55,8 @@ const Features: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   
-  // Load expanded features from localStorage (persist between page loads)
-  const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(() => {
-    try {
-      const saved = localStorage.getItem('expandedFeatures');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return new Set(parsed);
-      }
-    } catch (error) {
-      console.error('Failed to load expanded features from localStorage:', error);
-    }
-    return new Set();
-  });
+  // Track which features are expanded (no persistence - starts collapsed)
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(new Set());
 
   // Set category filter from URL query param
   useEffect(() => {
@@ -244,26 +233,6 @@ const Features: React.FC = () => {
     }
   }, [apiFeatures, categories, loadedPosts]); // Re-run when posts cache updates
   
-  // Load posts for expanded features restored from localStorage
-  useEffect(() => {
-    if (features.length > 0 && expandedFeatures.size > 0) {
-      // Load posts for each expanded feature (from localStorage)
-      expandedFeatures.forEach(featureId => {
-        // Verify feature still exists
-        const featureExists = features.some(f => f.id === featureId);
-        if (featureExists && !loadedPosts.has(featureId)) {
-          loadPostsForFeature(featureId).then(posts => {
-            setFeatures(prevFeatures =>
-              prevFeatures.map(f =>
-                f.id === featureId ? { ...f, posts } : f
-              )
-            );
-          });
-        }
-      });
-    }
-  }, [features.length]); // Run when features first populate
-  
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isEditFeatureModalOpen, setIsEditFeatureModalOpen] = useState(false);
@@ -316,13 +285,6 @@ const Features: React.FC = () => {
           )
         );
       }
-    }
-    
-    // Save to localStorage for persistence
-    try {
-      localStorage.setItem('expandedFeatures', JSON.stringify(Array.from(newExpanded)));
-    } catch (error) {
-      console.error('Failed to save expanded features to localStorage:', error);
     }
     
     setExpandedFeatures(newExpanded);
