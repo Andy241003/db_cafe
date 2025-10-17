@@ -350,6 +350,29 @@ export const postsAPI = {
     const response: AxiosResponse<Post[]> = await apiClient.get('/posts/', { params });
     return response.data;
   },
+  
+  // Get lightweight count of posts per feature (without loading full content)
+  getCount: async (feature_id: number): Promise<number> => {
+    const params = { feature_id, include_translations: true };
+    const response: AxiosResponse<Post[]> = await apiClient.get('/posts/', { params });
+    
+    // Count all post translations (as displayed in UI)
+    // Each post has a translations array, expand them to count UI items
+    let totalCount = 0;
+    response.data.forEach((post: any) => {
+      if (post.translations) {
+        if (Array.isArray(post.translations)) {
+          totalCount += post.translations.length;
+        } else if (typeof post.translations === 'object') {
+          totalCount += Object.keys(post.translations).length;
+        }
+      } else {
+        totalCount += 1; // No translations, count the post itself
+      }
+    });
+    
+    return totalCount;
+  },
 
   getById: async (id: number): Promise<Post> => {
     const response: AxiosResponse<Post> = await apiClient.get(`/posts/${id}`);

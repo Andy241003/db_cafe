@@ -44,6 +44,12 @@ const Features: React.FC = () => {
   
   // Convert API features to LocalFeature format for UI compatibility
   const [features, setFeatures] = useState<LocalFeature[]>([]);
+  
+  // Track which features have loaded posts (lazy loading)
+  const [loadedPosts, setLoadedPosts] = useState<Map<number, UIPost[]>>(new Map());
+  
+  // Track posts count per feature (lightweight - loaded upfront)
+  const [postsCounts, setPostsCounts] = useState<Map<number, number>>(new Map());
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -58,117 +64,117 @@ const Features: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Optimized: Load posts for all features in parallel with batching
-  const loadPostsForFeatures = async (features: any[]) => {
-    if (features.length === 0) return new Map();
+  // Lazy load posts for a single feature when expanded
+  const loadPostsForFeature = async (featureId: number) => {
+    // Skip if already loaded
+    if (loadedPosts.has(featureId)) {
+      return loadedPosts.get(featureId) || [];
+    }
     
     try {
-      // Parallel batch loading - load posts for all features at once
-      const postsPromises = features.map(async (feature: any) => {
-        try {
-          const posts = await postsAPI.getAll(feature.id, true);
-          return { featureId: feature.id, posts };
-        } catch (error) {
-          return { featureId: feature.id, posts: [] };
+      const posts = await postsAPI.getAll(featureId, true);
+      
+      // Process posts into UIPost format
+      const uiPosts: UIPost[] = [];
+      posts.forEach((post: any) => {
+        const translationsArray: any[] = [];
+        if (post.translations) {
+          if (Array.isArray(post.translations)) {
+            translationsArray.push(...post.translations);
+          } else if (typeof post.translations === 'object') {
+            Object.keys(post.translations).forEach(k => {
+              translationsArray.push({ locale: k, ...post.translations[k] });
+            });
+          }
+        }
+
+        if (translationsArray.length > 0) {
+          translationsArray.forEach((t: any) => {
+            const tInfo = getLocaleInfo(t.locale);
+            const tRaw = t.content_html || '';
+            const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
+            uiPosts.push({
+              ...post,
+              uiKey: `post-${post.id}-${t.locale}-${Date.now()}`,
+              title: t.title || `Post ${post.id}`,
+              excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
+              locale: t.locale || 'en',
+              localeName: tInfo.localeName,
+              flagClass: tInfo.flagClass,
+              content: tRaw,
+              slug: post.slug || '',
+              vr360_url: post.vr360_url || '',
+              status: post.status ? post.status.toLowerCase() : 'draft',
+              updatedAt: post.updated_at || post.created_at,
+              content_html: t.content_html,
+              translations: translationsArray
+            });
+          });
         }
       });
-
-      // Wait for all requests in parallel (instead of sequential)
-      const postsResults = await Promise.all(postsPromises);
       
-      const postsMap = new Map();
-      postsResults.forEach(result => {
-        postsMap.set(result.featureId, result.posts);
-      });
-
-      return postsMap;
+      // Cache the loaded posts
+      const newLoadedPosts = new Map(loadedPosts);
+      newLoadedPosts.set(featureId, uiPosts);
+      setLoadedPosts(newLoadedPosts);
+      
+      return uiPosts;
     } catch (error) {
-      console.error('Failed to load posts:', error);
-      return new Map();
+      console.error('Failed to load posts for feature:', featureId, error);
+      return [];
     }
   };
 
 
 
-  // Convert API features to LocalFeature format when data loads
+  // Load posts counts for all features (lightweight query)
+  useEffect(() => {
+    if (apiFeatures.length > 0) {
+      const loadAllCounts = async () => {
+        const counts = new Map<number, number>();
+        
+        // Load counts in parallel for all features
+        await Promise.all(
+          apiFeatures.map(async (feature) => {
+            try {
+              const count = await postsAPI.getCount(feature.id);
+              counts.set(feature.id, count);
+            } catch (error) {
+              console.error(`Failed to load count for feature ${feature.id}:`, error);
+              counts.set(feature.id, 0);
+            }
+          })
+        );
+        
+        setPostsCounts(counts);
+      };
+      
+      loadAllCounts();
+    }
+  }, [apiFeatures]); // Load counts when features change
+
+  // Convert API features to LocalFeature format when data loads (WITHOUT loading posts)
   useEffect(() => {
     if (apiFeatures.length > 0 && categories.length > 0) {
-      const convertFeatures = async () => {
-        // Determine current UI locale (try stored user/tenant values, fallback to 'en')
+      const convertFeatures = () => {
+        // Determine current UI locale
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const storedLocale = localStorage.getItem('locale') || localStorage.getItem('default_locale') || currentUser.default_locale || currentUser.locale;
         const uiLocale = (storedLocale || 'en').toLowerCase();
-
-        // Optimized: Load posts for all features in parallel
-        const postsMap = await loadPostsForFeatures(apiFeatures);
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
           // Find category by id to get slug for filtering
           const category = categories.find(cat => cat.id === feature.category_id);
-          // Choose translated category title if available for current UI locale
           const categoryLabel = category ? (category.translations?.[uiLocale]?.title || category.name || category.slug) : 'general';
           const categorySlug = category ? category.slug : 'general';
 
-          // Get posts for this feature
-          const featurePosts = postsMap.get(feature.id) || [];
-          
-          // The backend may return posts with a `translations` array when include_translations is true.
-          // Expand each post and its translations into separate UIPost entries so all locales display.
-          const uiPosts: UIPost[] = [];
-          featurePosts.forEach((post: any) => {
-            // Normalize translations to an array
-            const translationsArray: any[] = [];
-            if (post.translations) {
-              if (Array.isArray(post.translations)) {
-                translationsArray.push(...post.translations);
-              } else if (typeof post.translations === 'object') {
-                // API may return an object keyed by locale: { en: {...}, vi: {...} }
-                Object.keys(post.translations).forEach(k => {
-                  translationsArray.push({ locale: k, ...post.translations[k] });
-                });
-              }
-            }
-
-            // Always create UI entries for each translation
-            if (translationsArray.length > 0) {
-              translationsArray.forEach((t: any) => {
-                const tInfo = getLocaleInfo(t.locale);
-                const tRaw = t.content_html || '';
-                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-                uiPosts.push({
-                  ...post,
-                  uiKey: `post-${post.id}-${t.locale}-${Date.now()}`, // Make truly unique
-                  title: t.title || `Post ${post.id}`,
-                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
-                  locale: t.locale || 'en',
-                  localeName: tInfo.localeName,
-                  flagClass: tInfo.flagClass,
-                  content: tRaw,
-                  slug: post.slug || '',
-                  vr360_url: post.vr360_url || '',
-                  status: post.status ? post.status.toLowerCase() : 'draft',
-                  updatedAt: post.updated_at || post.created_at,
-                  content_html: t.content_html,
-                  translations: translationsArray
-                });
-              });
-            }
-          });
-
-          // Get feature title from feature.translations (preferred) or fallback to post title or slug
+          // Get feature title from translations
           let featureTitle = feature.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-
-          // Try to get title from feature translations first
           if (feature.translations && feature.translations[uiLocale]) {
             featureTitle = feature.translations[uiLocale].title;
-          } else {
-            // Fallback to post title
-            const firstPost = featurePosts.find((p: any) => p.locale === uiLocale) || featurePosts[0];
-            if (firstPost?.title) {
-              featureTitle = firstPost.title;
-            }
           }
 
+          // DON'T load posts yet - will be loaded lazily when expanded
           return {
             id: feature.id,
             name: featureTitle,
@@ -177,20 +183,24 @@ const Features: React.FC = () => {
             icon: feature.icon_key || "fa-file-alt",
             iconColor: "linear-gradient(135deg, #667eea, #764ba2)",
             status: feature.is_system ? "inactive" : "active",
-            posts: uiPosts,
+            posts: loadedPosts.get(feature.id) || [], // Use cached posts if available
           };
         });
+        
         setFeatures(convertedFeatures);
-
-        // Expand first feature by default if any exist
-        if (convertedFeatures.length > 0) {
-          setExpandedFeatures(new Set([convertedFeatures[0].id]));
-        }
       };
 
       convertFeatures();
     }
-  }, [apiFeatures, categories]); // Only re-run when features or categories actually change
+  }, [apiFeatures, categories, loadedPosts]); // Re-run when posts cache updates
+  
+  // Auto-expand first feature only on initial mount (not on re-renders)
+  useEffect(() => {
+    if (features.length > 0 && expandedFeatures.size === 0) {
+      setExpandedFeatures(new Set([features[0].id]));
+      loadPostsForFeature(features[0].id);
+    }
+  }, [features.length]); // Only run when features first load
   
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
@@ -210,13 +220,25 @@ const Features: React.FC = () => {
     });
   }, [features, searchQuery, categoryFilter, statusFilter]);
 
-  // Toggle feature expansion
-  const toggleFeature = (featureId: number) => {
+  // Toggle feature expansion and lazy load posts
+  const toggleFeature = async (featureId: number) => {
     const newExpanded = new Set(expandedFeatures);
     if (newExpanded.has(featureId)) {
       newExpanded.delete(featureId);
     } else {
       newExpanded.add(featureId);
+      
+      // Lazy load posts when expanding
+      if (!loadedPosts.has(featureId)) {
+        const posts = await loadPostsForFeature(featureId);
+        
+        // Update the feature's posts in state
+        setFeatures(prevFeatures => 
+          prevFeatures.map(f => 
+            f.id === featureId ? { ...f, posts } : f
+          )
+        );
+      }
     }
     setExpandedFeatures(newExpanded);
   };
@@ -242,7 +264,7 @@ const Features: React.FC = () => {
     setIsTranslateModalOpen(true);
   };
 
-  const deletePost = async (postId: number, locale: string, translations: any[]) => {
+  const deletePost = async (postId: number, locale: string, translations: any[], featureId: number) => {
     // Check if this post has multiple translations
     const hasMultipleTranslations = translations && translations.length > 1;
 
@@ -254,6 +276,26 @@ const Features: React.FC = () => {
           await postsApi.deleteTranslation(postId, locale);
           alert(`${locale.toUpperCase()} translation deleted successfully!`);
           await refreshFeatures();
+          
+          // Update count for this feature
+          const newCount = await postsAPI.getCount(featureId);
+          const newCounts = new Map(postsCounts);
+          newCounts.set(featureId, newCount);
+          setPostsCounts(newCounts);
+          
+          // Reload posts if expanded
+          if (expandedFeatures.has(featureId)) {
+            const newLoadedPosts = new Map(loadedPosts);
+            newLoadedPosts.delete(featureId);
+            setLoadedPosts(newLoadedPosts);
+            
+            const freshPosts = await loadPostsForFeature(featureId);
+            setFeatures(prevFeatures =>
+              prevFeatures.map(f =>
+                f.id === featureId ? { ...f, posts: freshPosts } : f
+              )
+            );
+          }
         }
       } else {
         // Delete the entire post (last translation)
@@ -261,6 +303,26 @@ const Features: React.FC = () => {
           await postsAPI.delete(postId);
           alert('Post deleted successfully!');
           await refreshFeatures();
+          
+          // Update count for this feature
+          const newCount = await postsAPI.getCount(featureId);
+          const newCounts = new Map(postsCounts);
+          newCounts.set(featureId, newCount);
+          setPostsCounts(newCounts);
+          
+          // Reload posts if expanded
+          if (expandedFeatures.has(featureId)) {
+            const newLoadedPosts = new Map(loadedPosts);
+            newLoadedPosts.delete(featureId);
+            setLoadedPosts(newLoadedPosts);
+            
+            const freshPosts = await loadPostsForFeature(featureId);
+            setFeatures(prevFeatures =>
+              prevFeatures.map(f =>
+                f.id === featureId ? { ...f, posts: freshPosts } : f
+              )
+            );
+          }
         }
       }
     } catch (error: any) {
@@ -375,65 +437,40 @@ const Features: React.FC = () => {
       setIsEditPostModalOpen(false);
       setSelectedPost(null);
 
-      // Refresh data
+      // Refresh data - only reload posts for the affected feature
       try {
         await refreshFeatures();
 
-        if (apiFeatures.length > 0) {
-          const postsMap = await loadPostsForFeatures(apiFeatures);
+        // Reload posts only for the feature that was modified
+        const featureId = selectedPost?.feature_id || selectedPost?.id;
+        if (featureId) {
+          // Clear cache for this feature
+          const newLoadedPosts = new Map(loadedPosts);
+          newLoadedPosts.delete(featureId);
+          setLoadedPosts(newLoadedPosts);
           
-          // Update local features with fresh posts
-          const updatedFeatures = features.map(feature => {
-            const freshPosts = postsMap.get(feature.id) || [];
-            const uiPosts: UIPost[] = [];
-            
-            freshPosts.forEach((post: any) => {
-              // Normalize translations to array
-              const translationsArray: any[] = [];
-              if (post.translations) {
-                if (Array.isArray(post.translations)) {
-                  translationsArray.push(...post.translations);
-                } else if (typeof post.translations === 'object') {
-                  Object.keys(post.translations).forEach(k => translationsArray.push({ locale: k, ...post.translations[k] }));
-                }
-              }
-
-              // Only create UI entries for translations (don't duplicate with main post)
-              if (translationsArray.length > 0) {
-                translationsArray.forEach((t: any) => {
-                  const tInfo = getLocaleInfo(t.locale);
-                  const tRaw = t.content_html || '';
-                  const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-                  uiPosts.push({
-                    ...post,
-                    uiKey: `post-${post.id}-trans-${t.locale}`,
-                    title: t.title || post.title || `Post ${post.id}`,
-                    excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
-                    locale: t.locale || 'en',
-                    localeName: tInfo.localeName,
-                    flagClass: tInfo.flagClass,
-                    content: tRaw || '',
-                    slug: post.slug || '',
-                    vr360_url: post.vr360_url || '',
-                    status: post.status ? post.status.toLowerCase() : 'draft',
-                    updatedAt: post.updated_at || post.created_at,
-                    content_html: t.content_html,
-                    translations: translationsArray
-                  });
-                });
-              }
-            });
-            
-            return {
-              ...feature,
-              posts: uiPosts
-            };
-          });
+          // Reload posts count
+          const newCount = await postsAPI.getCount(featureId);
+          const newCounts = new Map(postsCounts);
+          newCounts.set(featureId, newCount);
+          setPostsCounts(newCounts);
           
-          setFeatures(updatedFeatures);
+          // Reload posts for this feature only (if expanded)
+          if (expandedFeatures.has(featureId)) {
+            const freshPosts = await loadPostsForFeature(featureId);
+            
+            // Update just this feature's posts
+            setFeatures(prevFeatures =>
+              prevFeatures.map(f =>
+                f.id === featureId ? { ...f, posts: freshPosts } : f
+              )
+            );
+          }
         }
       } catch (refreshError) {
-        window.location.reload();
+        console.error('Refresh error:', refreshError);
+        // Don't reload entire page, just show error
+        alert('Failed to refresh. Please manually reload if needed.');
       }
     } catch (error: any) {
       alert(`Failed to save post: ${error.response?.data?.detail || error.message}`);
@@ -558,60 +595,31 @@ const Features: React.FC = () => {
 
       setIsTranslateModalOpen(false);
 
-      // Refresh data to show new translation
+      // Refresh data to show new translation - only reload posts for this feature
       await refreshFeatures();
 
-      // Reload posts to update UI
-      if (apiFeatures.length > 0) {
-        const postsMap = await loadPostsForFeatures(apiFeatures);
-        const updatedFeatures = features.map(feature => {
-          const freshPosts = postsMap.get(feature.id) || [];
-          const uiPosts: UIPost[] = [];
+      const featureId = selectedPost?.feature_id;
+      if (featureId) {
+        // Update count (translations may change count if it's a new locale)
+        const newCount = await postsAPI.getCount(featureId);
+        const newCounts = new Map(postsCounts);
+        newCounts.set(featureId, newCount);
+        setPostsCounts(newCounts);
+        
+        // Clear cache and reload posts for this feature only (if expanded)
+        if (expandedFeatures.has(featureId)) {
+          const newLoadedPosts = new Map(loadedPosts);
+          newLoadedPosts.delete(featureId);
+          setLoadedPosts(newLoadedPosts);
           
-          freshPosts.forEach((post: any) => {
-            // Normalize translations to array
-            const translationsArray: any[] = [];
-            if (post.translations) {
-              if (Array.isArray(post.translations)) {
-                translationsArray.push(...post.translations);
-              } else if (typeof post.translations === 'object') {
-                Object.keys(post.translations).forEach(k => translationsArray.push({ locale: k, ...post.translations[k] }));
-              }
-            }
-
-            // Only create UI entries for translations (don't duplicate with main post)
-            if (translationsArray.length > 0) {
-              translationsArray.forEach((t: any) => {
-                const tInfo = getLocaleInfo(t.locale);
-                const tRaw = t.content_html || '';
-                const tExcerpt = tRaw.replace(/<[^>]*>/g, '').substring(0, 100);
-                uiPosts.push({
-                  ...post,
-                  uiKey: `post-${post.id}-trans-${t.locale}`,
-                  title: t.title || post.title || `Post ${post.id}`,
-                  excerpt: tExcerpt ? tExcerpt + '...' : 'No content',
-                  locale: t.locale || 'en',
-                  localeName: tInfo.localeName,
-                  flagClass: tInfo.flagClass,
-                  content: tRaw || '',
-                  slug: post.slug || '',
-                  vr360_url: post.vr360_url || '',
-                  status: post.status ? post.status.toLowerCase() : 'draft',
-                  updatedAt: post.updated_at || post.created_at,
-                  content_html: t.content_html,
-                  translations: translationsArray
-                });
-              });
-            }
-          });
-
-          return {
-            ...feature,
-            posts: uiPosts
-          };
-        });
-
-        setFeatures(updatedFeatures);
+          const freshPosts = await loadPostsForFeature(featureId);
+          
+          setFeatures(prevFeatures =>
+            prevFeatures.map(f =>
+              f.id === featureId ? { ...f, posts: freshPosts } : f
+            )
+          );
+        }
       }
     } catch (error: any) {
       // Show detailed error message
@@ -861,7 +869,7 @@ const Features: React.FC = () => {
                     <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{feature.category}</span>
                     <div className="flex items-center gap-1.5">
                       <i className="fas fa-file-alt"></i>
-                      <span>{feature.posts.length} posts</span>
+                      <span>{postsCounts.get(feature.id) ?? feature.posts.length} posts</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${feature.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {feature.status}
@@ -957,7 +965,7 @@ const Features: React.FC = () => {
                                 // Get all posts with same ID to count translations
                                 const allPostVersions = feature.posts.filter(p => p.id === post.id);
                                 const translations = allPostVersions.map(p => ({ locale: p.locale }));
-                                deletePost(post.id, post.locale, translations);
+                                deletePost(post.id, post.locale, translations, feature.id);
                               }}
                             >
                               <i className="fas fa-trash"></i> Delete
