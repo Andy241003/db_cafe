@@ -4,8 +4,8 @@ import AddFeatureModal from '../components/features/AddFeatureModal';
 import EditFeatureModal from '../components/features/EditFeatureModal';
 import EditPostModal from '../components/features/EditPostModal';
 import TranslateModal from '../components/features/TranslateModal';
-import { useFeatures } from '../hooks/useFeatures';
-import { useCategories } from '../hooks/useCategories';
+import { useFeaturesQuery } from '../hooks/useFeaturesQuery';
+import { useCategoriesQuery } from '../hooks/useCategoriesQuery';
 import { usePropertySettings } from '../hooks/usePropertySettings';
 import type { UIPost } from '../services/api';
 import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
@@ -34,9 +34,9 @@ interface FormData {
 }
 
 const Features: React.FC = () => {
-  // Use real API data
-  const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeatures();
-  const { categories, loading: categoriesLoading } = useCategories();
+  // Use React Query hooks for data fetching
+  const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeaturesQuery();
+  const { categories, loading: categoriesLoading } = useCategoriesQuery();
   const { settings: propertySettings } = usePropertySettings();
   
   // Read URL query params

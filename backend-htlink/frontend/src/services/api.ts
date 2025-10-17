@@ -145,6 +145,14 @@ export interface FeatureCategory {
   icon_key?: string;
   is_system: boolean;
   created_at: string;
+  // Translations keyed by locale code (added by backend)
+  name?: string; // Legacy field
+  translations?: {
+    [locale: string]: {
+      title: string;
+      short_desc?: string;
+    };
+  };
 }
 
 export interface Post {
@@ -173,6 +181,9 @@ export interface UIPost extends Post {
   content?: string;
   vrLink?: string;
   updatedAt: string; // For legacy compatibility
+  uiKey?: string; // Unique key for React rendering
+  content_html?: string; // HTML content
+  translations?: any[]; // Array of translations for this post
 }
 
 export interface FeatureCategoryCreate {
