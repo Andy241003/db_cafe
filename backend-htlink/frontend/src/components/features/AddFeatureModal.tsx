@@ -3,21 +3,23 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell,
-  faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag,
-  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink, faTv, faUsers,
-  faSignInAlt, faHotTub, faInfoCircle, faGift, faSignOutAlt, faKey, faParking,
-  faBus, faPlaneDeparture, faCarSide, faHandshake, faWaterLadder,
-
-  // newly added / suggested
-  faSnowflake, faLock, faBell, faCalendarCheck, faMugHot, faGlassMartini,
-  faLeaf, faIceCream, faStore, faList, faTicket, faBath, faHandsHelping,
-  faTruck, faBoxOpen, faPaw, faLaptop, faBuilding, faChartLine, faThumbsUp,
-  faChild, faMapSigns, faBicycle, faTshirt, faCampground,
-  faCloudSun, faCalendar, faLanguage, faMap, faPoll, faQuestionCircle,
-  faGlobe, faSmoking, faRoute, faShieldVirus, faFileContract,
-  faMapMarkedAlt, faChalkboard
+    faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, faCocktail, faBed,
+    faConciergeBell, faCoffee, faGamepad, faShoppingBag, faTaxi, faCrown, faUmbrellaBeach, faTv,
+    faUsers, faSignInAlt, faHotTub, faTimes, faLink, faInfoCircle, faGift, faSignOutAlt, faKey,
+    faParking, faBus, faPlaneDeparture, faCarSide, faHandshake, faWaterLadder, faSnowflake,
+    faLock, faBell, faCalendarCheck, faMugHot, faGlassMartini, faLeaf, faIceCream, faStore,
+    faList, faTicket, faBath, faHandsHelping, faTshirt, faTruck, faBoxOpen, faPaw, faLaptop,
+    faBuilding, faChalkboard, faChartLine, faMapMarkedAlt, faThumbsUp, faChild, faMapSigns,
+    faBicycle, faCampground, faCloudSun, faCalendar, faLanguage, faMap, faPoll, faQuestionCircle,
+    faGlobe, faSmoking, faRoute, faShieldVirus, faFileContract, faCertificate
 } from '@fortawesome/free-solid-svg-icons';
+
+import {
+    faFacebook, faTiktok, faInstagram, faYoutube, faTwitter, faLinkedin,
+    faPinterest, faSnapchat, faTelegram, faWhatsapp
+} from '@fortawesome/free-brands-svg-icons';
+
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { useCategories } from '../../hooks/useCategories';
 
 interface FormData {
@@ -90,10 +92,11 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     'link', 'image'
   ];
 
-  const icons = [
+const icons: { icon: IconDefinition; name: string }[] = [
+    // existing / basic
     { icon: faStar, name: 'star' },
     { icon: faSwimmingPool, name: 'swimming-pool' },
-    { icon: faUtensils, name: 'utensils' }, // nha-hang
+    { icon: faUtensils, name: 'utensils' },
     { icon: faWifi, name: 'wifi' },
     { icon: faCar, name: 'car' },
     { icon: faSpa, name: 'spa' },
@@ -123,15 +126,13 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     { icon: faCarSide, name: 'car-rental' },
     { icon: faHandshake, name: 'handshake' },
     { icon: faWaterLadder, name: 'water-ladder' },
-
-    // service / room / dining / amenities
     { icon: faSnowflake, name: 'air-conditioning' },
     { icon: faLock, name: 'safe' },
-    { icon: faConciergeBell, name: 'amenities' }, // reuse
+    { icon: faConciergeBell, name: 'amenities' },
     { icon: faBell, name: 'morning-call' },
     { icon: faUtensils, name: 'in-room-dining' },
     { icon: faCalendarCheck, name: 'restaurant-reservation' },
-    { icon: faCocktail, name: 'bar-lounge' }, // reuse
+    { icon: faCocktail, name: 'bar-lounge' },
     { icon: faMugHot, name: 'tea-lounge' },
     { icon: faGlassMartini, name: 'drink-corner' },
     { icon: faLeaf, name: 'halal-food' },
@@ -140,19 +141,15 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     { icon: faStore, name: 'convenience-store' },
     { icon: faList, name: 'menu' },
     { icon: faTicket, name: 'coupon' },
-
-    // relaxation & health
     { icon: faBath, name: 'public-bath' },
-    { icon: faHotTub, name: 'sauna' }, // reuse hot tub for sauna
+    { icon: faHotTub, name: 'sauna' },
     { icon: faHandsHelping, name: 'massage' },
-    { icon: faSpa, name: 'beauty-spa' }, // reuse
-    { icon: faDumbbell, name: 'fitness' }, // reuse
-    { icon: faSwimmingPool, name: 'pool' }, // reuse
+    { icon: faSpa, name: 'beauty-spa' },
+    { icon: faDumbbell, name: 'fitness' },
+    { icon: faSwimmingPool, name: 'pool' },
     { icon: faLeaf, name: 'yoga' },
-
-    // services & amenities
-    { icon: faConciergeBell, name: 'concierge' }, // reuse
-    { icon: faLeaf, name: 'eco-cleaning' }, // reuse leaf
+    { icon: faConciergeBell, name: 'concierge' },
+    { icon: faLeaf, name: 'eco-cleaning' },
     { icon: faTshirt, name: 'coin-laundry' },
     { icon: faTruck, name: 'courier-service' },
     { icon: faBoxOpen, name: 'locker-room' },
@@ -160,14 +157,10 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     { icon: faLaptop, name: 'workspace' },
     { icon: faBoxOpen, name: 'original-goods' },
     { icon: faBuilding, name: 'hotel-chain' },
-
-    // business & events
-    { icon: faUsers, name: 'conference-room' }, // reuse users
+    { icon: faUsers, name: 'conference-room' },
     { icon: faChalkboard, name: 'seminar' },
-    { icon: faKey, name: 'rental-space' }, // reuse key
+    { icon: faKey, name: 'rental-space' },
     { icon: faChartLine, name: 'facility-congestion' },
-
-    // explore & activities
     { icon: faMapMarkedAlt, name: 'sightseeing' },
     { icon: faThumbsUp, name: 'recommended-activity' },
     { icon: faChild, name: 'playground' },
@@ -178,21 +171,31 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     { icon: faLeaf, name: 'sakura' },
     { icon: faCloudSun, name: 'weather' },
     { icon: faCalendar, name: 'local-events' },
-
-    // info & instructions
     { icon: faLanguage, name: 'how-to-translate' },
     { icon: faMap, name: 'floor-guide' },
     { icon: faPoll, name: 'survey' },
     { icon: faQuestionCircle, name: 'q-and-a' },
     { icon: faGlobe, name: 'official-website' },
-
-    // safety & regs
     { icon: faSmoking, name: 'smoking-area' },
     { icon: faRoute, name: 'evacuation-plan' },
     { icon: faShieldVirus, name: 'covid-measures' },
-    { icon: faFileContract, name: 'accommodation-terms' }
-  ];
+    { icon: faFileContract, name: 'accommodation-terms' },
 
+    // ==== ICONS MẠNG XÃ HỘI ====
+    { icon: faFacebook, name: 'facebook' },
+    { icon: faTiktok, name: 'tiktok' },
+    { icon: faInstagram, name: 'instagram' },
+    { icon: faYoutube, name: 'youtube' },
+    { icon: faTwitter, name: 'twitter' },
+    { icon: faLinkedin, name: 'linkedin' },
+    { icon: faPinterest, name: 'pinterest' },
+    { icon: faSnapchat, name: 'snapchat' },
+    { icon: faTelegram, name: 'telegram' },
+    { icon: faWhatsapp, name: 'whatsapp' },
+
+    // social / loyalty (brands)
+    { icon: faCertificate, name: 'tabi-life-loyalty-program' }
+];
   const selectIcon = (iconName: string) => {
     setSelectedIcon(iconName);
     setFeatureForm(prev => ({ ...prev, icon: iconName }));
