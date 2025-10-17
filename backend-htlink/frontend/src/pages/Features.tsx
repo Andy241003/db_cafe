@@ -631,10 +631,13 @@ const Features: React.FC = () => {
   const getIconClass = (iconName: string) => {
     // Map custom icon names to actual FontAwesome class names
     const iconMap: Record<string, string> = {
+      // Check-in/out & Access
       'check-in': 'sign-in-alt',
       'check-out': 'sign-out-alt',
-      'hot-tub-person': 'hot-tub',
       'access': 'key',
+      
+      // Amenities & Services
+      'hot-tub-person': 'hot-tub',
       'shuttle-bus': 'bus',
       'flight-service': 'plane-departure',
       'car-rental': 'car-side',
@@ -647,6 +650,62 @@ const Features: React.FC = () => {
       'tea-lounge': 'mug-hot',
       'drink-corner': 'glass-martini',
       'halal-food': 'leaf',
+      'ice-treat': 'ice-cream',
+      'vending-machines': 'store',
+      'convenience-store': 'store',
+      'menu': 'list',
+      'coupon': 'ticket',
+      
+      // Relaxation & Health
+      'public-bath': 'bath',
+      'sauna': 'hot-tub',
+      'massage': 'hands-helping',
+      'beauty-spa': 'spa',
+      'fitness': 'dumbbell',
+      'pool': 'swimming-pool',
+      'yoga': 'leaf',
+      
+      // Services & Amenities
+      'concierge': 'concierge-bell',
+      'eco-cleaning': 'leaf',
+      'coin-laundry': 'tshirt',
+      'courier-service': 'truck',
+      'locker-room': 'box-open',
+      'pet-friendly': 'paw',
+      'workspace': 'laptop',
+      'original-goods': 'box-open',
+      'hotel-chain': 'building',
+      
+      // Business & Events
+      'conference-room': 'users',
+      'seminar': 'chalkboard',
+      'rental-space': 'key',
+      'facility-congestion': 'chart-line',
+      
+      // Explore & Activities
+      'sightseeing': 'map-marked-alt',
+      'recommended-activity': 'thumbs-up',
+      'playground': 'child',
+      'self-organized-tour': 'map-signs',
+      'bicycle-rental': 'bicycle',
+      'kimono-rental': 'tshirt',
+      'camp': 'campground',
+      'sakura': 'leaf',
+      'weather': 'cloud-sun',
+      'local-events': 'calendar',
+      
+      // Info & Instructions
+      'how-to-translate': 'language',
+      'floor-guide': 'map',
+      'survey': 'poll',
+      'q-and-a': 'question-circle',
+      'official-website': 'globe',
+      
+      // Safety & Regulations
+      'smoking-area': 'smoking',
+      'evacuation-plan': 'route',
+      'covid-measures': 'shield-virus',
+      'accommodation-terms': 'file-contract',
     };
 
     // Get mapped icon or use original
