@@ -10,6 +10,7 @@ import { useFeaturesQuery } from '../hooks/useFeaturesQuery';
 import { useCategoriesQuery } from '../hooks/useCategoriesQuery';
 import type { UIPost } from '../services/api';
 import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
+import { autoDetectLanguage } from '../utils/languageDetection';
 
 interface LocalFeature {
   id: number;
@@ -158,19 +159,18 @@ const Features: React.FC = () => {
     }
   }, [apiFeatures]); // Load counts when features change
 
+  // Trigger auto-detect on mount
+  useEffect(() => {
+    autoDetectLanguage();
+  }, []);
+
   // Convert API features to LocalFeature format when data loads (WITHOUT loading posts)
+  // Re-run when locale changes
   useEffect(() => {
     if (apiFeatures.length > 0 && categories.length > 0) {
       const convertFeatures = () => {
-        // Determine current UI locale with proper fallback chain
-        // Priority: localStorage locale > browser language > user settings > default 'en'
-        const storedLocale = localStorage.getItem('locale');
-        const browserLang = (navigator.language || (navigator as any).userLanguage || 'en').split('-')[0].toLowerCase();
-        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        const userLocale = currentUser.default_locale || currentUser.locale;
-        
-        // Use the first available locale
-        const uiLocale = (storedLocale || browserLang || userLocale || 'en').toLowerCase();
+        // Get current locale from localStorage (set by auto-detect or user selection)
+        const uiLocale = (localStorage.getItem('locale') || 'en').toLowerCase();
         
         console.log(`🌍 Converting features with UI locale: ${uiLocale}`);
         
@@ -214,6 +214,33 @@ const Features: React.FC = () => {
       convertFeatures();
     }
   }, [apiFeatures, categories, loadedPosts]); // Re-run when posts cache updates
+  
+  // Listen for locale changes from localStorage
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'locale' && e.newValue) {
+        console.log(`🔄 Locale changed to: ${e.newValue}, re-converting features...`);
+        // Trigger re-conversion by updating a state that's in the dependency array
+        // Features will auto-update via the useEffect above
+        window.location.reload(); // Simple approach: reload page
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom event for same-tab updates
+    const handleLocaleChange = () => {
+      console.log('🔄 Locale changed (same tab), re-converting features...');
+      window.location.reload();
+    };
+    
+    window.addEventListener('localeChanged', handleLocaleChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localeChanged', handleLocaleChange);
+    };
+  }, []);
   
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
