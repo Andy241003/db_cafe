@@ -629,10 +629,33 @@ const Features: React.FC = () => {
   };
 
   const getIconClass = (iconName: string) => {
-    if (iconName.startsWith('fa-')) {
-      return `fas ${iconName}`;
+    // Map custom icon names to actual FontAwesome class names
+    const iconMap: Record<string, string> = {
+      'check-in': 'sign-in-alt',
+      'check-out': 'sign-out-alt',
+      'hot-tub-person': 'hot-tub',
+      'access': 'key',
+      'shuttle-bus': 'bus',
+      'flight-service': 'plane-departure',
+      'car-rental': 'car-side',
+      'water-ladder': 'swimmer',
+      'air-conditioning': 'snowflake',
+      'morning-call': 'bell',
+      'in-room-dining': 'utensils',
+      'restaurant-reservation': 'calendar-check',
+      'bar-lounge': 'cocktail',
+      'tea-lounge': 'mug-hot',
+      'drink-corner': 'glass-martini',
+      'halal-food': 'leaf',
+    };
+
+    // Get mapped icon or use original
+    const mappedIcon = iconMap[iconName] || iconName;
+    
+    if (mappedIcon.startsWith('fa-')) {
+      return `fas ${mappedIcon}`;
     }
-    return `fas fa-${iconName}`;
+    return `fas fa-${mappedIcon}`;
   }
 
   // Map locale code to a human-friendly name and a short flag/label used in the UI
