@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import AddFeatureModal from '../components/features/AddFeatureModal';
 import EditFeatureModal from '../components/features/EditFeatureModal';
 import EditPostModal from '../components/features/EditPostModal';
 import TranslateModal from '../components/features/TranslateModal';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { useFeaturesQuery } from '../hooks/useFeaturesQuery';
 import { useCategoriesQuery } from '../hooks/useCategoriesQuery';
-import { usePropertySettings } from '../hooks/usePropertySettings';
 import type { UIPost } from '../services/api';
 import { postsAPI, propertiesAPI, featuresAPI } from '../services/api';
 
@@ -37,7 +38,6 @@ const Features: React.FC = () => {
   // Use React Query hooks for data fetching
   const { features: apiFeatures, loading, error, createFeature, updateFeature, deleteFeature, refreshFeatures } = useFeaturesQuery();
   const { categories, loading: categoriesLoading } = useCategoriesQuery();
-  const { settings: propertySettings } = usePropertySettings();
   
   // Read URL query params
   const [searchParams] = useSearchParams();
@@ -54,7 +54,20 @@ const Features: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(new Set());
+  
+  // Load expanded features from localStorage (persist between page loads)
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<number>>(() => {
+    try {
+      const saved = localStorage.getItem('expandedFeatures');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return new Set(parsed);
+      }
+    } catch (error) {
+      console.error('Failed to load expanded features from localStorage:', error);
+    }
+    return new Set();
+  });
 
   // Set category filter from URL query param
   useEffect(() => {
@@ -64,10 +77,31 @@ const Features: React.FC = () => {
     }
   }, [searchParams]);
 
+  // Auto-detect browser language and set locale (like modern SaaS apps)
+  useEffect(() => {
+    // Check if locale is already set
+    const existingLocale = localStorage.getItem('locale');
+    
+    if (!existingLocale) {
+      // Get browser language (e.g., "en-US", "vi-VN", "ja-JP")
+      const browserLang = navigator.language || (navigator as any).userLanguage;
+      const languageCode = browserLang.split('-')[0].toLowerCase(); // Extract "en" from "en-US"
+      
+      // Supported languages
+      const supportedLanguages = ['en', 'vi', 'ja', 'ko', 'zh', 'fr', 'de', 'es'];
+      
+      // Set locale if browser language is supported, otherwise default to 'en'
+      const detectedLocale = supportedLanguages.includes(languageCode) ? languageCode : 'en';
+      
+      localStorage.setItem('locale', detectedLocale);
+      console.log(`🌐 Auto-detected browser language: ${browserLang} → Using locale: ${detectedLocale}`);
+    }
+  }, []); // Run once on component mount
+
   // Lazy load posts for a single feature when expanded
-  const loadPostsForFeature = async (featureId: number) => {
-    // Skip if already loaded
-    if (loadedPosts.has(featureId)) {
+  const loadPostsForFeature = async (featureId: number, forceReload = false) => {
+    // Skip if already loaded (unless force reload)
+    if (!forceReload && loadedPosts.has(featureId)) {
       return loadedPosts.get(featureId) || [];
     }
     
@@ -157,21 +191,37 @@ const Features: React.FC = () => {
   useEffect(() => {
     if (apiFeatures.length > 0 && categories.length > 0) {
       const convertFeatures = () => {
-        // Determine current UI locale
+        // Determine current UI locale with proper fallback chain
+        // Priority: localStorage locale > browser language > user settings > default 'en'
+        const storedLocale = localStorage.getItem('locale');
+        const browserLang = (navigator.language || (navigator as any).userLanguage || 'en').split('-')[0].toLowerCase();
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        const storedLocale = localStorage.getItem('locale') || localStorage.getItem('default_locale') || currentUser.default_locale || currentUser.locale;
-        const uiLocale = (storedLocale || 'en').toLowerCase();
+        const userLocale = currentUser.default_locale || currentUser.locale;
+        
+        // Use the first available locale
+        const uiLocale = (storedLocale || browserLang || userLocale || 'en').toLowerCase();
+        
+        console.log(`🌍 Converting features with UI locale: ${uiLocale}`);
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
           // Find category by id to get slug for filtering
           const category = categories.find(cat => cat.id === feature.category_id);
-          const categoryLabel = category ? (category.translations?.[uiLocale]?.title || category.name || category.slug) : 'general';
+          
+          // Get category title with fallback chain: uiLocale → en → name → slug
+          const categoryLabel = category ? 
+            (category.translations?.[uiLocale]?.title || 
+             category.translations?.en?.title || 
+             category.name || 
+             category.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())) 
+            : 'general';
           const categorySlug = category ? category.slug : 'general';
 
-          // Get feature title from translations
+          // Get feature title with fallback chain: uiLocale → en → formatted slug
           let featureTitle = feature.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-          if (feature.translations && feature.translations[uiLocale]) {
-            featureTitle = feature.translations[uiLocale].title;
+          if (feature.translations) {
+            featureTitle = feature.translations[uiLocale]?.title || 
+                          feature.translations.en?.title || 
+                          featureTitle;
           }
 
           // DON'T load posts yet - will be loaded lazily when expanded
@@ -194,13 +244,25 @@ const Features: React.FC = () => {
     }
   }, [apiFeatures, categories, loadedPosts]); // Re-run when posts cache updates
   
-  // Auto-expand first feature only on initial mount (not on re-renders)
+  // Load posts for expanded features restored from localStorage
   useEffect(() => {
-    if (features.length > 0 && expandedFeatures.size === 0) {
-      setExpandedFeatures(new Set([features[0].id]));
-      loadPostsForFeature(features[0].id);
+    if (features.length > 0 && expandedFeatures.size > 0) {
+      // Load posts for each expanded feature (from localStorage)
+      expandedFeatures.forEach(featureId => {
+        // Verify feature still exists
+        const featureExists = features.some(f => f.id === featureId);
+        if (featureExists && !loadedPosts.has(featureId)) {
+          loadPostsForFeature(featureId).then(posts => {
+            setFeatures(prevFeatures =>
+              prevFeatures.map(f =>
+                f.id === featureId ? { ...f, posts } : f
+              )
+            );
+          });
+        }
+      });
     }
-  }, [features.length]); // Only run when features first load
+  }, [features.length]); // Run when features first populate
   
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
@@ -209,6 +271,21 @@ const Features: React.FC = () => {
   const [isTranslateModalOpen, setIsTranslateModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<UIPost | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
+  
+  // Confirm modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Filter features based on search and filters
   const filteredFeatures = useMemo(() => {
@@ -240,6 +317,14 @@ const Features: React.FC = () => {
         );
       }
     }
+    
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('expandedFeatures', JSON.stringify(Array.from(newExpanded)));
+    } catch (error) {
+      console.error('Failed to save expanded features to localStorage:', error);
+    }
+    
     setExpandedFeatures(newExpanded);
   };
 
@@ -264,69 +349,111 @@ const Features: React.FC = () => {
     setIsTranslateModalOpen(true);
   };
 
-  const deletePost = async (postId: number, locale: string, translations: any[], featureId: number) => {
+  const deletePost = (postId: number, locale: string, translations: any[], featureId: number) => {
     // Check if this post has multiple translations
     const hasMultipleTranslations = translations && translations.length > 1;
 
-    try {
-      if (hasMultipleTranslations) {
-        // Only delete the translation for this locale
-        if (window.confirm(`Are you sure you want to delete the ${locale.toUpperCase()} translation of this post?`)) {
-          const { postsApi } = await import('../services/postsApi');
-          await postsApi.deleteTranslation(postId, locale);
-          alert(`${locale.toUpperCase()} translation deleted successfully!`);
-          await refreshFeatures();
-          
-          // Update count for this feature
-          const newCount = await postsAPI.getCount(featureId);
-          const newCounts = new Map(postsCounts);
-          newCounts.set(featureId, newCount);
-          setPostsCounts(newCounts);
-          
-          // Reload posts if expanded
-          if (expandedFeatures.has(featureId)) {
-            const newLoadedPosts = new Map(loadedPosts);
-            newLoadedPosts.delete(featureId);
-            setLoadedPosts(newLoadedPosts);
+    if (hasMultipleTranslations) {
+      // Show confirm modal for translation deletion
+      setConfirmModal({
+        isOpen: true,
+        title: 'Delete Translation',
+        message: `Are you sure you want to delete the ${locale.toUpperCase()} translation of this post?`,
+        confirmText: 'Delete Translation',
+        variant: 'warning',
+        onConfirm: async () => {
+          try {
+            const { postsApi } = await import('../services/postsApi');
+            await postsApi.deleteTranslation(postId, locale);
+            toast.success(`${locale.toUpperCase()} translation deleted successfully!`);
             
-            const freshPosts = await loadPostsForFeature(featureId);
-            setFeatures(prevFeatures =>
-              prevFeatures.map(f =>
-                f.id === featureId ? { ...f, posts: freshPosts } : f
-              )
-            );
+            // Auto-refresh: Reload posts for this feature
+            try {
+              await refreshFeatures();
+              
+              // Update count
+              const newCount = await postsAPI.getCount(featureId);
+              const newCounts = new Map(postsCounts);
+              newCounts.set(featureId, newCount);
+              setPostsCounts(newCounts);
+              
+              // Reload posts if expanded
+              if (expandedFeatures.has(featureId)) {
+                console.log(`🔄 Auto-refreshing after deleting translation...`);
+                
+                const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
+                
+                // Update cache
+                const newLoadedPosts = new Map(loadedPosts);
+                newLoadedPosts.set(featureId, freshPosts);
+                setLoadedPosts(newLoadedPosts);
+                
+                setFeatures(prevFeatures =>
+                  prevFeatures.map(f =>
+                    f.id === featureId ? { ...f, posts: freshPosts } : f
+                  )
+                );
+                console.log(`✅ Posts refreshed! Remaining: ${freshPosts.length} posts`);
+              }
+            } catch (refreshError) {
+              console.error('Refresh error:', refreshError);
+              toast.error('Failed to refresh. Please manually reload.');
+            }
+          } catch (error: any) {
+            toast.error(`Failed to delete translation: ${error.response?.data?.detail || error.message}`);
           }
-        }
-      } else {
-        // Delete the entire post (last translation)
-        if (window.confirm('This is the last translation. Deleting it will remove the entire post. Continue?')) {
-          await postsAPI.delete(postId);
-          alert('Post deleted successfully!');
-          await refreshFeatures();
-          
-          // Update count for this feature
-          const newCount = await postsAPI.getCount(featureId);
-          const newCounts = new Map(postsCounts);
-          newCounts.set(featureId, newCount);
-          setPostsCounts(newCounts);
-          
-          // Reload posts if expanded
-          if (expandedFeatures.has(featureId)) {
-            const newLoadedPosts = new Map(loadedPosts);
-            newLoadedPosts.delete(featureId);
-            setLoadedPosts(newLoadedPosts);
+        },
+      });
+    } else {
+      // Show confirm modal for full post deletion
+      setConfirmModal({
+        isOpen: true,
+        title: 'Delete Post',
+        message: 'This is the last translation. Deleting it will remove the entire post. Continue?',
+        confirmText: 'Delete Post',
+        variant: 'danger',
+        onConfirm: async () => {
+          try {
+            await postsAPI.delete(postId);
+            toast.success('Post deleted successfully!');
             
-            const freshPosts = await loadPostsForFeature(featureId);
-            setFeatures(prevFeatures =>
-              prevFeatures.map(f =>
-                f.id === featureId ? { ...f, posts: freshPosts } : f
-              )
-            );
+            // Auto-refresh: Reload posts for this feature
+            try {
+              await refreshFeatures();
+              
+              // Update count
+              const newCount = await postsAPI.getCount(featureId);
+              const newCounts = new Map(postsCounts);
+              newCounts.set(featureId, newCount);
+              setPostsCounts(newCounts);
+              
+              // Reload posts if expanded
+              if (expandedFeatures.has(featureId)) {
+                console.log(`🔄 Auto-refreshing after deleting post...`);
+                
+                const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
+                
+                // Update cache
+                const newLoadedPosts = new Map(loadedPosts);
+                newLoadedPosts.set(featureId, freshPosts);
+                setLoadedPosts(newLoadedPosts);
+                
+                setFeatures(prevFeatures =>
+                  prevFeatures.map(f =>
+                    f.id === featureId ? { ...f, posts: freshPosts } : f
+                  )
+                );
+                console.log(`✅ Posts refreshed! Remaining: ${freshPosts.length} posts`);
+              }
+            } catch (refreshError) {
+              console.error('Refresh error:', refreshError);
+              toast.error('Failed to refresh. Please manually reload.');
+            }
+          } catch (error: any) {
+            toast.error(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
           }
-        }
-      }
-    } catch (error: any) {
-      alert(`Failed to delete post: ${error.response?.data?.detail || error.message}`);
+        },
+      });
     }
   };
 
@@ -337,19 +464,38 @@ const Features: React.FC = () => {
       setSelectedFeature({ ...apiFeature, title: localFeature.name });
       setIsEditFeatureModalOpen(true);
     } else {
-      alert('Feature not found');
+      toast.error('Feature not found');
     }
   };
 
-  const handleDeleteFeature = async (featureId: number) => {
-    if (window.confirm('Are you sure you want to delete this feature? This will also delete all associated posts.')) {
-      try {
-        await deleteFeature(featureId);
-        alert('Feature deleted successfully!');
-      } catch (error) {
-        alert('Failed to delete feature. Please try again.');
-      }
-    }
+  const handleDeleteFeature = (featureId: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Feature',
+      message: 'Are you sure you want to delete this feature? This will also delete all associated posts.',
+      confirmText: 'Delete Feature',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteFeature(featureId);
+          toast.success('Feature deleted successfully!');
+          
+          // Auto-refresh: Reload features and counts
+          await refreshFeatures();
+          
+          // Clear cache for deleted feature
+          const newLoadedPosts = new Map(loadedPosts);
+          newLoadedPosts.delete(featureId);
+          setLoadedPosts(newLoadedPosts);
+          
+          const newCounts = new Map(postsCounts);
+          newCounts.delete(featureId);
+          setPostsCounts(newCounts);
+        } catch (error) {
+          toast.error('Failed to delete feature. Please try again.');
+        }
+      },
+    });
   };
 
   const addPost = (featureId: number) => {
@@ -428,52 +574,53 @@ const Features: React.FC = () => {
 
       if (selectedPost?.id && selectedPost.id > 0) {
         await postsAPI.update(selectedPost.id, postPayload);
-        alert('Post updated successfully!');
+        toast.success('Post updated successfully!');
       } else {
         await postsAPI.create(postPayload);
-        alert('Post created successfully!');
+        toast.success('Post created successfully!');
       }
       
       setIsEditPostModalOpen(false);
       setSelectedPost(null);
 
-      // Refresh data - only reload posts for the affected feature
-      try {
-        await refreshFeatures();
-
-        // Reload posts only for the feature that was modified
-        const featureId = selectedPost?.feature_id || selectedPost?.id;
-        if (featureId) {
-          // Clear cache for this feature
-          const newLoadedPosts = new Map(loadedPosts);
-          newLoadedPosts.delete(featureId);
-          setLoadedPosts(newLoadedPosts);
+      // Auto-refresh: Reload posts for the affected feature
+      const featureId = selectedPost?.feature_id || selectedPost?.id;
+      if (featureId) {
+        try {
+          // 1. Refresh features list
+          await refreshFeatures();
           
-          // Reload posts count
+          // 2. Reload posts count (always)
           const newCount = await postsAPI.getCount(featureId);
           const newCounts = new Map(postsCounts);
           newCounts.set(featureId, newCount);
           setPostsCounts(newCounts);
           
-          // Reload posts for this feature only (if expanded)
+          // 3. Force reload posts immediately (if feature is expanded)
           if (expandedFeatures.has(featureId)) {
-            const freshPosts = await loadPostsForFeature(featureId);
+            console.log(`🔄 Auto-refreshing posts for feature ${featureId}...`);
+            const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
             
-            // Update just this feature's posts
+            // Update cache
+            const newLoadedPosts = new Map(loadedPosts);
+            newLoadedPosts.set(featureId, freshPosts);
+            setLoadedPosts(newLoadedPosts);
+            
+            // Update state with fresh posts
             setFeatures(prevFeatures =>
               prevFeatures.map(f =>
                 f.id === featureId ? { ...f, posts: freshPosts } : f
               )
             );
+            console.log(`✅ Posts refreshed successfully! Found ${freshPosts.length} posts`);
           }
+        } catch (refreshError) {
+          console.error('Refresh error:', refreshError);
+          toast.error('Failed to refresh posts. Please manually reload.');
         }
-      } catch (refreshError) {
-        console.error('Refresh error:', refreshError);
-        // Don't reload entire page, just show error
-        alert('Failed to refresh. Please manually reload if needed.');
       }
     } catch (error: any) {
-      alert(`Failed to save post: ${error.response?.data?.detail || error.message}`);
+      toast.error(`Failed to save post: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -506,11 +653,29 @@ const Features: React.FC = () => {
         }
       }
 
-      alert('Feature created successfully!');
+      toast.success('Feature created successfully!');
       setIsAddFeatureModalOpen(false);
+      
+      // Auto-refresh: Reload all features and counts
       await refreshFeatures();
+      
+      // Reload counts for all features (including new one)
+      if (apiFeatures.length > 0) {
+        const counts = new Map<number, number>();
+        await Promise.all(
+          apiFeatures.map(async (feature) => {
+            try {
+              const count = await postsAPI.getCount(feature.id);
+              counts.set(feature.id, count);
+            } catch (error) {
+              counts.set(feature.id, 0);
+            }
+          })
+        );
+        setPostsCounts(counts);
+      }
     } catch (error) {
-      alert('Failed to create feature. Please try again.');
+      toast.error('Failed to create feature. Please try again.');
     }
   };
 
@@ -552,11 +717,27 @@ const Features: React.FC = () => {
       }
 
       await refreshFeatures();
-      alert('Feature updated successfully!');
+      toast.success('Feature updated successfully!');
       setIsEditFeatureModalOpen(false);
       setSelectedFeature(null);
+      
+      // Auto-refresh: Reload counts after update
+      if (apiFeatures.length > 0) {
+        const counts = new Map<number, number>();
+        await Promise.all(
+          apiFeatures.map(async (feature) => {
+            try {
+              const count = await postsAPI.getCount(feature.id);
+              counts.set(feature.id, count);
+            } catch (error) {
+              counts.set(feature.id, 0);
+            }
+          })
+        );
+        setPostsCounts(counts);
+      }
     } catch (error) {
-      alert('Failed to update feature. Please try again.');
+      toast.error('Failed to update feature. Please try again.');
     }
   };
 
@@ -582,7 +763,7 @@ const Features: React.FC = () => {
           translationData.targetLanguage,
           updatePayload
         );
-        alert('Translation updated successfully!');
+        toast.success('Translation updated successfully!');
       } else {
         const createPayload = {
           locale: translationData.targetLanguage,
@@ -590,35 +771,45 @@ const Features: React.FC = () => {
           content_html: translationData.content,
         };
         await postsApi.createTranslation(selectedPost.id, createPayload);
-        alert('Translation created successfully!');
+        toast.success('Translation created successfully!');
       }
 
       setIsTranslateModalOpen(false);
 
-      // Refresh data to show new translation - only reload posts for this feature
-      await refreshFeatures();
-
+      // Auto-refresh: Reload posts for this feature to show new translation
       const featureId = selectedPost?.feature_id;
       if (featureId) {
-        // Update count (translations may change count if it's a new locale)
-        const newCount = await postsAPI.getCount(featureId);
-        const newCounts = new Map(postsCounts);
-        newCounts.set(featureId, newCount);
-        setPostsCounts(newCounts);
-        
-        // Clear cache and reload posts for this feature only (if expanded)
-        if (expandedFeatures.has(featureId)) {
-          const newLoadedPosts = new Map(loadedPosts);
-          newLoadedPosts.delete(featureId);
-          setLoadedPosts(newLoadedPosts);
+        try {
+          // 1. Refresh features list
+          await refreshFeatures();
           
-          const freshPosts = await loadPostsForFeature(featureId);
+          // 2. Update count (translations may change count if it's a new locale)
+          const newCount = await postsAPI.getCount(featureId);
+          const newCounts = new Map(postsCounts);
+          newCounts.set(featureId, newCount);
+          setPostsCounts(newCounts);
           
-          setFeatures(prevFeatures =>
-            prevFeatures.map(f =>
-              f.id === featureId ? { ...f, posts: freshPosts } : f
-            )
-          );
+          // 3. Force reload posts (if feature is expanded)
+          if (expandedFeatures.has(featureId)) {
+            console.log(`🔄 Auto-refreshing posts after translation for feature ${featureId}...`);
+            
+            const freshPosts = await loadPostsForFeature(featureId, true); // 👈 FORCE RELOAD
+            
+            // Update cache
+            const newLoadedPosts = new Map(loadedPosts);
+            newLoadedPosts.set(featureId, freshPosts);
+            setLoadedPosts(newLoadedPosts);
+            
+            setFeatures(prevFeatures =>
+              prevFeatures.map(f =>
+                f.id === featureId ? { ...f, posts: freshPosts } : f
+              )
+            );
+            console.log(`✅ Translation refreshed successfully! Found ${freshPosts.length} posts`);
+          }
+        } catch (refreshError) {
+          console.error('Translation refresh error:', refreshError);
+          toast.error('Failed to refresh posts. Please manually reload.');
         }
       }
     } catch (error: any) {
@@ -632,7 +823,7 @@ const Features: React.FC = () => {
         errorMessage += `: ${error.message}`;
       }
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -813,14 +1004,18 @@ const Features: React.FC = () => {
             <option disabled>Loading categories...</option>
           ) : (
             categories.map(category => {
-              // Get default locale from property settings
-              const defaultLocale = propertySettings.defaultLanguage || 'en';
+              // Use same locale detection as features
+              const storedLocale = localStorage.getItem('locale');
+              const browserLang = (navigator.language || (navigator as any).userLanguage || 'en').split('-')[0].toLowerCase();
+              const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+              const userLocale = currentUser.default_locale || currentUser.locale;
+              const uiLocale = (storedLocale || browserLang || userLocale || 'en').toLowerCase();
               
-              // Get translated title with fallback chain: defaultLocale -> en -> name -> slug
-              const categoryTitle = category.translations?.[defaultLocale]?.title || 
+              // Get translated title with fallback chain: uiLocale → en → name → formatted slug
+              const categoryTitle = category.translations?.[uiLocale]?.title || 
                                    category.translations?.en?.title || 
                                    category.name || 
-                                   category.slug.charAt(0).toUpperCase() + category.slug.slice(1);
+                                   category.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
               
               return (
                 <option key={category.id} value={category.slug}>
@@ -1020,6 +1215,17 @@ const Features: React.FC = () => {
         onClose={() => setIsTranslateModalOpen(false)}
         post={selectedPost}
         onTranslate={handleTranslate}
+      />
+
+      {/* Modern Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
     </div>
   );

@@ -5,6 +5,8 @@ import type { User, UserFormData } from '../types/users';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserPlus, faEdit, faUserTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { usersApi, type ApiUser } from '../services/usersApi';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 // Convert API user to frontend format
 const convertApiUser = (apiUser: ApiUser): User => ({
@@ -50,6 +52,21 @@ const Users: React.FC = () => {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,16 +189,24 @@ const Users: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to remove this user?')) return;
-    
-    try {
-      await usersApi.deleteUser(id);
-      setUsers(prev => prev.filter(u => u.id !== id));
-    } catch (err) {
-      console.error('Failed to delete user:', err);
-      alert('Failed to delete user. Please try again.');
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete User',
+      message: 'Are you sure you want to remove this user? This action cannot be undone.',
+      confirmText: 'Delete User',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await usersApi.deleteUser(id);
+          setUsers(prev => prev.filter(u => u.id !== id));
+          toast.success('User deleted successfully!');
+        } catch (err) {
+          console.error('Failed to delete user:', err);
+          toast.error('Failed to delete user. Please try again.');
+        }
+      },
+    });
   };
 
   const handleSave = async (data: UserFormData) => {
@@ -200,11 +225,11 @@ const Users: React.FC = () => {
         
         setUsers(prev => prev.map(u => u.id === data.id ? updatedUser : u));
         
-        alert('✅ User updated successfully!');
+        toast.success('User updated successfully!');
       } else {
         // Create new user - password is required
         if (!data.password || data.password.trim().length < 8) {
-          alert('❌ Password is required and must be at least 8 characters long.');
+          toast.error('Password is required and must be at least 8 characters long.');
           return;
         }
         
@@ -212,7 +237,7 @@ const Users: React.FC = () => {
         const tenantId = localStorage.getItem('tenant_id');
         
         if (!tenantId) {
-          alert('Error: No tenant context found. Please refresh and try again.');
+          toast.error('No tenant context found. Please refresh and try again.');
           return;
         }
         
@@ -230,7 +255,7 @@ const Users: React.FC = () => {
         
         setUsers(prev => [newUser, ...prev]);
         
-        alert('✅ User created successfully!');
+        toast.success('User created successfully!');
       }
       
       setModalOpen(false);
@@ -255,7 +280,7 @@ const Users: React.FC = () => {
         errorMessage = `Error: ${err.response.data.detail}`;
       }
       
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -446,6 +471,17 @@ const Users: React.FC = () => {
         initialData={editingUser}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
     </div>
   );

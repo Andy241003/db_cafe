@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCategories } from '../hooks/useCategories';
 import { useFilters } from '../hooks/useFilters';
@@ -9,6 +9,8 @@ import { CategoryModal } from '../components/categories/CategoryModal';
 import { TranslateModal } from '../components/categories/TranslateModal';
 import { t } from '../utils/i18n';
 import type { Category, CategoryFormData, Language } from '../types/categories';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Categories: React.FC = () => {
   const navigate = useNavigate();
@@ -18,15 +20,32 @@ const Categories: React.FC = () => {
   const categoryModal = useModal<Category>();
   const translateModal = useModal<Category>();
 
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const handleSaveCategory = async (formData: CategoryFormData): Promise<void> => {
     try {
       if (categoryModal.modalData) {
         await updateCategory(categoryModal.modalData.id, formData);
+        toast.success('Category updated successfully!');
       } else {
         await createCategory(formData);
+        toast.success('Category created successfully!');
       }
     } catch (error) {
-      alert(t('errorSavingCategory'));
+      toast.error(t('errorSavingCategory'));
     }
   };
 
@@ -34,26 +53,36 @@ const Categories: React.FC = () => {
     categoryModal.openModal(category);
   };
 
-  const handleDeleteCategory = async (id: number): Promise<void> => {
+  const handleDeleteCategory = (id: number): void => {
     // Tìm category để kiểm tra featureCount
     const category = categories.find(c => c.id === id);
 
     if (!category) {
-      alert(t('categoryNotFound'));
+      toast.error(t('categoryNotFound'));
       return;
     }
 
     // Kiểm tra xem category có feature con không
     if (category.featureCount > 0) {
-      alert(t('cannotDeleteCategoryWithFeatures'));
+      toast.error(t('cannotDeleteCategoryWithFeatures'));
       return;
     }
 
-    try {
-      await deleteCategory(id);
-    } catch (error) {
-      alert(t('errorDeletingCategory'));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Category',
+      message: 'Are you sure you want to delete this category? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteCategory(id);
+          toast.success('Category deleted successfully!');
+        } catch (error) {
+          toast.error(t('errorDeletingCategory'));
+        }
+      },
+    });
   };
 
   const handleViewFeatures = (categoryId: number): void => {
@@ -100,11 +129,11 @@ const Categories: React.FC = () => {
             short_desc: translatedData.description || '',
           }
         );
-        alert(t('translationUpdated', { lang: targetLang.toUpperCase() }));
+        toast.success(t('translationUpdated', { lang: targetLang.toUpperCase() }));
       } else {
         // Create new translation
         await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
-        alert(t('translationCreated', { lang: targetLang.toUpperCase() }));
+        toast.success(t('translationCreated', { lang: targetLang.toUpperCase() }));
       }
 
       translateModal.closeModal();
@@ -114,7 +143,7 @@ const Categories: React.FC = () => {
     } catch (error: any) {
       // Show error message
       const errorMessage = error.response?.data?.detail || error.message || t('errorSavingTranslation');
-      alert(`${t('errorSavingTranslation')}: ${errorMessage}`);
+      toast.error(`${t('errorSavingTranslation')}: ${errorMessage}`);
     }
   };
 
@@ -216,6 +245,17 @@ const Categories: React.FC = () => {
         onClose={translateModal.closeModal}
         category={translateModal.modalData}
         onAcceptTranslation={handleAcceptTranslation}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
     </div>
   );

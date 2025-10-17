@@ -9,6 +9,8 @@ import { TranslateModal } from "../components/properties/TranslateModal";
 import type { Hotel, HotelPost } from "../types/properties";
 import { faPlus, faSpinner, faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Properties: React.FC = () => {
   const {
@@ -42,6 +44,21 @@ const Properties: React.FC = () => {
   const [currentTranslatingPost, setCurrentTranslatingPost] = useState<HotelPost | null>(null);
   const [currentHotelId, setCurrentHotelId] = useState<string>("");
 
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   // Notification system
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const showNotification = (message: string, type: "success" | "error" | "info") => {
@@ -74,16 +91,23 @@ const Properties: React.FC = () => {
     setIsTranslateModalOpen(true);
   };
 
-  const handleDeletePost = async (postId: number) => {
-    if (window.confirm("Are you sure you want to delete this hotel post?")) {
-      try {
-        await deleteHotelPost(postId);
-        showNotification("Hotel post deleted successfully!", "success");
-      } catch (error) {
-        console.error("Error deleting post:", error);
-        showNotification("Error deleting post. Please try again.", "error");
-      }
-    }
+  const handleDeletePost = (postId: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Hotel Post',
+      message: 'Are you sure you want to delete this hotel post? This action cannot be undone.',
+      confirmText: 'Delete Post',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteHotelPost(postId);
+          toast.success("Hotel post deleted successfully!");
+        } catch (error) {
+          console.error("Error deleting post:", error);
+          toast.error("Failed to delete hotel post.");
+        }
+      },
+    });
   };
 
   const handleSaveHotel = async (formData: any) => {
@@ -160,16 +184,23 @@ const Properties: React.FC = () => {
     setIsEditHotelModalOpen(true);
   };
 
-  const handleDeleteHotel = async (hotelId: string) => {
-    if (window.confirm("Are you sure you want to delete this hotel? This action cannot be undone and will also delete all associated posts.")) {
-      try {
-        await deleteHotel(hotelId);
-        showNotification("Hotel deleted successfully!", "success");
-      } catch (error) {
-        console.error("Error deleting hotel:", error);
-        showNotification("Failed to delete hotel.", "error");
-      }
-    }
+  const handleDeleteHotel = (hotelId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Hotel',
+      message: 'Are you sure you want to delete this hotel? This action cannot be undone and will also delete all associated posts.',
+      confirmText: 'Delete Hotel',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteHotel(hotelId);
+          toast.success("Hotel deleted successfully!");
+        } catch (error) {
+          console.error("Error deleting hotel:", error);
+          toast.error("Failed to delete hotel.");
+        }
+      },
+    });
   };
 
   const handleSaveEditHotel = async (formData: any) => {
@@ -300,6 +331,17 @@ const Properties: React.FC = () => {
         onClose={() => setIsTranslateModalOpen(false)}
         onSave={handleSaveTranslation}
         post={currentTranslatingPost}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
       />
     </div>
   );
