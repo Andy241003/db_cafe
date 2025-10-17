@@ -2,10 +2,21 @@ import React, { useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, 
-  faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag, 
-  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink,faTv, faUsers, faSignInAlt, faHotTub, faInfoCircle
+import {
+  faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell,
+  faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag,
+  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink, faTv, faUsers,
+  faSignInAlt, faHotTub, faInfoCircle, faGift, faSignOutAlt, faKey, faParking,
+  faBus, faPlaneDeparture, faCarSide, faHandshake, faWaterLadder,
+
+  // newly added / suggested
+  faSnowflake, faLock, faBell, faCalendarCheck, faMugHot, faGlassMartini,
+  faLeaf, faIceCream, faStore, faList, faTicket, faBath, faHandsHelping,
+  faTruck, faBoxOpen, faPaw, faLaptop, faBuilding, faChartLine, faThumbsUp,
+  faChild, faMapSigns, faBicycle, faTshirt, faCampground,
+  faCloudSun, faCalendar, faLanguage, faMap, faPoll, faQuestionCircle,
+  faGlobe, faSmoking, faRoute, faShieldVirus, faFileContract,
+  faMapMarkedAlt, faChalkboard
 } from '@fortawesome/free-solid-svg-icons';
 import { useCategories } from '../../hooks/useCategories';
 
@@ -48,7 +59,7 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [iconPickerOpen]);
-  
+
   const [featureForm, setFeatureForm] = useState<FormData>({
     name: '',
     category: '',
@@ -66,7 +77,7 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
       ['bold', 'italic', 'underline'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
       ['link', 'image'],
       ['clean']
     ],
@@ -80,27 +91,106 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
   ];
 
   const icons = [
-    { icon: faStar, name: 'star' }, 
-    { icon: faSwimmingPool, name: 'swimming-pool' }, 
-    { icon: faUtensils, name: 'utensils' }, 
-    { icon: faWifi, name: 'wifi' }, 
-    { icon: faCar, name: 'car' }, 
+    { icon: faStar, name: 'star' },
+    { icon: faSwimmingPool, name: 'swimming-pool' },
+    { icon: faUtensils, name: 'utensils' }, // nha-hang
+    { icon: faWifi, name: 'wifi' },
+    { icon: faCar, name: 'car' },
     { icon: faSpa, name: 'spa' },
-    { icon: faDumbbell, name: 'dumbbell' }, 
-    { icon: faCocktail, name: 'cocktail' }, 
-    { icon: faBed, name: 'bed' }, 
-    { icon: faConciergeBell, name: 'concierge-bell' }, 
-    { icon: faCoffee, name: 'coffee' }, 
-    { icon: faGamepad, name: 'gamepad' }, 
-    { icon: faShoppingBag, name: 'shopping-bag' }, 
-    { icon: faTaxi, name: 'taxi' }, 
-    { icon: faCrown, name: 'crown' }, 
+    { icon: faDumbbell, name: 'dumbbell' },
+    { icon: faCocktail, name: 'cocktail' },
+    { icon: faBed, name: 'bed' },
+    { icon: faConciergeBell, name: 'concierge-bell' },
+    { icon: faCoffee, name: 'coffee' },
+    { icon: faGamepad, name: 'gamepad' },
+    { icon: faShoppingBag, name: 'shopping-bag' },
+    { icon: faTaxi, name: 'taxi' },
+    { icon: faCrown, name: 'crown' },
     { icon: faUmbrellaBeach, name: 'umbrella-beach' },
-    { icon: faTv, name: 'tv' }, 
-    { icon: faUsers, name: 'users' }, 
-    { icon: faSignInAlt, name: 'checkin' }, 
-    { icon: faHotTub, name: 'hot-tub-person' }, 
-    { icon: faInfoCircle, name: 'info-circle' } // mặc định hoặc fallback
+    { icon: faTv, name: 'tv' },
+    { icon: faUsers, name: 'users' },
+    { icon: faSignInAlt, name: 'check-in' },
+    { icon: faHotTub, name: 'hot-tub-person' },
+    { icon: faTimes, name: 'times' },
+    { icon: faLink, name: 'link' },
+    { icon: faInfoCircle, name: 'info-circle' },
+    { icon: faGift, name: 'gift' },
+    { icon: faSignOutAlt, name: 'check-out' },
+    { icon: faKey, name: 'access' },
+    { icon: faParking, name: 'parking' },
+    { icon: faBus, name: 'shuttle-bus' },
+    { icon: faPlaneDeparture, name: 'flight-service' },
+    { icon: faCarSide, name: 'car-rental' },
+    { icon: faHandshake, name: 'handshake' },
+    { icon: faWaterLadder, name: 'water-ladder' },
+
+    // service / room / dining / amenities
+    { icon: faSnowflake, name: 'air-conditioning' },
+    { icon: faLock, name: 'safe' },
+    { icon: faConciergeBell, name: 'amenities' }, // reuse
+    { icon: faBell, name: 'morning-call' },
+    { icon: faUtensils, name: 'in-room-dining' },
+    { icon: faCalendarCheck, name: 'restaurant-reservation' },
+    { icon: faCocktail, name: 'bar-lounge' }, // reuse
+    { icon: faMugHot, name: 'tea-lounge' },
+    { icon: faGlassMartini, name: 'drink-corner' },
+    { icon: faLeaf, name: 'halal-food' },
+    { icon: faIceCream, name: 'ice-treat' },
+    { icon: faStore, name: 'vending-machines' },
+    { icon: faStore, name: 'convenience-store' },
+    { icon: faList, name: 'menu' },
+    { icon: faTicket, name: 'coupon' },
+
+    // relaxation & health
+    { icon: faBath, name: 'public-bath' },
+    { icon: faHotTub, name: 'sauna' }, // reuse hot tub for sauna
+    { icon: faHandsHelping, name: 'massage' },
+    { icon: faSpa, name: 'beauty-spa' }, // reuse
+    { icon: faDumbbell, name: 'fitness' }, // reuse
+    { icon: faSwimmingPool, name: 'pool' }, // reuse
+    { icon: faLeaf, name: 'yoga' },
+
+    // services & amenities
+    { icon: faConciergeBell, name: 'concierge' }, // reuse
+    { icon: faLeaf, name: 'eco-cleaning' }, // reuse leaf
+    { icon: faTshirt, name: 'coin-laundry' },
+    { icon: faTruck, name: 'courier-service' },
+    { icon: faBoxOpen, name: 'locker-room' },
+    { icon: faPaw, name: 'pet-friendly' },
+    { icon: faLaptop, name: 'workspace' },
+    { icon: faBoxOpen, name: 'original-goods' },
+    { icon: faBuilding, name: 'hotel-chain' },
+
+    // business & events
+    { icon: faUsers, name: 'conference-room' }, // reuse users
+    { icon: faChalkboard, name: 'seminar' },
+    { icon: faKey, name: 'rental-space' }, // reuse key
+    { icon: faChartLine, name: 'facility-congestion' },
+
+    // explore & activities
+    { icon: faMapMarkedAlt, name: 'sightseeing' },
+    { icon: faThumbsUp, name: 'recommended-activity' },
+    { icon: faChild, name: 'playground' },
+    { icon: faMapSigns, name: 'self-organized-tour' },
+    { icon: faBicycle, name: 'bicycle-rental' },
+    { icon: faTshirt, name: 'kimono-rental' },
+    { icon: faCampground, name: 'camp' },
+    { icon: faLeaf, name: 'sakura' },
+    { icon: faCloudSun, name: 'weather' },
+    { icon: faCalendar, name: 'local-events' },
+
+    // info & instructions
+    { icon: faLanguage, name: 'how-to-translate' },
+    { icon: faMap, name: 'floor-guide' },
+    { icon: faPoll, name: 'survey' },
+    { icon: faQuestionCircle, name: 'q-and-a' },
+    { icon: faGlobe, name: 'official-website' },
+
+    // safety & regs
+    { icon: faSmoking, name: 'smoking-area' },
+    { icon: faRoute, name: 'evacuation-plan' },
+    { icon: faShieldVirus, name: 'covid-measures' },
+    { icon: faFileContract, name: 'accommodation-terms' }
   ];
 
   const selectIcon = (iconName: string) => {
@@ -237,9 +327,9 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Icon</label>
                 <div className="relative icon-picker-container">
-                  <button 
+                  <button
                     type="button"
-                    className="flex items-center gap-3 p-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors w-full text-left" 
+                    className="flex items-center gap-3 p-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors w-full text-left"
                     onClick={(e) => {
                       e.preventDefault();
                       console.log('Icon picker clicked, current state:', iconPickerOpen);
@@ -249,13 +339,13 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                     <FontAwesomeIcon icon={selectedIconObject} className="w-5 h-5 text-blue-600" />
                     <span className="text-sm text-gray-600">Click to change</span>
                   </button>
-                  
+
                   {iconPickerOpen && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 z-[1001] flex items-center justify-center p-4">
                       <div className="bg-white rounded-lg p-4 max-w-md w-full max-h-96 overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="text-lg font-semibold">Choose an Icon</h4>
-                          <button 
+                          <button
                             type="button"
                             className="text-gray-400 hover:text-gray-600"
                             onClick={() => setIconPickerOpen(false)}
@@ -268,9 +358,8 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                             <button
                               type="button"
                               key={name}
-                              className={`w-12 h-12 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 ${
-                                selectedIcon === name ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200'
-                              }`}
+                              className={`w-12 h-12 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 ${selectedIcon === name ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200'
+                                }`}
                               onClick={() => {
                                 console.log('Selected icon:', name);
                                 selectIcon(name);
@@ -286,7 +375,7 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                 </div>
               </div>
 
-              
+
             </div>
           </div>
 
@@ -327,7 +416,7 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
           </div>
         </form>
       </div>
-      
+
     </div>
   );
 };

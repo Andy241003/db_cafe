@@ -16,25 +16,113 @@ interface CategoryModalProps {
 }
 
 const availableIcons: string[] = [
-  'info-circle', 'concierge-bell', 'building', 'hiking',
-  'car', 'spa', 'utensils', 'shopping-bag', 'share-alt',
-  'file-contract', 'star', 'heart'
+  'star', 'swimming-pool', 'utensils', 'wifi', 'car', 'spa', 'dumbbell', 'cocktail',
+  'bed', 'concierge-bell', 'coffee', 'gamepad', 'shopping-bag', 'taxi', 'crown',
+  'umbrella-beach', 'tv', 'users', 'check-in', 'hot-tub-person', 'times', 'link',
+  'info-circle', 'gift', 'check-out', 'access', 'parking', 'shuttle-bus',
+  'flight-service', 'car-rental', 'handshake', 'water-ladder', 'air-conditioning',
+  'safe', 'amenities', 'morning-call', 'in-room-dining', 'restaurant-reservation',
+  'bar-lounge', 'tea-lounge', 'drink-corner', 'halal-food', 'ice-treat',
+  'vending-machines', 'convenience-store', 'menu', 'coupon', 'public-bath',
+  'sauna', 'massage', 'beauty-spa', 'fitness', 'pool', 'yoga', 'concierge',
+  'eco-cleaning', 'coin-laundry', 'courier-service', 'locker-room', 'pet-friendly',
+  'workspace', 'original-goods', 'hotel-chain', 'conference-room', 'seminar',
+  'rental-space', 'facility-congestion', 'sightseeing', 'recommended-activity',
+  'playground', 'self-organized-tour', 'bicycle-rental', 'kimono-rental', 'camp',
+  'sakura', 'weather', 'local-events', 'how-to-translate', 'floor-guide',
+  'survey', 'q-and-a', 'official-website', 'smoking-area', 'evacuation-plan',
+  'covid-measures', 'accommodation-terms'
 ];
 
 const iconMap: Record<string, string> = {
-  'info-circle': 'fa-info-circle',
-  'concierge-bell': 'fa-concierge-bell',
-  'building': 'fa-building',
-  'hiking': 'fa-hiking',
+  'star': 'fa-star',
+  'swimming-pool': 'fa-swimming-pool',
+  'utensils': 'fa-utensils',
+  'wifi': 'fa-wifi',
   'car': 'fa-car',
   'spa': 'fa-spa',
-  'utensils': 'fa-utensils',
+  'dumbbell': 'fa-dumbbell',
+  'cocktail': 'fa-cocktail',
+  'bed': 'fa-bed',
+  'concierge-bell': 'fa-concierge-bell',
+  'coffee': 'fa-coffee',
+  'gamepad': 'fa-gamepad',
   'shopping-bag': 'fa-shopping-bag',
-  'share-alt': 'fa-share-alt',
-  'file-contract': 'fa-file-contract',
-  'star': 'fa-star',
-  'heart': 'fa-heart'
+  'taxi': 'fa-taxi',
+  'crown': 'fa-crown',
+  'umbrella-beach': 'fa-umbrella-beach',
+  'tv': 'fa-tv',
+  'users': 'fa-users',
+  'check-in': 'fa-sign-in-alt',
+  'hot-tub-person': 'fa-hot-tub-person',
+  'times': 'fa-times',
+  'link': 'fa-link',
+  'info-circle': 'fa-info-circle',
+  'gift': 'fa-gift',
+  'check-out': 'fa-sign-out-alt',
+  'access': 'fa-key',
+  'parking': 'fa-parking',
+  'shuttle-bus': 'fa-bus',
+  'flight-service': 'fa-plane-departure',
+  'car-rental': 'fa-car-side',
+  'handshake': 'fa-handshake',
+  'water-ladder': 'fa-water-ladder',
+  'air-conditioning': 'fa-snowflake',
+  'safe': 'fa-lock',
+  'amenities': 'fa-concierge-bell',
+  'morning-call': 'fa-bell',
+  'in-room-dining': 'fa-utensils',
+  'restaurant-reservation': 'fa-calendar-check',
+  'bar-lounge': 'fa-cocktail',
+  'tea-lounge': 'fa-mug-hot',
+  'drink-corner': 'fa-glass-martini',
+  'halal-food': 'fa-leaf',
+  'ice-treat': 'fa-ice-cream',
+  'vending-machines': 'fa-store',
+  'convenience-store': 'fa-store',
+  'menu': 'fa-list',
+  'coupon': 'fa-ticket',
+  'public-bath': 'fa-bath',
+  'sauna': 'fa-hot-tub',
+  'massage': 'fa-hands-helping',
+  'beauty-spa': 'fa-spa',
+  'fitness': 'fa-dumbbell',
+  'pool': 'fa-swimming-pool',
+  'yoga': 'fa-leaf',
+  'concierge': 'fa-concierge-bell',
+  'eco-cleaning': 'fa-leaf',
+  'coin-laundry': 'fa-tshirt',
+  'courier-service': 'fa-truck',
+  'locker-room': 'fa-box-open',
+  'pet-friendly': 'fa-paw',
+  'workspace': 'fa-laptop',
+  'original-goods': 'fa-box-open',
+  'hotel-chain': 'fa-building',
+  'conference-room': 'fa-users',
+  'seminar': 'fa-chalkboard',
+  'rental-space': 'fa-key',
+  'facility-congestion': 'fa-chart-line',
+  'sightseeing': 'fa-map-marked-alt',
+  'recommended-activity': 'fa-thumbs-up',
+  'playground': 'fa-child',
+  'self-organized-tour': 'fa-map-signs',
+  'bicycle-rental': 'fa-bicycle',
+  'kimono-rental': 'fa-tshirt',
+  'camp': 'fa-campground',
+  'sakura': 'fa-leaf',
+  'weather': 'fa-cloud-sun',
+  'local-events': 'fa-calendar',
+  'how-to-translate': 'fa-language',
+  'floor-guide': 'fa-map',
+  'survey': 'fa-poll',
+  'q-and-a': 'fa-question-circle',
+  'official-website': 'fa-globe',
+  'smoking-area': 'fa-smoking',
+  'evacuation-plan': 'fa-route',
+  'covid-measures': 'fa-shield-virus',
+  'accommodation-terms': 'fa-file-contract'
 };
+
 
 // Helper function to get language name from code
 const getLanguageName = (code: string): string => {
@@ -102,6 +190,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   const [availableLocales, setAvailableLocales] = useState<Locale[]>([]);
   const [activeTabs, setActiveTabs] = useState<Language[]>([]); // Will be set from propertySettings
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
   const languageDropdownRef = React.useRef<HTMLDivElement>(null);
   const addButtonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
@@ -409,8 +498,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                     ref={addButtonRef}
                     type="button"
                     onClick={() => {
-                      console.log('🟢 Add button clicked! Current state:', showLanguageDropdown);
-                      
                       if (!showLanguageDropdown && addButtonRef.current) {
                         const rect = addButtonRef.current.getBoundingClientRect();
                         const position = {
@@ -418,12 +505,10 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                           left: rect.left + window.scrollX,
                           width: Math.max(rect.width, 250)
                         };
-                        console.log('📍 Setting dropdown position:', position);
                         setDropdownPosition(position);
                       }
                       
                       setShowLanguageDropdown(!showLanguageDropdown);
-                      console.log('🔄 Toggled dropdown to:', !showLanguageDropdown);
                     }}
                     className="w-8 h-8 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center relative z-10"
                   >
@@ -482,7 +567,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
 
             {/* Icon Selection */}
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
                   Category Icon
                 </label>
@@ -497,21 +582,82 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                   Yêu cầu thêm icon
                 </button>
               </div>
-              <div className="grid grid-cols-6 gap-2">
-                {availableIcons.map((icon: string) => (
+              
+              {/* Search Bar */}
+              <div className="mb-3">
+                <input
+                  type="text"
+                  placeholder="🔍 Search icons... (e.g., wifi, pool, spa)"
+                  value={iconSearch}
+                  onChange={(e) => setIconSearch(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Selected Icon Preview */}
+              {formData.icon && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-500 text-white rounded-lg flex items-center justify-center text-lg">
+                    <i className={`fas ${iconMap[formData.icon] || 'fa-box'}`}></i>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Selected: {formData.icon}</p>
+                    <p className="text-xs text-gray-500">{iconMap[formData.icon]}</p>
+                  </div>
                   <button
-                    key={icon}
                     type="button"
-                    onClick={() => handleIconSelect(icon)}
-                    className={`w-10 h-10 border-2 rounded-lg flex items-center justify-center text-lg transition-colors ${
-                      formData.icon === icon
-                        ? 'border-blue-500 bg-blue-500 text-white'
-                        : 'border-gray-300 bg-gray-50 hover:border-blue-400'
-                    }`}
+                    onClick={() => setFormData(prev => ({ ...prev, icon: '' }))}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <i className={`fas ${iconMap[icon] || 'fa-box'}`}></i>
+                    <FontAwesomeIcon icon={faTimes} />
                   </button>
-                ))}   
+                </div>
+              )}
+
+              {/* Icon Grid with Scroll */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="max-h-[280px] overflow-y-auto p-3 bg-gray-50">
+                  <div className="grid grid-cols-10 gap-1.5">
+                    {availableIcons
+                      .filter(icon => 
+                        iconSearch === '' || 
+                        icon.toLowerCase().includes(iconSearch.toLowerCase()) ||
+                        (iconMap[icon] || '').toLowerCase().includes(iconSearch.toLowerCase())
+                      )
+                      .map((icon: string) => (
+                        <button
+                          key={icon}
+                          type="button"
+                          onClick={() => handleIconSelect(icon)}
+                          title={icon}
+                          className={`group relative w-full aspect-square border rounded-md flex items-center justify-center text-sm transition-all ${
+                            formData.icon === icon
+                              ? 'border-blue-500 bg-blue-500 text-white shadow-md scale-105'
+                              : 'border-gray-300 bg-white hover:border-blue-400 hover:shadow-sm hover:scale-105'
+                          }`}
+                        >
+                          <i className={`fas ${iconMap[icon] || 'fa-box'}`}></i>
+                          
+                          {/* Tooltip on hover */}
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            {icon}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                  
+                  {/* No results message */}
+                  {availableIcons.filter(icon => 
+                    iconSearch === '' || 
+                    icon.toLowerCase().includes(iconSearch.toLowerCase()) ||
+                    (iconMap[icon] || '').toLowerCase().includes(iconSearch.toLowerCase())
+                  ).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <i className="fas fa-search text-3xl mb-2"></i>
+                      <p className="text-sm">No icons found for "{iconSearch}"</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -573,12 +719,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                 !activeTabs.includes(locale.code as Language)
               );
               
-              console.log('🔍 Dropdown render check:', {
-                supportedLocales: supportedLocales.map(l => l.code),
-                activeTabs,
-                remainingLocales: remainingLocales.map(l => l.code)
-              });
-              
               if (remainingLocales.length === 0) {
                 return (
                   <div className="px-4 py-6 text-center">
@@ -600,28 +740,20 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        console.log('🎯 Adding language:', locale.code);
-                        console.log('📋 Current activeTabs before:', activeTabs);
-                        
                         // Add to active tabs and switch to it
                         const newTabs = [...activeTabs, locale.code as Language];
-                        console.log('📋 New activeTabs after:', newTabs);
                         
                         setActiveTabs(newTabs);
                         setActiveTab(locale.code as Language);
                         
                         // Ensure formData includes the new language
-                        setFormData(prev => {
-                          const newFormData = {
-                            ...prev,
-                            translations: {
-                              ...prev.translations,
-                              [locale.code]: { title: '', description: '' }
-                            }
-                          };
-                          console.log('🔄 Updated formData:', newFormData);
-                          return newFormData;
-                        });
+                        setFormData(prev => ({
+                          ...prev,
+                          translations: {
+                            ...prev.translations,
+                            [locale.code]: { title: '', description: '' }
+                          }
+                        }));
                         
                         // Close dropdown after brief delay
                         setTimeout(() => {

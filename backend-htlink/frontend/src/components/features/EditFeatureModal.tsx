@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell, 
-  faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag, 
-  faTaxi, faCrown, faUmbrellaBeach, faTimes, faChalkboardTeacher, faParking
+import {
+  faStar, faSwimmingPool, faUtensils, faWifi, faCar, faSpa, faDumbbell,
+  faCocktail, faBed, faConciergeBell, faCoffee, faGamepad, faShoppingBag,
+  faTaxi, faCrown, faUmbrellaBeach, faTimes, faLink, faTv, faUsers,
+  faSignInAlt, faHotTub, faInfoCircle, faGift, faSignOutAlt, faKey, faParking,
+  faBus, faPlaneDeparture, faCarSide, faHandshake, faWaterLadder,
+
+  // newly added / suggested
+  faSnowflake, faLock, faBell, faCalendarCheck, faMugHot, faGlassMartini,
+  faLeaf, faIceCream, faStore, faList, faTicket, faBath, faHandsHelping,
+  faTruck, faBoxOpen, faPaw, faLaptop, faBuilding, faChartLine, faThumbsUp,
+  faChild, faMapSigns, faBicycle, faTshirt, faCampground,
+  faCloudSun, faCalendar, faLanguage, faMap, faPoll, faQuestionCircle,
+  faGlobe, faSmoking, faRoute, faShieldVirus, faFileContract,
+  faMapMarkedAlt, faChalkboard
 } from '@fortawesome/free-solid-svg-icons';
 import { useCategories } from '../../hooks/useCategories';
 
@@ -49,22 +60,16 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
   // Update form when feature changes
   useEffect(() => {
     if (feature && isOpen) {
-      console.log('EditFeatureModal: Loading feature data:', feature);
-      console.log('EditFeatureModal: Original icon_key:', feature.icon_key);
-      console.log('EditFeatureModal: Categories available:', categories);
-      
+   
       const category = categories.find(cat => cat.id === feature.category_id);
-      console.log('EditFeatureModal: Found category:', category);
       
+
       // Normalize icon_key - remove fa- prefix if exists and handle undefined
       const iconKey = feature.icon_key || 'star';
       const normalizedIcon = iconKey.startsWith('fa-') 
         ? iconKey.substring(3) 
         : iconKey;
-      
-      console.log('EditFeatureModal: Normalized icon:', normalizedIcon);
-      console.log('EditFeatureModal: Available icons:', icons.map(i => i.name));
-      
+  
       const formData = {
         name: feature.title || feature.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         category: category?.slug || '',
@@ -72,25 +77,114 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
         icon: normalizedIcon,
         status: feature.is_system ? 'inactive' : 'active'
       };
-      
-      console.log('EditFeatureModal: Setting form data:', formData);
+
       setFeatureForm(formData);
       setSelectedIcon(normalizedIcon);
     }
   }, [feature, isOpen, categories]);
 
   const icons = [
-    { icon: faStar, name: 'star' }, { icon: faSwimmingPool, name: 'swimming-pool' }, 
-    { icon: faUtensils, name: 'utensils' }, { icon: faWifi, name: 'wifi' }, 
-    { icon: faCar, name: 'car' }, { icon: faParking, name: 'parking' }, { icon: faSpa, name: 'spa' },
-    { icon: faDumbbell, name: 'dumbbell' }, { icon: faCocktail, name: 'cocktail' }, 
-    { icon: faBed, name: 'bed' }, { icon: faConciergeBell, name: 'concierge-bell' }, 
-    { icon: faCoffee, name: 'coffee' }, { icon: faGamepad, name: 'gamepad' }, 
-    { icon: faShoppingBag, name: 'shopping-bag' }, { icon: faTaxi, name: 'taxi' }, 
-    { icon: faCrown, name: 'crown' }, { icon: faUmbrellaBeach, name: 'umbrella-beach' },
-    { icon: faChalkboardTeacher, name: 'presentation' }
-  ];
+    { icon: faStar, name: 'star' },
+    { icon: faSwimmingPool, name: 'swimming-pool' },
+    { icon: faUtensils, name: 'utensils' }, // nha-hang
+    { icon: faWifi, name: 'wifi' },
+    { icon: faCar, name: 'car' },
+    { icon: faSpa, name: 'spa' },
+    { icon: faDumbbell, name: 'dumbbell' },
+    { icon: faCocktail, name: 'cocktail' },
+    { icon: faBed, name: 'bed' },
+    { icon: faConciergeBell, name: 'concierge-bell' },
+    { icon: faCoffee, name: 'coffee' },
+    { icon: faGamepad, name: 'gamepad' },
+    { icon: faShoppingBag, name: 'shopping-bag' },
+    { icon: faTaxi, name: 'taxi' },
+    { icon: faCrown, name: 'crown' },
+    { icon: faUmbrellaBeach, name: 'umbrella-beach' },
+    { icon: faTv, name: 'tv' },
+    { icon: faUsers, name: 'users' },
+    { icon: faSignInAlt, name: 'check-in' },
+    { icon: faHotTub, name: 'hot-tub-person' },
+    { icon: faTimes, name: 'times' },
+    { icon: faLink, name: 'link' },
+    { icon: faInfoCircle, name: 'info-circle' },
+    { icon: faGift, name: 'gift' },
+    { icon: faSignOutAlt, name: 'check-out' },
+    { icon: faKey, name: 'access' },
+    { icon: faParking, name: 'parking' },
+    { icon: faBus, name: 'shuttle-bus' },
+    { icon: faPlaneDeparture, name: 'flight-service' },
+    { icon: faCarSide, name: 'car-rental' },
+    { icon: faHandshake, name: 'handshake' },
+    { icon: faWaterLadder, name: 'water-ladder' },
 
+    // service / room / dining / amenities
+    { icon: faSnowflake, name: 'air-conditioning' },
+    { icon: faLock, name: 'safe' },
+    { icon: faConciergeBell, name: 'amenities' }, // reuse
+    { icon: faBell, name: 'morning-call' },
+    { icon: faUtensils, name: 'in-room-dining' },
+    { icon: faCalendarCheck, name: 'restaurant-reservation' },
+    { icon: faCocktail, name: 'bar-lounge' }, // reuse
+    { icon: faMugHot, name: 'tea-lounge' },
+    { icon: faGlassMartini, name: 'drink-corner' },
+    { icon: faLeaf, name: 'halal-food' },
+    { icon: faIceCream, name: 'ice-treat' },
+    { icon: faStore, name: 'vending-machines' },
+    { icon: faStore, name: 'convenience-store' },
+    { icon: faList, name: 'menu' },
+    { icon: faTicket, name: 'coupon' },
+
+    // relaxation & health
+    { icon: faBath, name: 'public-bath' },
+    { icon: faHotTub, name: 'sauna' }, // reuse hot tub for sauna
+    { icon: faHandsHelping, name: 'massage' },
+    { icon: faSpa, name: 'beauty-spa' }, // reuse
+    { icon: faDumbbell, name: 'fitness' }, // reuse
+    { icon: faSwimmingPool, name: 'pool' }, // reuse
+    { icon: faLeaf, name: 'yoga' },
+
+    // services & amenities
+    { icon: faConciergeBell, name: 'concierge' }, // reuse
+    { icon: faLeaf, name: 'eco-cleaning' }, // reuse leaf
+    { icon: faTshirt, name: 'coin-laundry' },
+    { icon: faTruck, name: 'courier-service' },
+    { icon: faBoxOpen, name: 'locker-room' },
+    { icon: faPaw, name: 'pet-friendly' },
+    { icon: faLaptop, name: 'workspace' },
+    { icon: faBoxOpen, name: 'original-goods' },
+    { icon: faBuilding, name: 'hotel-chain' },
+
+    // business & events
+    { icon: faUsers, name: 'conference-room' }, // reuse users
+    { icon: faChalkboard, name: 'seminar' },
+    { icon: faKey, name: 'rental-space' }, // reuse key
+    { icon: faChartLine, name: 'facility-congestion' },
+
+    // explore & activities
+    { icon: faMapMarkedAlt, name: 'sightseeing' },
+    { icon: faThumbsUp, name: 'recommended-activity' },
+    { icon: faChild, name: 'playground' },
+    { icon: faMapSigns, name: 'self-organized-tour' },
+    { icon: faBicycle, name: 'bicycle-rental' },
+    { icon: faTshirt, name: 'kimono-rental' },
+    { icon: faCampground, name: 'camp' },
+    { icon: faLeaf, name: 'sakura' },
+    { icon: faCloudSun, name: 'weather' },
+    { icon: faCalendar, name: 'local-events' },
+
+    // info & instructions
+    { icon: faLanguage, name: 'how-to-translate' },
+    { icon: faMap, name: 'floor-guide' },
+    { icon: faPoll, name: 'survey' },
+    { icon: faQuestionCircle, name: 'q-and-a' },
+    { icon: faGlobe, name: 'official-website' },
+
+    // safety & regs
+    { icon: faSmoking, name: 'smoking-area' },
+    { icon: faRoute, name: 'evacuation-plan' },
+    { icon: faShieldVirus, name: 'covid-measures' },
+    { icon: faFileContract, name: 'accommodation-terms' }
+  ];
   const selectIcon = (iconName: string) => {
     setSelectedIcon(iconName);
     setFeatureForm(prev => ({ ...prev, icon: iconName }));
@@ -99,12 +193,10 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
 
   // Helper function to find icon by name, handling both normalized and database formats
   const findIconByName = (iconName: string) => {
-    console.log('findIconByName: Looking for icon:', iconName);
     
     // Try exact match first
     let foundIcon = icons.find(i => i.name === iconName);
     if (foundIcon) {
-      console.log('findIconByName: Found exact match:', foundIcon.name);
       return foundIcon.icon;
     }
     
@@ -112,12 +204,10 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
     const normalizedName = iconName.startsWith('fa-') ? iconName.substring(3) : iconName;
     foundIcon = icons.find(i => i.name === normalizedName);
     if (foundIcon) {
-      console.log('findIconByName: Found normalized match:', foundIcon.name);
       return foundIcon.icon;
     }
     
     // Default fallback
-    console.log('findIconByName: Using fallback star icon for:', iconName);
     return faStar;
   };
 
@@ -127,8 +217,6 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
       alert('Please fill in all required fields');
       return;
     }
-    
-    console.log('EditFeatureModal: Saving feature:', featureForm);
     onSave(feature.id, featureForm);
     onClose();
   };
