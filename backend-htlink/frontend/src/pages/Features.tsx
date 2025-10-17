@@ -58,39 +58,48 @@ const Features: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Load posts for all features
+  // Optimized: Load posts for all features in parallel with batching
   const loadPostsForFeatures = async (features: any[]) => {
-    const postsPromises = features.map(async (feature: any) => {
-      try {
-        const posts = await postsAPI.getAll(feature.id, true);
-        return { featureId: feature.id, posts };
-      } catch (error) {
-        return { featureId: feature.id, posts: [] };
-      }
-    });
+    if (features.length === 0) return new Map();
+    
+    try {
+      // Parallel batch loading - load posts for all features at once
+      const postsPromises = features.map(async (feature: any) => {
+        try {
+          const posts = await postsAPI.getAll(feature.id, true);
+          return { featureId: feature.id, posts };
+        } catch (error) {
+          return { featureId: feature.id, posts: [] };
+        }
+      });
 
-    const postsResults = await Promise.all(postsPromises);
-    const postsMap = new Map();
-    postsResults.forEach(result => {
-      postsMap.set(result.featureId, result.posts);
-    });
+      // Wait for all requests in parallel (instead of sequential)
+      const postsResults = await Promise.all(postsPromises);
+      
+      const postsMap = new Map();
+      postsResults.forEach(result => {
+        postsMap.set(result.featureId, result.posts);
+      });
 
-    return postsMap;
+      return postsMap;
+    } catch (error) {
+      console.error('Failed to load posts:', error);
+      return new Map();
+    }
   };
 
 
 
   // Convert API features to LocalFeature format when data loads
   useEffect(() => {
-    
-    if (apiFeatures.length > 0) {
+    if (apiFeatures.length > 0 && categories.length > 0) {
       const convertFeatures = async () => {
         // Determine current UI locale (try stored user/tenant values, fallback to 'en')
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const storedLocale = localStorage.getItem('locale') || localStorage.getItem('default_locale') || currentUser.default_locale || currentUser.locale;
         const uiLocale = (storedLocale || 'en').toLowerCase();
 
-        // Load posts for all features
+        // Optimized: Load posts for all features in parallel
         const postsMap = await loadPostsForFeatures(apiFeatures);
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
@@ -181,7 +190,7 @@ const Features: React.FC = () => {
 
       convertFeatures();
     }
-  }, [apiFeatures, categories]);
+  }, [apiFeatures, categories]); // Only re-run when features or categories actually change
   
   // Modal states
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);

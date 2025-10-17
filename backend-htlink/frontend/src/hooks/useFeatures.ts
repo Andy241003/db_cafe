@@ -22,9 +22,29 @@ export const useFeatures = (): UseFeatures => {
       setError(null);
       const data = await featuresAPI.getAll();
       setFeatures(data);
+      
+      // Cache features in sessionStorage for faster subsequent loads
+      try {
+        sessionStorage.setItem('cached_features', JSON.stringify(data));
+        sessionStorage.setItem('cached_features_time', Date.now().toString());
+      } catch (e) {
+        // Ignore cache errors
+      }
     } catch (err) {
+      console.error('Failed to load features:', err);
       setError('Failed to load features');
-      setFeatures([]); // No fallback, use empty array to show real API issues
+      
+      // Try to load from cache
+      try {
+        const cached = sessionStorage.getItem('cached_features');
+        if (cached) {
+          setFeatures(JSON.parse(cached));
+        } else {
+          setFeatures([]);
+        }
+      } catch (e) {
+        setFeatures([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +90,25 @@ export const useFeatures = (): UseFeatures => {
   };
 
   useEffect(() => {
+    // Try to load from cache first for instant display
+    try {
+      const cached = sessionStorage.getItem('cached_features');
+      const cacheTime = sessionStorage.getItem('cached_features_time');
+      
+      // Use cache if less than 5 minutes old
+      if (cached && cacheTime && (Date.now() - parseInt(cacheTime)) < 5 * 60 * 1000) {
+        setFeatures(JSON.parse(cached));
+        setLoading(false);
+        
+        // Still refresh in background for fresh data
+        fetchFeatures();
+        return;
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+    
+    // No valid cache, load normally
     fetchFeatures();
   }, []);
 

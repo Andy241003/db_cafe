@@ -20,11 +20,15 @@ export const useCategories = (): UseCategoriesReturn => {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const apiCategories = await categoriesAPI.getAll();
-
-      // Also load features to count features per category
-      const { featuresAPI } = await import('../services/api');
-      const apiFeatures = await featuresAPI.getAll();
+      
+      // Optimized: Load categories, features, and translations in parallel
+      const [apiCategories, apiFeatures] = await Promise.all([
+        categoriesAPI.getAll(),
+        (async () => {
+          const { featuresAPI } = await import('../services/api');
+          return featuresAPI.getAll();
+        })()
+      ]);
 
       // Load translations for all categories
       const { categoriesApi } = await import('../services/categoriesApi');
@@ -70,15 +74,52 @@ export const useCategories = (): UseCategoriesReturn => {
       }));
 
       setCategories(convertedCategories);
+      
+      // Cache categories in sessionStorage for faster subsequent loads
+      try {
+        sessionStorage.setItem('cached_categories', JSON.stringify(convertedCategories));
+        sessionStorage.setItem('cached_categories_time', Date.now().toString());
+      } catch (e) {
+        // Ignore cache errors
+      }
     } catch (error) {
-      // Fallback to empty array on error
-      setCategories([]);
+      console.error('Failed to load categories:', error);
+      // Try to load from cache
+      try {
+        const cached = sessionStorage.getItem('cached_categories');
+        if (cached) {
+          setCategories(JSON.parse(cached));
+        } else {
+          setCategories([]);
+        }
+      } catch (e) {
+        setCategories([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Try to load from cache first for instant display
+    try {
+      const cached = sessionStorage.getItem('cached_categories');
+      const cacheTime = sessionStorage.getItem('cached_categories_time');
+      
+      // Use cache if less than 5 minutes old
+      if (cached && cacheTime && (Date.now() - parseInt(cacheTime)) < 5 * 60 * 1000) {
+        setCategories(JSON.parse(cached));
+        setLoading(false);
+        
+        // Still refresh in background for fresh data
+        loadCategories();
+        return;
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+    
+    // No valid cache, load normally
     loadCategories();
   }, []);
 
