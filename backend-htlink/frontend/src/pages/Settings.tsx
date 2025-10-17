@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { tenantApi } from '../services/tenantApi';
 import { propertiesApi } from '../services/propertiesApi';
 import { mediaApi } from '../services/mediaApi';
 import { localesApi } from '../services/localesApi';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { autoDetectLanguage } from '../utils/languageDetection';
 // import type { TenantSettings } from '../services/tenantApi'; // Will be used later
 import type { ApiProperty } from '../types/properties-api';
 
@@ -78,8 +81,6 @@ interface Language {
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('general');
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<number | null>(null);
   
   // Tenant data - will be used for tenant-level settings in future
@@ -98,6 +99,21 @@ const Settings: React.FC = () => {
   // File upload states
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
   const [dragOver, setDragOver] = useState<boolean>(false);
+
+  // Confirm modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Form states
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
@@ -195,11 +211,12 @@ const Settings: React.FC = () => {
 
   // Show success message
   const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    setShowSuccessMessage(true);
-    setTimeout(() => {
-      setShowSuccessMessage(false);
-    }, 3000);
+    // Check if it's an error message
+    if (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error')) {
+      toast.error(message);
+    } else {
+      toast.success(message);
+    }
   };
 
   // Handle language selection
@@ -430,6 +447,23 @@ const Settings: React.FC = () => {
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Advanced settings saved successfully!');
       await loadProperties();
+      
+      // Update localStorage with new advanced settings
+      const currentSettings = JSON.parse(localStorage.getItem('property_settings') || '{}');
+      const updatedSettings = {
+        ...currentSettings,
+        autoLanguageDetection: advancedSettings.autoLanguageDetection,
+        analyticsTracking: advancedSettings.analyticsTracking,
+        cacheSystem: advancedSettings.cacheSystem
+      };
+      localStorage.setItem('property_settings', JSON.stringify(updatedSettings));
+      console.log('💾 [Settings] Updated localStorage with advanced settings:', updatedSettings);
+      
+      // If Auto Language Detection was enabled, trigger it now
+      if (advancedSettings.autoLanguageDetection) {
+        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
+        await autoDetectLanguage();
+      }
     } catch (error) {
       console.error('Error saving advanced settings:', error);
       showSuccess('Failed to save advanced settings. Please try again.');
@@ -570,6 +604,23 @@ const Settings: React.FC = () => {
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('System settings saved successfully!');
       await loadProperties();
+      
+      // Update localStorage with new advanced settings
+      const currentSettings = JSON.parse(localStorage.getItem('property_settings') || '{}');
+      const updatedSettings = {
+        ...currentSettings,
+        autoLanguageDetection: advancedSettings.autoLanguageDetection,
+        analyticsTracking: advancedSettings.analyticsTracking,
+        cacheSystem: advancedSettings.cacheSystem
+      };
+      localStorage.setItem('property_settings', JSON.stringify(updatedSettings));
+      console.log('💾 [Settings] Updated localStorage with system settings:', updatedSettings);
+      
+      // If Auto Language Detection was enabled, trigger it now
+      if (advancedSettings.autoLanguageDetection) {
+        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
+        await autoDetectLanguage();
+      }
     } catch (error) {
       console.error('Error saving system settings:', error);
       showSuccess('Failed to save system settings. Please try again.');
@@ -657,6 +708,31 @@ const Settings: React.FC = () => {
 
       // Reload properties to get updated info
       await loadProperties();
+      
+      // Update localStorage with ALL settings for fast access
+      const allSettings = {
+        defaultLanguage: localizationSettings.defaultLanguage,
+        fallbackLanguage: localizationSettings.fallbackLanguage,
+        supportedLanguages: localizationSettings.supportedLanguages,
+        timezone: localizationSettings.timezone,
+        dateFormat: localizationSettings.dateFormat,
+        autoLanguageDetection: advancedSettings.autoLanguageDetection,
+        analyticsTracking: advancedSettings.analyticsTracking,
+        cacheSystem: advancedSettings.cacheSystem
+      };
+      localStorage.setItem('property_settings', JSON.stringify(allSettings));
+      console.log('💾 [Settings] Updated localStorage with all settings:', allSettings);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('property-settings-updated', {
+        detail: allSettings
+      }));
+      
+      // If Auto Language Detection was enabled, trigger it now
+      if (advancedSettings.autoLanguageDetection) {
+        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
+        await autoDetectLanguage();
+      }
 
     } catch (error) {
       console.error('Error saving property settings:', error);
@@ -666,8 +742,21 @@ const Settings: React.FC = () => {
 
   // Reset settings
   const resetSettings = (section: string) => {
-    if (window.confirm('Are you sure you want to reset these settings?')) {
-      switch (section) {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Reset Settings',
+      message: 'Are you sure you want to reset these settings? This action cannot be undone.',
+      confirmText: 'Reset',
+      variant: 'warning',
+      onConfirm: () => {
+        performReset(section);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const performReset = (section: string) => {
+    switch (section) {
         case 'general':
           setGeneralSettings({
             propertyName: 'Tabi Tower Hotel',
@@ -726,9 +815,8 @@ const Settings: React.FC = () => {
             propertyActive: true
           });
           break;
-      }
-      showSuccess('Settings reset to default values.');
     }
+    toast.success('Settings reset to default values.');
   };
 
   // Load existing locales from database
@@ -1246,14 +1334,6 @@ const Settings: React.FC = () => {
 
   return (
     <div className="text-slate-800 bg-slate-50 min-h-screen">
-      {/* Success Message */}
-      {showSuccessMessage && (
-        <div className="fixed top-5 right-5 z-[1000] flex items-center gap-2 rounded-lg border border-green-200 bg-green-100 p-3 text-green-800">
-          <i className="fas fa-check-circle"></i>
-          {successMessage}
-        </div>
-      )}
-
       {/* Main Content */}
       <main className="p-6">
         <div className="mb-6 flex items-center justify-between">
@@ -2118,9 +2198,19 @@ const Settings: React.FC = () => {
                       </p>
                       <button
                         onClick={() => {
-                          if (window.confirm('Are you sure you want to remove all banner images?')) {
-                            setAdvancedSettings(prev => ({ ...prev, bannerImages: [] }));
-                          }
+                          setConfirmModal({
+                            isOpen: true,
+                            title: 'Clear All Banner Images',
+                            message: 'Are you sure you want to remove all banner images? This action cannot be undone.',
+                            confirmText: 'Clear All',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              setAdvancedSettings(prev => ({ ...prev, bannerImages: [] }));
+                              await saveAdvancedSettingsWithBanners([]);
+                              toast.success('All banner images cleared!');
+                              setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                            }
+                          });
                         }}
                         className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
                       >
@@ -2266,6 +2356,17 @@ const Settings: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

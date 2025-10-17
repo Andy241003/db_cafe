@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
+import { autoDetectLanguage } from './utils/languageDetection';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -63,6 +64,16 @@ function App() {
       window.removeEventListener('authStateChanged', handleAuthChange);
     };
   }, [isAuthenticated]);
+
+  // Auto-detect browser language on app mount
+  useEffect(() => {
+    // Only run if user is authenticated
+    if (isAuthenticated) {
+      autoDetectLanguage().catch(error => {
+        console.error('Failed to auto-detect language:', error);
+      });
+    }
+  }, [isAuthenticated]); // Run when auth state changes
 
   return (
     <QueryClientProvider client={queryClient}>

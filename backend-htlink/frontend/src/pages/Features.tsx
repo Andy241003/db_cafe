@@ -66,26 +66,8 @@ const Features: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Auto-detect browser language and set locale (like modern SaaS apps)
-  useEffect(() => {
-    // Check if locale is already set
-    const existingLocale = localStorage.getItem('locale');
-    
-    if (!existingLocale) {
-      // Get browser language (e.g., "en-US", "vi-VN", "ja-JP")
-      const browserLang = navigator.language || (navigator as any).userLanguage;
-      const languageCode = browserLang.split('-')[0].toLowerCase(); // Extract "en" from "en-US"
-      
-      // Supported languages
-      const supportedLanguages = ['en', 'vi', 'ja', 'ko', 'zh', 'fr', 'de', 'es'];
-      
-      // Set locale if browser language is supported, otherwise default to 'en'
-      const detectedLocale = supportedLanguages.includes(languageCode) ? languageCode : 'en';
-      
-      localStorage.setItem('locale', detectedLocale);
-      console.log(`🌐 Auto-detected browser language: ${browserLang} → Using locale: ${detectedLocale}`);
-    }
-  }, []); // Run once on component mount
+  // Note: Auto language detection is now handled globally in App.tsx
+  // using the autoDetectLanguage() utility function
 
   // Lazy load posts for a single feature when expanded
   const loadPostsForFeature = async (featureId: number, forceReload = false) => {
