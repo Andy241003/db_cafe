@@ -7,6 +7,7 @@ import type { Category, CategoryFormData, Language } from '../../types/categorie
 import { localesApi, type Locale } from '../../services/localesApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { getUniqueIcons, findIconByName as getIconByName } from '../../config/icons';
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -14,130 +15,6 @@ interface CategoryModalProps {
   onSave: (data: CategoryFormData) => Promise<void>;
   category?: Category;
 }
-
-const availableIcons: string[] = [
-  'star', 'swimming-pool', 'utensils', 'wifi', 'car', 'spa', 'dumbbell',
-  'cocktail', 'bed', 'concierge-bell', 'coffee', 'gamepad', 'shopping-bag',
-  'taxi', 'crown', 'umbrella-beach', 'tv', 'users', 'check-in', 'hot-tub-person',
-  'times', 'link', 'info-circle', 'gift', 'check-out', 'access', 'parking',
-  'shuttle-bus', 'flight-service', 'car-rental', 'handshake', 'water-ladder',
-  'air-conditioning', 'safe', 'amenities', 'morning-call', 'in-room-dining',
-  'restaurant-reservation', 'bar-lounge', 'tea-lounge', 'drink-corner',
-  'halal-food', 'ice-treat', 'vending-machines', 'convenience-store', 'menu',
-  'coupon', 'public-bath', 'sauna', 'massage', 'beauty-spa', 'fitness', 'pool',
-  'yoga', 'concierge', 'eco-cleaning', 'coin-laundry', 'courier-service',
-  'locker-room', 'pet-friendly', 'workspace', 'original-goods', 'hotel-chain',
-  'conference-room', 'seminar', 'rental-space', 'facility-congestion',
-  'sightseeing', 'recommended-activity', 'playground', 'self-organized-tour',
-  'bicycle-rental', 'kimono-rental', 'camp', 'sakura', 'weather', 'local-events',
-  'how-to-translate', 'floor-guide', 'survey', 'q-and-a', 'official-website',
-  'smoking-area', 'evacuation-plan', 'covid-measures', 'accommodation-terms',
-  'facebook', 'tiktok', 'instagram', 'youtube', 'twitter', 'linkedin',
-  'pinterest', 'snapchat', 'telegram', 'whatsapp', 'tabi-life-loyalty-program'
-];
-
-const iconMap: Record<string, string> = {
-  // ==== SOLID ICONS (fas) ====
-  'star': 'fas fa-star',
-  'swimming-pool': 'fas fa-swimming-pool',
-  'utensils': 'fas fa-utensils',
-  'wifi': 'fas fa-wifi',
-  'car': 'fas fa-car',
-  'spa': 'fas fa-spa',
-  'dumbbell': 'fas fa-dumbbell',
-  'cocktail': 'fas fa-cocktail',
-  'bed': 'fas fa-bed',
-  'concierge-bell': 'fas fa-concierge-bell',
-  'coffee': 'fas fa-coffee',
-  'gamepad': 'fas fa-gamepad',
-  'shopping-bag': 'fas fa-shopping-bag',
-  'taxi': 'fas fa-taxi',
-  'crown': 'fas fa-crown',
-  'umbrella-beach': 'fas fa-umbrella-beach',
-  'tv': 'fas fa-tv',
-  'users': 'fas fa-users',
-  'check-in': 'fas fa-sign-in-alt',
-  'hot-tub-person': 'fas fa-hot-tub',
-  'times': 'fas fa-times',
-  'link': 'fas fa-link',
-  'info-circle': 'fas fa-info-circle',
-  'gift': 'fas fa-gift',
-  'check-out': 'fas fa-sign-out-alt',
-  'access': 'fas fa-key',
-  'parking': 'fas fa-parking',
-  'shuttle-bus': 'fas fa-bus',
-  'flight-service': 'fas fa-plane-departure',
-  'car-rental': 'fas fa-car-side',
-  'handshake': 'fas fa-handshake',
-  'water-ladder': 'fas fa-water-ladder',
-  'air-conditioning': 'fas fa-snowflake',
-  'safe': 'fas fa-lock',
-  'amenities': 'fas fa-concierge-bell',
-  'morning-call': 'fas fa-bell',
-  'in-room-dining': 'fas fa-utensils',
-  'restaurant-reservation': 'fas fa-calendar-check',
-  'bar-lounge': 'fas fa-cocktail',
-  'tea-lounge': 'fas fa-mug-hot',
-  'drink-corner': 'fas fa-glass-martini',
-  'halal-food': 'fas fa-leaf',
-  'ice-treat': 'fas fa-ice-cream',
-  'vending-machines': 'fas fa-store',
-  'convenience-store': 'fas fa-store',
-  'menu': 'fas fa-list',
-  'coupon': 'fas fa-ticket',
-  'public-bath': 'fas fa-bath',
-  'sauna': 'fas fa-hot-tub',
-  'massage': 'fas fa-hands-helping',
-  'beauty-spa': 'fas fa-spa',
-  'fitness': 'fas fa-dumbbell',
-  'pool': 'fas fa-swimming-pool',
-  'yoga': 'fas fa-leaf',
-  'concierge': 'fas fa-concierge-bell',
-  'eco-cleaning': 'fas fa-leaf',
-  'coin-laundry': 'fas fa-tshirt',
-  'courier-service': 'fas fa-truck',
-  'locker-room': 'fas fa-box-open',
-  'pet-friendly': 'fas fa-paw',
-  'workspace': 'fas fa-laptop',
-  'original-goods': 'fas fa-box-open',
-  'hotel-chain': 'fas fa-building',
-  'conference-room': 'fas fa-users',
-  'seminar': 'fas fa-chalkboard',
-  'rental-space': 'fas fa-key',
-  'facility-congestion': 'fas fa-chart-line',
-  'sightseeing': 'fas fa-map-marked-alt',
-  'recommended-activity': 'fas fa-thumbs-up',
-  'playground': 'fas fa-child',
-  'self-organized-tour': 'fas fa-map-signs',
-  'bicycle-rental': 'fas fa-bicycle',
-  'kimono-rental': 'fas fa-tshirt',
-  'camp': 'fas fa-campground',
-  'sakura': 'fas fa-leaf',
-  'weather': 'fas fa-cloud-sun',
-  'local-events': 'fas fa-calendar',
-  'how-to-translate': 'fas fa-language',
-  'floor-guide': 'fas fa-map',
-  'survey': 'fas fa-poll',
-  'q-and-a': 'fas fa-question-circle',
-  'official-website': 'fas fa-globe',
-  'smoking-area': 'fas fa-smoking',
-  'evacuation-plan': 'fas fa-route',
-  'covid-measures': 'fas fa-shield-virus',
-  'accommodation-terms': 'fas fa-file-contract',
-  'tabi-life-loyalty-program': 'fas fa-certificate',
-
-  // ==== BRAND ICONS (fab) ====
-  'facebook': 'fab fa-facebook',
-  'tiktok': 'fab fa-tiktok',
-  'instagram': 'fab fa-instagram',
-  'youtube': 'fab fa-youtube',
-  'twitter': 'fab fa-twitter',
-  'linkedin': 'fab fa-linkedin',
-  'pinterest': 'fab fa-pinterest',
-  'snapchat': 'fab fa-snapchat',
-  'telegram': 'fab fa-telegram',
-  'whatsapp': 'fab fa-whatsapp'
-};
 
 // Helper function to get language name from code
 const getLanguageName = (code: string): string => {
@@ -209,6 +86,9 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   const languageDropdownRef = React.useRef<HTMLDivElement>(null);
   const addButtonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  
+  // Use centralized icon configuration (unique icons only)
+  const availableIcons = getUniqueIcons();
   // Helper to create translations object based on supported languages
   const buildEmptyTranslations = (codes: string[]) => {
     const translations: any = {};
@@ -610,65 +490,67 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               </div>
 
               {/* Selected Icon Preview */}
-              {formData.icon && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500 text-white rounded-lg flex items-center justify-center text-lg">
-                    <i className={iconMap[formData.icon] || 'fas fa-box'}></i>
+              {formData.icon && (() => {
+                const selectedIconObject = getIconByName(formData.icon);
+                return selectedIconObject ? (
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500 text-white rounded-lg flex items-center justify-center text-lg">
+                      <FontAwesomeIcon icon={selectedIconObject} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Selected: {formData.icon}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, icon: '' }))}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <FontAwesomeIcon icon={faTimes} />
+                    </button>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Selected: {formData.icon}</p>
-                    <p className="text-xs text-gray-500">{iconMap[formData.icon]}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, icon: '' }))}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <FontAwesomeIcon icon={faTimes} />
-                  </button>
-                </div>
-              )}
+                ) : null;
+              })()}
 
               {/* Icon Grid with Scroll */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="max-h-[280px] overflow-y-auto p-3 bg-gray-50">
                   <div className="grid grid-cols-10 gap-1.5">
                     {availableIcons
-                      .filter(icon => 
+                      .filter(iconConfig => 
                         iconSearch === '' || 
-                        icon.toLowerCase().includes(iconSearch.toLowerCase()) ||
-                        (iconMap[icon] || '').toLowerCase().includes(iconSearch.toLowerCase())
+                        iconConfig.name.toLowerCase().includes(iconSearch.toLowerCase()) ||
+                        (iconConfig.category || '').toLowerCase().includes(iconSearch.toLowerCase())
                       )
-                      .map((icon: string) => (
+                      .map(iconConfig => (
                         <button
-                          key={icon}
+                          key={iconConfig.name}
                           type="button"
-                          onClick={() => handleIconSelect(icon)}
-                          title={icon}
+                          onClick={() => handleIconSelect(iconConfig.name)}
+                          title={iconConfig.name}
                           className={`group relative w-full aspect-square border rounded-md flex items-center justify-center text-sm transition-all ${
-                            formData.icon === icon
+                            formData.icon === iconConfig.name
                               ? 'border-blue-500 bg-blue-500 text-white shadow-md scale-105'
                               : 'border-gray-300 bg-white hover:border-blue-400 hover:shadow-sm hover:scale-105'
                           }`}
                         >
-                          <i className={iconMap[icon] || 'fas fa-box'}></i>
+                          <FontAwesomeIcon icon={iconConfig.icon} />
                           
                           {/* Tooltip on hover */}
                           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                            {icon}
+                            {iconConfig.name}
                           </span>
                         </button>
                       ))}
                   </div>
                   
                   {/* No results message */}
-                  {availableIcons.filter(icon => 
+                  {availableIcons.filter(iconConfig => 
                     iconSearch === '' || 
-                    icon.toLowerCase().includes(iconSearch.toLowerCase()) ||
-                    (iconMap[icon] || '').toLowerCase().includes(iconSearch.toLowerCase())
+                    iconConfig.name.toLowerCase().includes(iconSearch.toLowerCase()) ||
+                    (iconConfig.category || '').toLowerCase().includes(iconSearch.toLowerCase())
                   ).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      <i className="fas fa-search text-3xl mb-2"></i>
+                      <FontAwesomeIcon icon={faPlus} className="text-3xl mb-2" />
                       <p className="text-sm">No icons found for "{iconSearch}"</p>
                     </div>
                   )}
