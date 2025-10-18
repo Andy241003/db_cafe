@@ -293,6 +293,7 @@ class MediaFile(SQLModel, table=True):
     kind: str  # Temporarily use str instead of MediaKind enum
     mime_type: Optional[str] = Field(max_length=120)
     file_key: str = Field(max_length=255)
+    original_filename: Optional[str] = Field(default=None, max_length=255)
     width: Optional[int] = None
     height: Optional[int] = None
     size_bytes: Optional[int] = None

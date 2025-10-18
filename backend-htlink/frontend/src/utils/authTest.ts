@@ -1,4 +1,6 @@
 // Test authentication with production domain
+import { getApiBaseUrl } from './api';
+
 export const testAuth = () => {
   // Set production domain for testing
   const productionDomain = new URL(window.location.href).hostname;
@@ -12,11 +14,10 @@ export const testAuth = () => {
   
   localStorage.setItem('tenant_domain', tenantCode);
   
-  // Test API call - use same origin for production
-  const apiUrl = import.meta.env.VITE_API_URL || 
-    (window.location.protocol === 'https:' ? `${window.location.protocol}//${window.location.hostname}` : 'http://localhost:8000');
+  // Test API call - use centralized API URL
+  const apiUrl = getApiBaseUrl();
   
-  return fetch(`${apiUrl}/api/v1/auth/test-token`, {
+  return fetch(`${apiUrl}/auth/test-token`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('access_token')}`,

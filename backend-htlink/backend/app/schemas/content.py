@@ -247,6 +247,7 @@ class MediaFileBase(BaseModel):
     kind: str  # Temporarily use str instead of MediaKind enum
     mime_type: Optional[str] = Field(None, max_length=120)
     file_key: str = Field(max_length=255)
+    original_filename: Optional[str] = Field(None, max_length=255)
     width: Optional[int] = None
     height: Optional[int] = None
     size_bytes: Optional[int] = None
@@ -269,8 +270,21 @@ class MediaFileResponse(MediaFileBase):
     uploader_id: Optional[int] = None
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 1,
+                "tenant_id": 1,
+                "kind": "image",
+                "mime_type": "image/png",
+                "file_key": "abc123.png",
+                "original_filename": "my-photo.png",
+                "size_bytes": 102400,
+                "created_at": "2024-01-01T00:00:00"
+            }
+        }
+    }
 
 
 # Post Media schemas

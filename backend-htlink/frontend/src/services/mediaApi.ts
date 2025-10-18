@@ -60,6 +60,7 @@ export interface MediaFile {
   kind: 'image' | 'video' | 'file';
   mime_type: string;
   file_key: string;
+  original_filename?: string;
   size_bytes: number;
   alt_text?: string;
   created_at: string;
@@ -100,13 +101,13 @@ class MediaApiService {
       },
     });
 
-    // Generate URL based on file_key (this should match your actual file serving setup)
+    // Return backend response directly - backend already provides correct URL format
     const mediaFile = response.data;
-    const generatedUrl = `${API_BASE_URL}/media/${mediaFile.file_key}`;
     
     return {
       ...mediaFile,
-      url: generatedUrl
+      // Use backend URL if provided, otherwise construct new format with ID
+      url: mediaFile.url || `${API_BASE_URL}/media/${mediaFile.id}/download`
     };
   }
 
@@ -140,10 +141,16 @@ class MediaApiService {
 
   /**
    * Get media file by ID
+   * Note: Backend doesn't have /media/{id} endpoint, so we fetch all and filter
    */
   async getMediaFile(mediaId: number): Promise<MediaFile> {
-    const response = await mediaApiClient.get(`/media/${mediaId}`);
-    return response.data;
+    const response = await mediaApiClient.get(`/media/`);
+    const allFiles: MediaFile[] = response.data;
+    const file = allFiles.find(f => f.id === mediaId);
+    if (!file) {
+      throw new Error(`Media file with ID ${mediaId} not found`);
+    }
+    return file;
   }
 
   /**
@@ -206,11 +213,15 @@ class MediaApiService {
   async updateMediaFile(
     mediaId: number,
     updates: {
+      original_filename?: string;
       alt_text?: string;
       kind?: 'image' | 'video' | 'file';
     }
   ): Promise<MediaFile> {
     const params = new URLSearchParams();
+    if (updates.original_filename !== undefined) {
+      params.append('original_filename', updates.original_filename);
+    }
     if (updates.alt_text !== undefined) {
       params.append('alt_text', updates.alt_text);
     }

@@ -101,6 +101,7 @@ async def upload_media_file(
             kind=kind_value,
             mime_type=file.content_type,
             file_key=file_key,
+            original_filename=file.filename,  # Save original filename from upload
             size_bytes=len(content),
             alt_text=alt_text
         )
@@ -112,10 +113,10 @@ async def upload_media_file(
         # Refresh to get auto-generated fields
         session.refresh(media_file)
 
-        # Generate full URL for the uploaded file
+        # Generate full URL for the uploaded file using media ID
         # Use request to get the base URL dynamically
         base_url = str(request.base_url).rstrip('/')
-        file_url = f"{base_url}/api/v1/media/{file_key}"
+        file_url = f"{base_url}/api/v1/media/{media_file.id}/download"
 
         # Return proper response for frontend
         from datetime import datetime
@@ -126,7 +127,7 @@ async def upload_media_file(
             "kind": kind_value,
             "mime_type": file.content_type,
             "file_key": file_key,
-            "url": file_url,  # Add full URL
+            "url": file_url,  # Full URL with media ID for direct access
             "size_bytes": len(content),
             "alt_text": alt_text,
             "created_at": media_file.created_at.isoformat() if media_file.created_at else datetime.utcnow().isoformat()
@@ -142,7 +143,7 @@ async def upload_media_file(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@router.get("/", response_model=List[MediaFileResponse])
+@router.get("/", response_model=List[MediaFileResponse], response_model_exclude_none=False)
 def read_media_files(
     session: SessionDep,
     current_user: CurrentUser,
@@ -154,6 +155,9 @@ def read_media_files(
     media_files = media_file.get_by_tenant(
         db=session, tenant_id=tenant_id, skip=skip, limit=limit
     )
+    # Debug: Log first file to check if original_filename is loaded
+    if media_files:
+        print(f"🔍 DEBUG First media file: id={media_files[0].id}, original_filename={media_files[0].original_filename}, file_key={media_files[0].file_key}")
     return media_files
 
 
@@ -166,6 +170,38 @@ async def serve_media_file(file_key: str):
     
     from fastapi.responses import FileResponse
     response = FileResponse(file_path)
+    
+    # Add CORS headers for image serving
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
+
+
+@router.get("/{media_id}/view")
+async def view_media_file(
+    media_id: int,
+    session: SessionDep,
+):
+    """View/display media file by ID - Public endpoint for image display"""
+    # Get media file from database (no auth required for viewing)
+    media_file_obj = media_file.get(db=session, id=media_id)
+    if not media_file_obj:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    
+    # Check if physical file exists
+    file_path = UPLOAD_DIR / media_file_obj.file_key
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Physical file not found")
+    
+    from fastapi.responses import FileResponse
+    
+    # Serve file with proper mime type for inline display
+    response = FileResponse(
+        file_path,
+        media_type=media_file_obj.mime_type or 'application/octet-stream'
+    )
     
     # Add CORS headers for image serving
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -199,9 +235,12 @@ async def download_media_file(
     
     from fastapi.responses import FileResponse
     
-    # Get original filename from file_key or create a proper filename
-    file_extension = Path(media_file_obj.file_key).suffix
-    filename = f"download_{media_file_obj.id}{file_extension}"
+    # Use original filename if available, otherwise generate from file_key
+    if media_file_obj.original_filename:
+        filename = media_file_obj.original_filename
+    else:
+        file_extension = Path(media_file_obj.file_key).suffix
+        filename = f"download_{media_file_obj.id}{file_extension}"
     
     # For images, force download by using octet-stream
     # This prevents browser from trying to display the image inline
@@ -236,6 +275,7 @@ async def update_media_file(
     session: SessionDep,
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
+    original_filename: Optional[str] = None,
     alt_text: Optional[str] = None,
     kind: Optional[str] = None,
 ):
@@ -260,8 +300,28 @@ async def update_media_file(
         if kind not in valid_kinds:
             raise HTTPException(status_code=400, detail=f"Invalid kind. Must be one of: {', '.join(valid_kinds)}")
     
+    # Validate and fix filename if provided
+    if original_filename is not None and original_filename.strip():
+        new_filename = original_filename.strip()
+        
+        # Check if filename has extension
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.pdf', '.doc', '.docx', '.txt']
+        has_extension = any(new_filename.lower().endswith(ext) for ext in valid_extensions)
+        
+        # If no extension, auto-append the original file's extension
+        if not has_extension:
+            # Get original extension from file_key
+            original_ext = Path(media_file_obj.file_key).suffix
+            if original_ext:
+                new_filename = f"{new_filename}{original_ext}"
+                print(f"📝 Auto-appending extension: {new_filename}", flush=True, file=sys.stderr)
+            else:
+                raise HTTPException(status_code=400, detail="Filename must have a valid extension (e.g., .png, .jpg, .pdf)")
+    
     try:
         # Update fields
+        if original_filename is not None and original_filename.strip():
+            media_file_obj.original_filename = new_filename
         if alt_text is not None:
             media_file_obj.alt_text = alt_text
         if kind is not None:
@@ -277,10 +337,10 @@ async def update_media_file(
             "kind": media_file_obj.kind,
             "mime_type": media_file_obj.mime_type,
             "file_key": media_file_obj.file_key,
+            "original_filename": media_file_obj.original_filename,
             "size_bytes": media_file_obj.size_bytes,
             "alt_text": media_file_obj.alt_text,
-            "created_at": media_file_obj.created_at.isoformat(),
-            "updated_at": media_file_obj.updated_at.isoformat() if media_file_obj.updated_at else None
+            "created_at": media_file_obj.created_at.isoformat()
         }
         
     except Exception as e:

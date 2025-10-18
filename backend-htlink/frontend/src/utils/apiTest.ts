@@ -1,5 +1,6 @@
 // src/utils/apiTest_new.ts
 import { analyticsAPI } from '../services/analyticsAPI';
+import { getApiBaseUrl } from './api';
 
 export const testAnalyticsAPI = async () => {
   try {
@@ -11,7 +12,7 @@ export const testAnalyticsAPI = async () => {
     console.log(`Connection status: ${isConnected ? '✅ Connected' : '❌ Failed'}`);
     
     if (!isConnected) {
-      console.log('❌ API connection failed. Check if backend is running on http://localhost:8000');
+      console.log(`❌ API connection failed. Check if backend is running on ${getApiBaseUrl()}`);
       return false;
     }
     

@@ -1,11 +1,13 @@
 // src/utils/api.ts
 // Utility function to auto-detect API base URL based on environment
 export const getApiBaseUrl = (): string => {
-  // During Vite development, prefer the Vite dev server proxy by returning a
-  // relative path. This avoids sending requests directly to the backend host
-  // and prevents CORS issues in dev.
+  // During Vite development, use absolute URL to backend
+  // This bypasses proxy issues and connects directly to backend
   if (import.meta.env.DEV) {
-    return '/api/v1';
+    // Use VITE_API_URL if set, otherwise default to localhost:8000
+    return import.meta.env.VITE_API_URL 
+      ? `${import.meta.env.VITE_API_URL}/api/v1`
+      : 'http://localhost:8000/api/v1';
   }
 
   // Check if we're in browser environment

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { authAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { getApiBaseUrl } from '../utils/api';
 
 // TypeScript interfaces for type safety
 interface LoginFormData {
@@ -57,7 +58,7 @@ const Login: React.FC = () => {
 
       // Step 3: Get tenant data from backend based on user's tenant_id
       try {
-        const tenantUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${userData.tenant_id}`;
+        const tenantUrl = `${getApiBaseUrl()}/tenants/${userData.tenant_id}`;
 
         const tenantResponse = await fetch(tenantUrl, {
           headers: {

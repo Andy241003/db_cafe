@@ -41,13 +41,11 @@ const Reports: React.FC = () => {
   ];
 
   const handleExportReport = () => {
-    console.log('Exporting report...');
     alert('Report exported successfully!');
   };
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
-    console.log('Period changed to:', period);
   };
 
   return (

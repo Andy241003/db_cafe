@@ -7,6 +7,7 @@ import { faUserPlus, faEdit, faUserTimes, faSpinner } from '@fortawesome/free-so
 import { usersApi, type ApiUser } from '../services/usersApi';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { getApiBaseUrl } from '../utils/api';
 
 // Convert API user to frontend format
 const convertApiUser = (apiUser: ApiUser): User => ({
@@ -97,7 +98,7 @@ const Users: React.FC = () => {
         
         // IMPORTANT: Get tenant info from API instead of hardcoding
         try {
-          const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tenants/${currentUserInfo.tenant_id}`, {
+          const tenantResponse = await fetch(`${getApiBaseUrl()}/tenants/${currentUserInfo.tenant_id}`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
               'Content-Type': 'application/json'

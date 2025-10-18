@@ -38,7 +38,6 @@ export const autoDetectLanguage = async (): Promise<void> => {
   // If user already selected a language manually, don't override
   const userSelectedLocale = localStorage.getItem('user_selected_locale');
   if (userSelectedLocale === 'true') {
-    console.log('🌐 [Auto-Detect] Skipping: User manually selected locale');
     return;
   }
 
@@ -51,14 +50,12 @@ export const autoDetectLanguage = async (): Promise<void> => {
   const autoDetectEnabled = propertySettings.autoLanguageDetection ?? true;
   
   if (!autoDetectEnabled) {
-    console.log('🌐 [Auto-Detect] Auto Language Detection is disabled in Settings');
     return;
   }
 
   // If locale already exists, check if it's from auto-detection
   const autoDetected = localStorage.getItem('locale_auto_detected');
   if (existingLocale && autoDetected !== 'true') {
-    console.log('🌐 [Auto-Detect] Skipping: Locale already set manually');
     return;
   }
 
@@ -78,12 +75,9 @@ export const autoDetectLanguage = async (): Promise<void> => {
   if (detectedLocale !== existingLocale) {
     localStorage.setItem('locale', detectedLocale);
     localStorage.setItem('locale_auto_detected', 'true');
-    console.log(`🌐 [Auto-Detect] Browser language: ${browserLang} → Using locale: ${detectedLocale}`);
     
     // Trigger language change event for other components
     window.dispatchEvent(new CustomEvent('locale-changed', { detail: { locale: detectedLocale } }));
-  } else {
-    console.log(`🌐 [Auto-Detect] Already using detected locale: ${detectedLocale}`);
   }
 };
 
@@ -94,7 +88,6 @@ export const markLocaleAsUserSelected = (locale: string): void => {
   localStorage.setItem('locale', locale);
   localStorage.setItem('user_selected_locale', 'true');
   localStorage.removeItem('locale_auto_detected');
-  console.log(`🌐 [User Selection] Locale set to: ${locale}`);
 };
 
 /**
@@ -104,7 +97,6 @@ export const resetLocaleSelection = (): void => {
   localStorage.removeItem('user_selected_locale');
   localStorage.removeItem('locale_auto_detected');
   localStorage.removeItem('locale');
-  console.log('🌐 [Reset] Locale cleared, auto-detection enabled');
 };
 
 /**

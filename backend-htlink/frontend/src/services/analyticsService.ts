@@ -1,10 +1,11 @@
 // src/services/analyticsService.ts
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

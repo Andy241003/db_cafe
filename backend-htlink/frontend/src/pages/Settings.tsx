@@ -6,6 +6,7 @@ import { mediaApi } from '../services/mediaApi';
 import { localesApi } from '../services/localesApi';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { autoDetectLanguage } from '../utils/languageDetection';
+import { getApiBaseUrl } from '../utils/api';
 // import type { TenantSettings } from '../services/tenantApi'; // Will be used later
 import type { ApiProperty } from '../types/properties-api';
 
@@ -99,6 +100,9 @@ const Settings: React.FC = () => {
   // File upload states
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
   const [dragOver, setDragOver] = useState<boolean>(false);
+  
+  // Banner filename mapping (URL -> original_filename)
+  const [bannerFilenames, setBannerFilenames] = useState<Record<string, string>>({});
 
   // Confirm modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -204,7 +208,7 @@ const Settings: React.FC = () => {
       clearTimeout(autoSaveTimeout);
     }
     const timeout = setTimeout(() => {
-      console.log('Auto-saving...', field, value);
+      // Auto-save logic here
     }, 2000);
     setAutoSaveTimeout(timeout as any);
   };
@@ -243,17 +247,14 @@ const Settings: React.FC = () => {
         // Try to get the locale from database
         try {
           await localesApi.getLocale(languageCode);
-          console.log(`✅ Locale ${languageCode} already exists`);
         } catch (error: any) {
           // If locale doesn't exist (404), create it
           if (error.response?.status === 404) {
-            console.log(`📝 Creating new locale: ${languageCode}`);
             await localesApi.createLocale({
               code: languageCode,
               name: language.name,
               native_name: language.native
             });
-            console.log(`✅ Locale ${languageCode} created successfully`);
             showSuccess(`Language ${language.name} added to system`);
 
             // Reload existing locales to update UI
@@ -393,9 +394,6 @@ const Settings: React.FC = () => {
         }
       };
       
-      console.log('💾 [Settings] Saving localization settings:', localizationSettings);
-      console.log('💾 [Settings] Supported languages:', localizationSettings.supportedLanguages);
-      
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
       showSuccess('Localization settings saved successfully!');
       await loadProperties();
@@ -409,13 +407,11 @@ const Settings: React.FC = () => {
         dateFormat: localizationSettings.dateFormat
       };
       localStorage.setItem('property_settings', JSON.stringify(settingsToSave));
-      console.log('💾 [Settings] Updated localStorage after save:', settingsToSave);
       
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('property-settings-updated', {
         detail: settingsToSave
       }));
-      console.log('✅ [Settings] Property changed event dispatched');
     } catch (error) {
       console.error('Error saving localization settings:', error);
       showSuccess('Failed to save localization settings. Please try again.');
@@ -457,11 +453,9 @@ const Settings: React.FC = () => {
         cacheSystem: advancedSettings.cacheSystem
       };
       localStorage.setItem('property_settings', JSON.stringify(updatedSettings));
-      console.log('💾 [Settings] Updated localStorage with advanced settings:', updatedSettings);
       
       // If Auto Language Detection was enabled, trigger it now
       if (advancedSettings.autoLanguageDetection) {
-        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
         await autoDetectLanguage();
       }
     } catch (error) {
@@ -614,11 +608,9 @@ const Settings: React.FC = () => {
         cacheSystem: advancedSettings.cacheSystem
       };
       localStorage.setItem('property_settings', JSON.stringify(updatedSettings));
-      console.log('💾 [Settings] Updated localStorage with system settings:', updatedSettings);
       
       // If Auto Language Detection was enabled, trigger it now
       if (advancedSettings.autoLanguageDetection) {
-        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
         await autoDetectLanguage();
       }
     } catch (error) {
@@ -721,7 +713,6 @@ const Settings: React.FC = () => {
         cacheSystem: advancedSettings.cacheSystem
       };
       localStorage.setItem('property_settings', JSON.stringify(allSettings));
-      console.log('💾 [Settings] Updated localStorage with all settings:', allSettings);
       
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('property-settings-updated', {
@@ -730,7 +721,6 @@ const Settings: React.FC = () => {
       
       // If Auto Language Detection was enabled, trigger it now
       if (advancedSettings.autoLanguageDetection) {
-        console.log('🌐 [Settings] Auto Language Detection enabled, triggering detection...');
         await autoDetectLanguage();
       }
 
@@ -825,7 +815,6 @@ const Settings: React.FC = () => {
       const locales = await localesApi.getLocales();
       const localeCodes = locales.map(locale => locale.code);
       setExistingLocales(localeCodes);
-      console.log('📋 Existing locales:', localeCodes);
     } catch (error) {
       console.error('Error loading locales:', error);
     }
@@ -849,7 +838,6 @@ const Settings: React.FC = () => {
           setSelectedPropertyId(propertyId);
           setSelectedProperty(property);
           updateFormWithPropertyData(property);
-          console.log('✅ [Settings] Loaded saved property from localStorage:', propertyId);
         }
       } else if (propertiesData.length > 0) {
         // Auto-select first property and save to localStorage
@@ -858,7 +846,6 @@ const Settings: React.FC = () => {
         setSelectedProperty(firstProperty);
         localStorage.setItem('selected_property_id', firstProperty.id.toString());
         updateFormWithPropertyData(firstProperty);
-        console.log('✅ [Settings] Auto-selected first property and saved:', firstProperty.id);
       }
     } catch (error) {
       console.error('Error loading properties:', error);
@@ -869,9 +856,6 @@ const Settings: React.FC = () => {
 
   // Update form data based on selected property
   const updateFormWithPropertyData = (property: ApiProperty) => {
-    console.log('🔄 Updating all form data with property:', property);
-    console.log('📋 Property settings_json:', (property as any).settings_json);
-    
     // Update General Settings
     setGeneralSettings(prev => ({
       ...prev,
@@ -930,16 +914,25 @@ const Settings: React.FC = () => {
     
     // Save to localStorage for CategoryModal to use
     localStorage.setItem('property_settings', JSON.stringify(finalLocalizationSettings));
-    console.log('💾 [Settings] Saved settings to localStorage:', finalLocalizationSettings);
     
     // Update Advanced Settings - Read from property fields directly
     const advancedData = (property as any).settings_json?.advanced || {};
     const bannerImagesFromProperty = property.banner_images || [];
     
-    console.log('🖼️ [Settings] Loading banner images:', {
-      from_property_field: bannerImagesFromProperty,
-      from_settings_json: advancedData.bannerImages,
-      count: bannerImagesFromProperty.length
+    // Normalize banner URLs to ensure they're absolute
+    const API_BASE_URL = getApiBaseUrl();
+    
+    const normalizedBannerImages = bannerImagesFromProperty.map((url: string) => {
+      // If URL is already absolute (starts with http:// or https://), keep it
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      // If URL is relative, make it absolute
+      if (url.startsWith('/api/v1/')) {
+        return `${API_BASE_URL.replace('/api/v1', '')}${url}`;
+      }
+      // If URL doesn't have /api/v1 prefix, add full base URL
+      return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
     });
     
     setAdvancedSettings(prev => ({
@@ -947,13 +940,11 @@ const Settings: React.FC = () => {
       propertyActive: property.is_active,
       introVideoUrl: property.intro_video_url || '',
       vr360Url: property.vr360_url || '',
-      bannerImages: bannerImagesFromProperty,
+      bannerImages: normalizedBannerImages,
       autoLanguageDetection: advancedData.autoLanguageDetection ?? true,
       analyticsTracking: advancedData.analyticsTracking ?? true,
       cacheSystem: advancedData.cacheSystem ?? true
     }));
-    
-    console.log('✅ All settings updated with property data');
   };
 
   // Handle property selection change
@@ -965,7 +956,6 @@ const Settings: React.FC = () => {
       
       // Save to localStorage for other components to use
       localStorage.setItem('selected_property_id', propertyId.toString());
-      console.log('✅ [Settings] Property selected and saved to localStorage:', propertyId);
       
       updateFormWithPropertyData(property);
       
@@ -974,15 +964,112 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Helper function to convert media URL to view format (public access)
+  const getViewUrl = (mediaUrl: string): string => {
+    // External URLs (like Unsplash) - return as is
+    if (mediaUrl.startsWith('https://') && !mediaUrl.includes('localhost') && !mediaUrl.includes('127.0.0.1')) {
+      return mediaUrl;
+    }
+    
+    // Convert /download endpoint to /view endpoint for public access
+    // /api/v1/media/{id}/download -> /api/v1/media/{id}/view
+    const downloadMatch = mediaUrl.match(/\/media\/(\d+)\/download/);
+    if (downloadMatch) {
+      const mediaId = downloadMatch[1];
+      const API_BASE_URL = getApiBaseUrl();
+      return `${API_BASE_URL}/media/${mediaId}/view`;
+    }
+    
+    // Already in view format - return as is
+    if (mediaUrl.includes('/view')) {
+      return mediaUrl;
+    }
+    
+    // Old format or unknown - return as is and let it fail gracefully
+    return mediaUrl;
+  };
+
+  // Helper function to extract filename from banner URL
+  const getBannerFilename = (imageUrl: string): string => {
+    // Check if we have cached filename from API
+    if (bannerFilenames[imageUrl]) {
+      return bannerFilenames[imageUrl];
+    }
+    
+    // Check for new format: /api/v1/media/{id}/download or /view
+    const newFormatMatch = imageUrl.match(/\/media\/(\d+)\/(download|view)/);
+    if (newFormatMatch) {
+      const mediaId = newFormatMatch[1];
+      return `Loading... (Media #${mediaId})`; // Will be replaced when API loads
+    }
+    
+    // Check for old format: /api/v1/media/{file_key}.ext
+    const oldFormatMatch = imageUrl.match(/\/media\/([a-f0-9-]+\.(jpg|jpeg|png|gif|webp))/i);
+    if (oldFormatMatch) {
+      const fileName = oldFormatMatch[1];
+      // Extract just filename without UUID prefix if possible
+      const parts = fileName.split('.');
+      const extension = parts.pop();
+      return `Banner Image (.${extension})`;
+    }
+    
+    // External URL (like Unsplash)
+    if (imageUrl.startsWith('http') && !imageUrl.includes('localhost')) {
+      try {
+        const urlObj = new URL(imageUrl);
+        const path = urlObj.pathname.split('/').filter(p => p);
+        const lastPart = path[path.length - 1];
+        return lastPart ? `External: ${lastPart.substring(0, 25)}` : urlObj.hostname;
+      } catch {
+        return 'External Image';
+      }
+    }
+    
+    // Fallback
+    return 'Banner Image';
+  };
+  
+  // Helper function to fetch and cache banner filenames
+  const loadBannerFilenames = async (imageUrls: string[]) => {
+    try {
+      const newFilenames: Record<string, string> = {};
+      
+      for (const url of imageUrls) {
+        // Skip if already cached
+        if (bannerFilenames[url]) continue;
+        
+        // Extract media ID from URL (supports both /download and /view)
+        const match = url.match(/\/media\/(\d+)\/(download|view)/);
+        if (!match) continue;
+        
+        const mediaId = parseInt(match[1]);
+        
+        try {
+          // Fetch media file info from API (auth token sent automatically)
+          const mediaFile = await mediaApi.getMediaFile(mediaId);
+          newFilenames[url] = mediaFile.original_filename || mediaFile.file_key || 'Unknown';
+        } catch (error) {
+          console.error(`Failed to load filename for ${url}:`, error);
+          newFilenames[url] = `Media ${mediaId}`;
+        }
+      }
+      
+      // Update state with new filenames
+      if (Object.keys(newFilenames).length > 0) {
+        setBannerFilenames(prev => ({ ...prev, ...newFilenames }));
+      }
+    } catch (error) {
+      console.error('Error loading banner filenames:', error);
+    }
+  };
+  
   // Helper function to save banner images immediately
   const saveAdvancedSettingsWithBanners = async (bannerImages: string[]) => {
     if (!selectedProperty || !selectedPropertyId) {
-      console.error('❌ No property selected');
       return;
     }
 
     try {
-      console.log('💾 Auto-saving banner images:', bannerImages);
       const propertyUpdateData = {
         banner_images: bannerImages,
         settings_json: {
@@ -995,12 +1082,11 @@ const Settings: React.FC = () => {
       };
 
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
-      console.log('✅ Banner images saved to database');
       
       // Update selected property to reflect changes
       await loadProperties();
     } catch (error) {
-      console.error('❌ Error auto-saving banner images:', error);
+      console.error('Error auto-saving banner images:', error);
     }
   };
 
@@ -1034,18 +1120,8 @@ const Settings: React.FC = () => {
     }
 
     try {
-      console.log('🔄 Uploading files:', validFiles.map(f => f.name));
-      
       // Check user permissions
       const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      console.log('👤 Current user:', currentUser);
-      console.log('👤 Current user role:', currentUser.role);
-      console.log('👤 Role type:', typeof currentUser.role);
-      console.log('🔑 Access token:', localStorage.getItem('access_token')?.substring(0, 20) + '...');
-      console.log('🏢 Tenant info:', {
-        tenant_code: localStorage.getItem('tenant_code'),
-        tenant_id: localStorage.getItem('tenant_id')
-      });
       
       if (!currentUser.role || !['OWNER', 'ADMIN', 'EDITOR'].includes(currentUser.role.toUpperCase())) {
         throw new Error('You need Editor, Admin, or Owner permissions to upload files.');
@@ -1053,14 +1129,13 @@ const Settings: React.FC = () => {
       
       // Upload files using real API
       const uploadResults = await mediaApi.uploadFiles(validFiles, 'image');
-      console.log('✅ Upload results:', uploadResults);
       
-      // Extract URLs from upload results
+      // Extract URLs from upload results - use the URL from backend response
+      const API_BASE_URL = getApiBaseUrl();
+      
       const newUrls = uploadResults.map(result => {
-        // Use the correct endpoint path for serving files
-        const url = result.url || `http://localhost:8000/api/v1/media/${result.file_key}`;
-        console.log('📄 Generated URL:', url, 'from file_key:', result.file_key);
-        return url;
+        // ALWAYS use new format with media ID (not file_key)
+        return `${API_BASE_URL}/media/${result.id}/download`;
       });
       
       // Update banner images array
@@ -1070,31 +1145,17 @@ const Settings: React.FC = () => {
       }));
 
       showSuccess(`${newUrls.length} image(s) uploaded successfully!`);
-      console.log('✅ Updated banner images:', [...advancedSettings.bannerImages, ...newUrls]);
       
       // Auto-save banner images to database immediately
       const updatedBannerImages = [...advancedSettings.bannerImages, ...newUrls];
       await saveAdvancedSettingsWithBanners(updatedBannerImages);
       
     } catch (error: any) {
-      const token = localStorage.getItem('access_token');
-      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      console.log('🔍 Debug info:', {
-        userRole: currentUser?.role,
-        token: token?.substring(0, 30) + '...',
-        fullToken: token,
-        tenantCode: localStorage.getItem('tenantCode'),
-        tenant_code: localStorage.getItem('tenant_code'),
-        tenant_domain: localStorage.getItem('tenant_domain'),
-        allLocalStorage: Object.keys(localStorage).reduce((acc, key) => {
-          acc[key] = localStorage.getItem(key)?.substring(0, 50);
-          return acc;
-        }, {} as Record<string, string | undefined>)
-      });
-      console.error('❌ Upload error:', error);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
-      console.error('❌ Error details:', JSON.stringify(error.response?.data, null, 2));
+      console.error('Upload error:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
       
       let errorMessage = 'Failed to upload images. ';
       if (error.response?.status === 403) {
@@ -1185,7 +1246,6 @@ const Settings: React.FC = () => {
         }));
 
         setLanguages(mappedLanguages);
-        console.log('✅ Loaded', mappedLanguages.length, 'languages from database');
       } catch (error) {
         console.error('Failed to load languages:', error);
         // Fallback to basic languages
@@ -1211,7 +1271,6 @@ const Settings: React.FC = () => {
         const response = await tenantApi.getCurrentTenant();
         const tenant = response.data;
         // setTenantData(tenant); // Will store tenant data when needed
-        console.log('Tenant loaded:', tenant.name);
 
         // Load existing locales
         await loadExistingLocales();
@@ -1241,13 +1300,11 @@ const Settings: React.FC = () => {
         const tenantCode = localStorage.getItem('tenant_code');
         
         if (!token || !isAuth || !tenantCode) {
-          console.log('User not authenticated or no tenant info');
           return;
         }
 
         const response = await tenantApi.getCurrentTenant();
         const tenant = response.data;
-        console.log('Tenant reloaded:', tenant.name);
         
         // Update localStorage with fresh tenant data
         if (tenant.code !== tenantCode) {
@@ -1266,13 +1323,11 @@ const Settings: React.FC = () => {
     };
 
     const handleAuthChange = () => {
-      console.log('Auth state changed in Settings, reloading data...');
       loadTenantData();
     };
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'tenant_code' || e.key === 'tenant_id') {
-        console.log('Tenant changed in localStorage, reloading data...');
         loadTenantData();
       }
     };
@@ -1285,16 +1340,26 @@ const Settings: React.FC = () => {
           const serverBanners = currentProperty.banner_images || [];
           const localBanners = advancedSettings.bannerImages || [];
           
+          // Normalize server banners to absolute URLs
+          const API_BASE_URL = getApiBaseUrl();
+          
+          const normalizedServerBanners = serverBanners.map((url: string) => {
+            // If URL is already absolute, keep it
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              return url;
+            }
+            // If URL is relative, make it absolute
+            if (url.startsWith('/api/v1/')) {
+              return `${API_BASE_URL.replace('/api/v1', '')}${url}`;
+            }
+            return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+          });
+          
           // Check if banners are out of sync
-          if (JSON.stringify(serverBanners) !== JSON.stringify(localBanners)) {
-            console.log('🔄 [Settings] Banner sync detected difference:', {
-              server: serverBanners,
-              local: localBanners,
-              syncing: true
-            });
+          if (JSON.stringify(normalizedServerBanners) !== JSON.stringify(localBanners)) {
             setAdvancedSettings(prev => ({
               ...prev,
-              bannerImages: serverBanners
+              bannerImages: normalizedServerBanners
             }));
           }
         }
@@ -1319,6 +1384,13 @@ const Settings: React.FC = () => {
       }
     };
   }, [autoSaveTimeout]);
+  
+  // Load banner filenames when banner images change
+  useEffect(() => {
+    if (advancedSettings.bannerImages.length > 0) {
+      loadBannerFilenames(advancedSettings.bannerImages);
+    }
+  }, [advancedSettings.bannerImages]);
 
   // Show loading state
   if (loading) {
@@ -2219,14 +2291,19 @@ const Settings: React.FC = () => {
                       </button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {advancedSettings.bannerImages.map((imageUrl, index) => (
+                      {advancedSettings.bannerImages.map((imageUrl, index) => {
+                        // Use helper function to get public view URL
+                        const displayUrl = getViewUrl(imageUrl);
+                        
+                        return (
                         <div key={index} className="relative group">
                           <div className="aspect-video rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-slate-300 transition-colors">
                             <img
-                              src={imageUrl}
+                              src={displayUrl}
                               alt={`Banner ${index + 1}`}
                               className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                               onError={(e) => {
+                                console.error('❌ Banner image failed to load:', displayUrl);
                                 // Show placeholder if image fails to load
                                 e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjRjFGNUY5Ii8+CjxwYXRoIGQ9Ik04MCA2MEw5MCA0NUwxMTAgNjVMMTMwIDQwTDE0MCA1NUwxNjAgNDBWODBIMDBWNjBIODBaIiBmaWxsPSIjQ0JEOEU4Ii8+CjxjaXJjbGUgY3g9IjcwIiBjeT0iNDAiIHI9IjEwIiBmaWxsPSIjOTA5OUE2Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2QjczODAiIGZvbnQtc2l6ZT0iMTIiPkltYWdlPC90ZXh0Pgo8L3N2Zz4K';
                               }}
@@ -2238,11 +2315,12 @@ const Settings: React.FC = () => {
                           >
                             <i className="fas fa-times"></i>
                           </button>
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {imageUrl.split('/').pop()?.substring(0, 20)}...
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity truncate">
+                            {getBannerFilename(imageUrl)}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

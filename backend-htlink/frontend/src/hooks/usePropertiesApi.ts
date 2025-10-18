@@ -177,10 +177,6 @@ export const usePropertiesApi = () => {
 
   // Post management functions
   const createHotelPost = async (hotelId: string, postData: any) => {
-    console.log('=== Creating property post ===');
-    console.log('Hotel ID:', hotelId);
-    console.log('Post data:', postData);
-
     try {
       // Create post and include translations in the same request.
       // The backend will associate translations with the created post_id.
@@ -240,9 +236,6 @@ export const usePropertiesApi = () => {
     // IMPORTANT: Use the NEW content from form, not old content from database
     const rawContent = postData.content || '';
     const title = postData.title || '';
-    
-    console.log('📝 Content to save:', rawContent);
-    console.log('📝 Title:', title);
     
     // Don't prepend title to content - React Quill already has full formatted content
     const finalContentUpdate = rawContent;

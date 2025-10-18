@@ -28,6 +28,7 @@ import { Upload as AntUpload, Button, message, Popconfirm, Space, Table, Modal }
 import { UploadOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { mediaApi, type MediaFile as ApiMediaFile } from '../services/mediaApi';
+import { getApiBaseUrl } from '../utils/api';
 
 interface MediaFile {
   id: string;
@@ -75,7 +76,8 @@ export default function MediaLibrary() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<MediaFile | null>(null);
-  const [editForm, setEditForm] = useState<{altText: string; kind: 'image' | 'video' | 'document'}>({
+  const [editForm, setEditForm] = useState<{filename: string; altText: string; kind: 'image' | 'video' | 'document'}>({
+    filename: '',
     altText: '',
     kind: 'image'
   });
@@ -119,19 +121,18 @@ export default function MediaLibrary() {
       return 'documents';
     };
 
-    // Generate file URL using the API endpoint
-    const API_BASE_URL = import.meta.env.VITE_API_URL 
-      ? `${import.meta.env.VITE_API_URL}/api/v1` 
-      : 'http://localhost:8000/api/v1';
-    const fileUrl = `${API_BASE_URL}/media/${apiFile.file_key}`;
+    // Generate file URL using the API endpoint with media ID
+    const API_BASE_URL = getApiBaseUrl();
+    const fileUrl = `${API_BASE_URL}/media/${apiFile.id}/download`;
+    const viewUrl = `${API_BASE_URL}/media/${apiFile.id}/view`; // Public endpoint for viewing
     
     // For videos, we don't want to use the file URL as preview to avoid loading full video
     const fileType = getFileType(apiFile.kind);
-    const preview = fileType === 'image' ? fileUrl : undefined;
+    const preview = fileType === 'image' ? viewUrl : undefined; // Use view endpoint for preview
 
     return {
       id: apiFile.id.toString(),
-      name: apiFile.file_key.split('/').pop() || apiFile.file_key, // Extract filename from file_key
+      name: apiFile.original_filename || apiFile.file_key.split('/').pop() || apiFile.file_key, // Use original_filename if available
       type: fileType,
       size: formatFileSize(apiFile.size_bytes),
       sizeBytes: apiFile.size_bytes / 1024 / 1024, // Convert to MB
@@ -538,6 +539,7 @@ export default function MediaLibrary() {
   const openEditModal = (file: MediaFile) => {
     setEditingFile(file);
     setEditForm({
+      filename: file.name,
       altText: file.contentType || '', // Use contentType as alt text initially
       kind: file.type
     });
@@ -547,7 +549,7 @@ export default function MediaLibrary() {
   const closeEditModal = () => {
     setIsEditModalOpen(false);
     setEditingFile(null);
-    setEditForm({ altText: '', kind: 'image' });
+    setEditForm({ filename: '', altText: '', kind: 'image' });
   };
 
   const handleUpdateFile = async () => {
@@ -560,6 +562,7 @@ export default function MediaLibrary() {
       const backendKind = editForm.kind === 'document' ? 'file' : editForm.kind;
       
       await mediaApi.updateMediaFile(Number(editingFile.id), {
+        original_filename: editForm.filename,
         alt_text: editForm.altText,
         kind: backendKind as 'image' | 'video' | 'file'
       });
@@ -1220,11 +1223,12 @@ export default function MediaLibrary() {
                 </label>
                 <input
                   type="text"
-                  value={editingFile.name}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  value={editForm.filename}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, filename: e.target.value }))}
+                  placeholder="Enter file name (e.g., my-photo.png)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">File name cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">Display name for this file (must include extension)</p>
               </div>
 
               <div>
