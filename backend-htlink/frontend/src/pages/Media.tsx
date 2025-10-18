@@ -20,6 +20,7 @@ import {
   Waves,
   Sparkles,
   Check,
+  CheckSquare,
   Loader2,
   AlertCircle
 } from 'lucide-react';
@@ -625,13 +626,7 @@ export default function MediaLibrary() {
 
           {/* Button bên phải */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={createFolder}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <FolderPlus className="w-4 h-4" />
-              New Folder
-            </button>
+        
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || loading}
@@ -740,27 +735,29 @@ export default function MediaLibrary() {
               />
             </div>
 
+           
+
             <div className="flex items-center gap-2">
-              <select
-                value={folderFilter}
-                onChange={(e) => setFolderFilter(e.target.value)}
-                className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Folders</option>
-                {folders.map(folder => (
-                  <option key={folder} value={folder}>
-                    {folder.charAt(0).toUpperCase() + folder.slice(1).replace('-', ' ')}
-                  </option>
-                ))}
-              </select>
-              
-              {/* Folder management buttons */}
+               {/* Select All Button */}
               <button
-                onClick={createFolder}
-                className="p-2.5 text-green-600 hover:bg-green-50 border border-green-200 rounded-lg transition-colors"
-                title="Create New Folder"
+                onClick={selectAllFiles}
+                disabled={filteredMedia.length === 0}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
+                  selectedFiles.size === filteredMedia.length && filteredMedia.length > 0
+                    ? 'bg-blue-50 border-blue-500 text-blue-700 hover:bg-blue-100'
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+                title={selectedFiles.size === filteredMedia.length && filteredMedia.length > 0 ? 'Deselect All' : 'Select All'}
               >
-                <FolderPlus className="w-4 h-4" />
+                <CheckSquare className="w-4 h-4" />
+                <span>
+                  {selectedFiles.size === filteredMedia.length && filteredMedia.length > 0 ? 'Deselect All' : 'Select All'}
+                  {filteredMedia.length > 0 && (
+                    <span className="ml-1 text-xs opacity-75">
+                      ({selectedFiles.size}/{filteredMedia.length})
+                    </span>
+                  )}
+                </span>
               </button>
               
               {folderFilter && (
