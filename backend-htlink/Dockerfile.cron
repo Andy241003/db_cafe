@@ -1,0 +1,29 @@
+# Dockerfile thêm cron job cho aggregation
+# Add this to your existing Dockerfile or create separate cron service
+
+FROM python:3.10-slim
+
+# Install cron
+RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+
+# Copy application
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Create cron job file
+RUN echo "0 2 * * * cd /app && python -m app.tasks.analytics_aggregation >> /var/log/cron.log 2>&1" > /etc/cron.d/analytics-cron
+
+# Give execution rights on the cron job
+RUN chmod 0644 /etc/cron.d/analytics-cron
+
+# Apply cron job
+RUN crontab /etc/cron.d/analytics-cron
+
+# Create log file
+RUN touch /var/log/cron.log
+
+# Run cron in foreground
+CMD cron && tail -f /var/log/cron.log

@@ -13,7 +13,7 @@ export interface AnalyticsStatsResponse {
   page_views_by_day?: Array<{date: string; views: number}>;
   popular_pages?: Array<{event_type: string; views: number}>;
   traffic_sources?: Array<{device: string; views: number}>;
-  popular_features?: Array<{device: string; clicks: number}>;
+  popular_features?: Array<{feature: string; clicks: number; views?: number; ctr?: number}>;
 }
 
 export interface RealtimeStatsResponse {

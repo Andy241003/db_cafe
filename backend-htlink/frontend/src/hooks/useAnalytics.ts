@@ -174,9 +174,9 @@ export const useAnalytics = (
           { page: 'No Data', views: 0, trend: 'No Data', trendPositive: true }
         ],
         popularFeatures: (stats.popular_features && stats.popular_features.length > 0) ? stats.popular_features.map(feature => ({
-          feature: `${feature.device || 'Unknown'} Clicks`,
+          feature: feature.feature,
           clicks: feature.clicks,
-          ctr: Math.round((feature.clicks / stats.total_events) * 100 * 10) / 10
+          ctr: feature.ctr || 0
         })) : [
           { feature: 'No Click Data Available', clicks: 0, ctr: 0 }
         ],

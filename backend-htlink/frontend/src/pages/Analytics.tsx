@@ -244,15 +244,22 @@ const Analytics: React.FC = () => {
               <tr>
                 <th className="text-left font-semibold text-gray-600 p-3">Page</th>
                 <th className="text-right font-semibold text-gray-600 p-3">Views</th>
-                <th className="text-right font-semibold text-gray-600 p-3">Trend</th>
               </tr>
             </thead>
             <tbody>
               {data.popularPages.map((page, index) => (
                 <tr key={index} className={`border-b border-gray-100 ${index === data.popularPages.length - 1 ? 'border-b-0' : ''}`}>
-                  <td className="p-3 text-blue-600 hover:underline cursor-pointer">{page.page}</td>
+                  <td className="p-3">
+                    <a 
+                      href={page.page} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline cursor-pointer"
+                    >
+                      {page.page}
+                    </a>
+                  </td>
                   <td className="p-3 text-right font-medium text-gray-800">{page.views.toLocaleString()}</td>
-                  <td className={`p-3 text-right ${page.trendPositive ? 'text-green-600' : 'text-red-600'}`}>{page.trend}</td>
                 </tr>
               ))}
             </tbody>
@@ -275,9 +282,9 @@ const Analytics: React.FC = () => {
             <tbody>
               {data.popularFeatures.map((feature, index) => (
                 <tr key={index} className={`border-b border-gray-100 ${index === data.popularFeatures.length - 1 ? 'border-b-0' : ''}`}>
-                  <td className="p-3">{feature.feature}</td>
+                  <td className="p-3 font-medium text-gray-800">{feature.feature}</td>
                   <td className="p-3 text-right font-medium text-gray-800">{feature.clicks.toLocaleString()}</td>
-                  <td className="p-3 text-right text-gray-500">{feature.ctr}%</td>
+                  <td className="p-3 text-right text-green-600">{feature.ctr}%</td>
                 </tr>
               ))}
             </tbody>

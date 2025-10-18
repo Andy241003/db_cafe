@@ -250,19 +250,48 @@ def get_public_analytics_stats(
         ).group_by(Event.device).order_by(func.count(Event.id).desc()).limit(5)
     ).all()
 
-    # Popular features (click events by device or URL)
-    popular_features = session.exec(
+    # Popular features (click events with feature names from features table)
+    # First, try to get feature names from feature_id with translation
+    from app.models import Feature, FeatureTranslation
+    from sqlalchemy import case
+    
+    popular_features_with_names = session.exec(
         select(
-            Event.device,
+            FeatureTranslation.title.label('name'),
             func.count(Event.id).label('clicks')
+        ).join(
+            Feature, Event.feature_id == Feature.id
+        ).join(
+            FeatureTranslation, and_(
+                FeatureTranslation.feature_id == Feature.id,
+                FeatureTranslation.locale == 'vi'  # Default to Vietnamese
+            )
         ).where(
             and_(
                 Event.tenant_id == tenant_id,
                 Event.event_type == EventType.CLICK,
-                Event.created_at >= start_date
+                Event.created_at >= start_date,
+                Event.feature_id.isnot(None)
             )
-        ).group_by(Event.device).order_by(func.count(Event.id).desc()).limit(5)
+        ).group_by(FeatureTranslation.title).order_by(func.count(Event.id).desc()).limit(10)
     ).all()
+    
+    # If no features found, fallback to device breakdown
+    if not popular_features_with_names:
+        popular_features = session.exec(
+            select(
+                Event.device,
+                func.count(Event.id).label('clicks')
+            ).where(
+                and_(
+                    Event.tenant_id == tenant_id,
+                    Event.event_type == EventType.CLICK,
+                    Event.created_at >= start_date
+                )
+            ).group_by(Event.device).order_by(func.count(Event.id).desc()).limit(5)
+        ).all()
+    else:
+        popular_features = popular_features_with_names
 
     return {
         "total_page_views": total_page_views,
@@ -281,7 +310,11 @@ def get_public_analytics_stats(
             {"device": row.device or "unknown", "views": row.views} for row in traffic_sources
         ],
         "popular_features": [
-            {"device": row.device or "unknown", "clicks": row.clicks} for row in popular_features
+            {
+                "feature": getattr(row, 'name', None) or (f"{getattr(row, 'device', 'unknown')} Device" if hasattr(row, 'device') else "Unknown"),
+                "clicks": row.clicks,
+                "ctr": round((row.clicks / total_events * 100), 1) if total_events > 0 else 0
+            } for row in popular_features
         ]
     }
 
@@ -836,5 +869,64 @@ async def get_dashboard_stats(
             features_this_month=0,
             period_days=days
         )
+
+
+@router.post("/aggregate")
+async def trigger_aggregation(
+    current_user: CurrentUser,
+    session: SessionDep,
+    days_back: int = 7
+):
+    """
+    Manually trigger analytics aggregation (OWNER/ADMIN only)
+    
+    This will:
+    1. Create daily summaries for the last N days
+    2. Delete events older than 90 days
+    
+    Use this for:
+    - Initial setup
+    - Manual cleanup
+    - Testing aggregation logic
+    """
+    # Check permissions
+    if current_user.role not in [UserRole.OWNER, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only OWNER and ADMIN can trigger aggregation")
+    
+    from app.tasks.analytics_aggregation import aggregate_events_to_summary, delete_old_events
+    
+    try:
+        # Get tenants with events
+        tenants = session.exec(
+            select(Event.tenant_id).distinct()
+        ).all()
+        
+        summaries_created = 0
+        
+        # Aggregate for each day
+        for days_ago in range(days_back, -1, -1):
+            target_date = (datetime.utcnow() - timedelta(days=days_ago)).date()
+            
+            for tenant_id in tenants:
+                try:
+                    aggregate_events_to_summary(session, target_date, tenant_id)
+                    summaries_created += 1
+                except Exception as e:
+                    print(f"Failed to aggregate {target_date}, tenant {tenant_id}: {e}")
+        
+        # Delete old events
+        deleted_count = delete_old_events(session, days_to_keep=90)
+        
+        return {
+            "status": "success",
+            "message": f"Aggregation complete",
+            "summaries_created": summaries_created,
+            "events_deleted": deleted_count,
+            "tenants_processed": len(tenants)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Aggregation failed: {str(e)}")
+
 
 
