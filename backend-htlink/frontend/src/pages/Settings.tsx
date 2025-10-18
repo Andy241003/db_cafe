@@ -1134,8 +1134,8 @@ const Settings: React.FC = () => {
       const API_BASE_URL = getApiBaseUrl();
       
       const newUrls = uploadResults.map(result => {
-        // ALWAYS use new format with media ID (not file_key)
-        return `${API_BASE_URL}/media/${result.id}/download`;
+        // Use /view endpoint for public access (no auth required)
+        return `${API_BASE_URL}/media/${result.id}/view`;
       });
       
       // Update banner images array
