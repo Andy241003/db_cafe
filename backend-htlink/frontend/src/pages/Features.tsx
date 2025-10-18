@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { findIconByName, DEFAULT_ICON } from '../config/icons';
+import { getIconGradient } from '../utils/iconColors';
 import AddFeatureModal from '../components/features/AddFeatureModal';
 import EditFeatureModal from '../components/features/EditFeatureModal';
 import EditPostModal from '../components/features/EditPostModal';
@@ -21,6 +24,7 @@ interface LocalFeature {
   iconColor: string;
   status: 'active' | 'inactive';
   posts: UIPost[];
+  description?: string; // Add optional description field
 }
 
 interface FormData {
@@ -52,8 +56,16 @@ const Features: React.FC = () => {
   // Track posts count per feature (lightweight - loaded upfront)
   const [postsCounts, setPostsCounts] = useState<Map<number, number>>(new Map());
 
-  // Track current UI locale for translations
-  const [currentLocale, setCurrentLocale] = useState<string>((localStorage.getItem('locale') || 'en').toLowerCase());
+  // Track property settings to detect default language changes
+  const [propertySettings, setPropertySettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem('property_settings');
+      if (stored) return JSON.parse(stored);
+    } catch (error) {
+      // Silent fallback
+    }
+    return { defaultLanguage: 'en', fallbackLanguage: 'en', supportedLanguages: ['en', 'vi'] };
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -166,41 +178,68 @@ const Features: React.FC = () => {
   useEffect(() => {
     const initLocale = async () => {
       await autoDetectLanguage();
-      // Force update current locale state after auto-detect completes
-      const locale = (localStorage.getItem('locale') || 'en').toLowerCase();
-      setCurrentLocale(locale);
     };
     
     initLocale();
   }, []);
+
+  // Listen for property settings updates
+  useEffect(() => {
+    const handleSettingsUpdate = (event: any) => {
+      if (event.detail?.defaultLanguage) {
+        setPropertySettings(event.detail);
+      }
+    };
+    
+    window.addEventListener('property-settings-updated', handleSettingsUpdate);
+    
+    return () => {
+      window.removeEventListener('property-settings-updated', handleSettingsUpdate);
+    };
+  }, []);
+
+  // Get default language from property settings
+  const getDefaultLanguage = () => {
+    return propertySettings.defaultLanguage || 'en';
+  };
 
   // Convert API features to LocalFeature format when data loads (WITHOUT loading posts)
   // Re-run when locale changes
   useEffect(() => {
     if (apiFeatures.length > 0 && categories.length > 0) {
       const convertFeatures = () => {
-        // Get current locale from localStorage (set by auto-detect or user selection)
-        const uiLocale = currentLocale;
+        // Use default language from property settings instead of auto-detected locale
+        const defaultLang = getDefaultLanguage();
         
         const convertedFeatures: LocalFeature[] = apiFeatures.map(feature => {
           // Find category by id to get slug for filtering
           const category = categories.find(cat => cat.id === feature.category_id);
           
-          // Get category title with fallback chain: uiLocale → en → name → slug
+          // Get category title with fallback chain: defaultLang → en → name → slug
           const categoryLabel = category ? 
-            (category.translations?.[uiLocale]?.title || 
+            (category.translations?.[defaultLang]?.title || 
              category.translations?.en?.title || 
              category.name || 
              category.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())) 
             : 'general';
           const categorySlug = category ? category.slug : 'general';
 
-          // Get feature title with fallback chain: uiLocale → en → formatted slug
+          // Get feature title with fallback chain: defaultLang → en → formatted slug
           let featureTitle = feature.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
           if (feature.translations) {
-            featureTitle = feature.translations[uiLocale]?.title || 
+            featureTitle = feature.translations[defaultLang]?.title || 
                           feature.translations.en?.title || 
                           featureTitle;
+          }
+
+          // Get feature short description with fallback chain: defaultLang → en → empty
+          let featureDescription = '';
+          if (feature.translations) {
+            const rawDesc = feature.translations[defaultLang]?.short_desc || 
+                           feature.translations.en?.short_desc || 
+                           '';
+            // Strip HTML tags from description
+            featureDescription = rawDesc.replace(/<[^>]*>/g, '').trim();
           }
 
           // DON'T load posts yet - will be loaded lazily when expanded
@@ -209,10 +248,11 @@ const Features: React.FC = () => {
             name: featureTitle,
             category: categoryLabel,
             categorySlug: categorySlug,
-            icon: feature.icon_key || "fa-file-alt",
+            icon: feature.icon_key || "file-alt",
             iconColor: "linear-gradient(135deg, #667eea, #764ba2)",
             status: feature.is_system ? "inactive" : "active",
             posts: loadedPosts.get(feature.id) || [], // Use cached posts if available
+            description: featureDescription, // Add description field
           };
         });
         
@@ -221,30 +261,32 @@ const Features: React.FC = () => {
 
       convertFeatures();
     }
-  }, [apiFeatures, categories, loadedPosts, currentLocale]); // Re-run when posts cache updates OR locale changes
+  }, [apiFeatures, categories, loadedPosts, propertySettings]); // Re-run when property settings change
   
   // Listen for locale changes from localStorage
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'locale' && e.newValue) {
-        // Update current locale state
-        setCurrentLocale((e.newValue || 'en').toLowerCase());
-        // Trigger re-conversion by updating a state that's in the dependency array
-        // Features will auto-update via the useEffect above
-        // window.location.reload(); // Simple approach: reload page - NO LONGER NEEDED
+        // Trigger re-render by forcing property settings reload
+        const stored = localStorage.getItem('property_settings');
+        if (stored) {
+          setPropertySettings(JSON.parse(stored));
+        }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     
     // Also listen for custom event for same-tab updates (match event name from languageDetection.ts)
-    
     const handleLocaleChange = () => {
-      const newLocale = (localStorage.getItem('locale') || 'en').toLowerCase();
-      setCurrentLocale(newLocale);
-      // window.location.reload(); - NO LONGER NEEDED
+      // Trigger re-render by forcing property settings reload
+      const stored = localStorage.getItem('property_settings');
+      if (stored) {
+        setPropertySettings(JSON.parse(stored));
+      }
     };
-        window.addEventListener('locale-changed', handleLocaleChange);
+    
+    window.addEventListener('locale-changed', handleLocaleChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -798,218 +840,6 @@ const Features: React.FC = () => {
     }
   };
 
-  const getIconClass = (iconName: string) => {
-    // If iconName is empty or undefined, return default
-    if (!iconName) {
-      return 'fas fa-file-alt';
-    }
-
-    // Map custom icon names to actual FontAwesome class names
-    const iconMap: Record<string, string> = {
-      // Common icons
-      'lock': 'lock',
-      'safe': 'lock',
-      'vault': 'vault',
-      'shield': 'shield-alt',
-      'security': 'shield-alt',
-      
-      // Check-in/out & Access
-      'check-in': 'sign-in-alt',
-      'check-out': 'sign-out-alt',
-      'access': 'key',
-      'key': 'key',
-      'door': 'door-open',
-      
-      // Amenities & Services
-      'hot-tub-person': 'hot-tub',
-      'shuttle-bus': 'bus',
-      'flight-service': 'plane-departure',
-      'car-rental': 'car-side',
-      'water-ladder': 'swimmer',
-      'air-conditioning': 'snowflake',
-      'morning-call': 'bell',
-      'in-room-dining': 'utensils',
-      'restaurant-reservation': 'calendar-check',
-      'bar-lounge': 'cocktail',
-      'tea-lounge': 'mug-hot',
-      'drink-corner': 'glass-martini',
-      'halal-food': 'leaf',
-      'ice-treat': 'ice-cream',
-      'vending-machines': 'store',
-      'convenience-store': 'store',
-      'menu': 'list',
-      'coupon': 'ticket',
-      
-      // Relaxation & Health
-      'public-bath': 'bath',
-      'sauna': 'hot-tub',
-      'massage': 'hands-helping',
-      'beauty-spa': 'spa',
-      'fitness': 'dumbbell',
-      'pool': 'swimming-pool',
-      'yoga': 'leaf',
-      
-      // Services & Amenities
-      'concierge': 'concierge-bell',
-      'eco-cleaning': 'leaf',
-      'coin-laundry': 'tshirt',
-      'courier-service': 'truck',
-      'locker-room': 'box-open',
-      'pet-friendly': 'paw',
-      'workspace': 'laptop',
-      'original-goods': 'box-open',
-      'hotel-chain': 'building',
-      
-      // Business & Events
-      'conference-room': 'users',
-      'seminar': 'chalkboard',
-      'rental-space': 'key',
-      'facility-congestion': 'chart-line',
-      
-      // Explore & Activities
-      'sightseeing': 'map-marked-alt',
-      'recommended-activity': 'thumbs-up',
-      'playground': 'child',
-      'self-organized-tour': 'map-signs',
-      'bicycle-rental': 'bicycle',
-      'kimono-rental': 'tshirt',
-      'camp': 'campground',
-      'sakura': 'leaf',
-      'weather': 'cloud-sun',
-      'local-events': 'calendar',
-      
-      // Info & Instructions
-      'how-to-translate': 'language',
-      'floor-guide': 'map',
-      'survey': 'poll',
-      'q-and-a': 'question-circle',
-      'official-website': 'globe',
-      
-      // Safety & Regulations
-      'smoking-area': 'smoking',
-      'evacuation-plan': 'route',
-      'covid-measures': 'shield-virus',
-      'accommodation-terms': 'file-contract',
-      
-      // Additional common icons
-      'wifi': 'wifi',
-      'parking': 'parking',
-      'restaurant': 'utensils',
-      'gym': 'dumbbell',
-      'spa': 'spa',
-      'swimming-pool': 'swimming-pool',
-      'bar': 'glass-martini-alt',
-      'coffee': 'coffee',
-      'breakfast': 'bacon',
-      'luggage': 'suitcase-rolling',
-      'taxi': 'taxi',
-      'airport': 'plane',
-      'train': 'train',
-      'metro': 'subway',
-      'bus': 'bus',
-      'car': 'car',
-      'bicycle': 'bicycle',
-      'walk': 'walking',
-      'wheelchair': 'wheelchair',
-      'elevator': 'elevator',
-      'stairs': 'stairs',
-      'smoking': 'smoking',
-      'no-smoking': 'smoking-ban',
-      'pet': 'paw',
-      'child': 'child',
-      'family': 'users',
-      'laundry': 'tshirt',
-      'iron': 'iron',
-      'hairdryer': 'fan',
-      'tv': 'tv',
-      'phone': 'phone',
-      'computer': 'desktop',
-      'printer': 'print',
-      'fax': 'fax',
-      'meeting': 'handshake',
-      'presentation': 'presentation',
-      'conference': 'users',
-      'event': 'calendar-alt',
-      'wedding': 'ring',
-      'party': 'glass-cheers',
-      'music': 'music',
-      'cinema': 'film',
-      'game': 'gamepad',
-      'book': 'book',
-      'newspaper': 'newspaper',
-      'shopping': 'shopping-bag',
-      'gift': 'gift',
-      'credit-card': 'credit-card',
-      'money': 'money-bill',
-      'atm': 'money-bill-wave',
-      'exchange': 'exchange-alt',
-      'first-aid': 'first-aid',
-      'pharmacy': 'pills',
-      'doctor': 'user-md',
-      'hospital': 'hospital',
-      'ambulance': 'ambulance',
-      'fire': 'fire-extinguisher',
-      'police': 'shield-alt',
-      'info': 'info-circle',
-      'help': 'question-circle',
-      'warning': 'exclamation-triangle',
-      'danger': 'exclamation-circle',
-      'success': 'check-circle',
-      'error': 'times-circle',
-      'star': 'star',
-      'heart': 'heart',
-      'home': 'home',
-      'building': 'building',
-      'hotel': 'hotel',
-      'bed': 'bed',
-      'bath': 'bath',
-      'shower': 'shower',
-      'toilet': 'toilet',
-      'kitchen': 'utensils',
-      'fridge': 'cube',
-      'microwave': 'cube',
-      'oven': 'fire',
-      'dishwasher': 'sink',
-      'washer': 'tshirt',
-      'dryer': 'wind',
-      'ac': 'snowflake',
-      'heat': 'fire',
-      'fan': 'fan',
-      'light': 'lightbulb',
-      'window': 'window-maximize',
-      'balcony': 'door-open',
-      'terrace': 'umbrella-beach',
-      'garden': 'tree',
-      'view': 'eye',
-      'mountain': 'mountain',
-      'beach': 'umbrella-beach',
-      'sea': 'water',
-      'lake': 'water',
-      'river': 'water',
-      'forest': 'tree',
-      'park': 'tree',
-      'city': 'city',
-      'map': 'map-marked-alt',
-      'location': 'map-marker-alt',
-      'compass': 'compass',
-      'flag': 'flag',
-    };
-
-    // Normalize iconName (lowercase, trim)
-    const normalizedName = iconName.toLowerCase().trim();
-    
-    // Get mapped icon or use original
-    const mappedIcon = iconMap[normalizedName] || normalizedName;
-    
-    // If already has fa- prefix, return as is with fas
-    if (mappedIcon.startsWith('fa-')) {
-      return `fas ${mappedIcon}`;
-    }
-    
-    // Otherwise add fa- prefix
-    return `fas fa-${mappedIcon}`;
-  }
-
   // Map locale code to a human-friendly name and a short flag/label used in the UI
   const getLocaleInfo = (locale?: string) => {
     const code = (locale || 'en').toLowerCase();
@@ -1098,11 +928,11 @@ const Features: React.FC = () => {
             <option disabled>Loading categories...</option>
           ) : (
             categories.map(category => {
-              // Use current locale from state (synced with auto-detect and user selection)
-              const uiLocale = currentLocale;
+              // Use default language from property settings (same as feature cards)
+              const defaultLang = getDefaultLanguage();
               
-              // Get translated title with fallback chain: uiLocale → en → name → formatted slug
-              const categoryTitle = category.translations?.[uiLocale]?.title || 
+              // Get translated title with fallback chain: defaultLang → en → name → formatted slug
+              const categoryTitle = category.translations?.[defaultLang]?.title || 
                                    category.translations?.en?.title || 
                                    category.name || 
                                    category.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
@@ -1138,20 +968,26 @@ const Features: React.FC = () => {
             willChange: 'scroll-position' // Optimize for scrolling
           }}
         >
-          {filteredFeatures.map(feature => (
+          {filteredFeatures.map(feature => {
+            // Get icon object from centralized config
+            const iconObject = findIconByName(feature.icon) || DEFAULT_ICON;
+            // Get beautiful gradient based on icon category
+            const gradient = getIconGradient(feature.icon);
+            
+            return (
           <div key={feature.id} className="border-b border-slate-200 last:border-b-0">
             <div
               className={`flex items-center p-4 cursor-pointer transition-all ${expandedFeatures.has(feature.id) ? 'bg-blue-50 border-b border-blue-200' : 'hover:bg-slate-50'}`}
               onClick={() => toggleFeature(feature.id)}
             >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg text-white mr-4" style={{ background: feature.iconColor }}>
-                <i className={getIconClass(feature.icon)}></i>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg text-white mr-4 bg-gradient-to-br ${gradient} shadow-sm`}>
+                <FontAwesomeIcon icon={iconObject} />
               </div>
               <div className="flex-1 flex items-center gap-4">
                 <div className="flex-1">
                   <h3 className="text-base font-semibold text-slate-900 mb-1">{feature.name}</h3>
                   <div className="flex items-center gap-4 text-sm text-slate-600">
-                    <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{feature.category}</span>
+                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">{feature.category}</span>
                     <div className="flex items-center gap-1.5">
                       <i className="fas fa-file-alt"></i>
                       <span>{postsCounts.get(feature.id) ?? feature.posts.length} posts</span>
@@ -1275,7 +1111,8 @@ const Features: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+            );
+          })}
         </div>
       </div>
 

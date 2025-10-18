@@ -1,5 +1,8 @@
 // src/components/categories/CategoryCard.tsx
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { findIconByName, DEFAULT_ICON } from '../../config/icons';
+import { getIconGradient } from '../../utils/iconColors';
 import type { Category } from '../../types/categories';
 
 interface CategoryCardProps {
@@ -10,37 +13,6 @@ interface CategoryCardProps {
   onTranslate: (category: Category) => void;
 }
 
-const ICON_CLASS: Record<string, string> = {
-  'info-circle': 'fa-info-circle',
-  'concierge-bell': 'fa-concierge-bell',
-  'building': 'fa-building',
-  'hiking': 'fa-hiking',
-  'car': 'fa-car',
-  'spa': 'fa-spa',
-  'utensils': 'fa-utensils',
-  'shopping-bag': 'fa-shopping-bag',
-  'share-alt': 'fa-share-alt',
-  'file-contract': 'fa-file-contract',
-  'star': 'fa-star',
-  'heart': 'fa-heart',
-};
-
-
-const GRADIENT_COLORS: Record<string, string> = {
-  'info-circle': 'from-indigo-500 to-purple-600',
-  'concierge-bell': 'from-blue-500 to-blue-600',
-  'building': 'from-green-500 to-green-600',
-  'hiking': 'from-orange-500 to-orange-600',
-  'star': 'from-purple-500 to-purple-600',
-  'heart': 'from-pink-500 to-red-500',
-  'car': 'from-gray-500 to-gray-600',
-  'spa': 'from-teal-500 to-teal-600',
-  'utensils': 'from-yellow-500 to-orange-500',
-  'shopping-bag': 'from-pink-400 to-pink-500',
-  'share-alt': 'from-cyan-500 to-blue-500',
-  'file-contract': 'from-slate-500 to-slate-600'
-};
-
 export const CategoryCard: React.FC<CategoryCardProps> = ({
   category,
   onEdit,
@@ -48,7 +20,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   onViewFeatures,
   onTranslate,
 }) => {
-  const gradient = GRADIENT_COLORS[category.icon] ?? 'from-gray-500 to-gray-600';
+  // Get gradient from centralized utility based on icon category
+  const gradient = getIconGradient(category.icon);
   
   // Get default language from localStorage
   const getDefaultLanguage = () => {
@@ -92,12 +65,15 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   const handleViewFeatures = () => onViewFeatures(category.id);
   const handleTranslate = () => onTranslate(category);
 
+  // Get icon from centralized config
+  const iconObject = findIconByName(category.icon) || DEFAULT_ICON;
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       {/* Header with icon and menu */}
       <div className="flex items-start justify-between p-4 pb-3">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white text-lg shadow-sm`}>
-          <i className={`fas ${ICON_CLASS[category.icon] ?? 'fa-box'}`}></i>
+          <FontAwesomeIcon icon={iconObject} />
         </div>
         
         {/* Type badge and menu */}

@@ -109,18 +109,14 @@ const Categories: React.FC = () => {
       // Import categoriesApi for translation operations
       const { categoriesApi } = await import('../services/categoriesApi');
 
-      // Check if translation already exists for this locale
-      const category = categories.find(c => c.id === categoryId);
-      const existingTranslation = category?.translations?.[targetLang];
-
       const translationPayload = {
         locale: targetLang,
         title: translatedData.title,
         short_desc: translatedData.description || '',
       };
 
-      if (existingTranslation) {
-        // Update existing translation
+      try {
+        // Try to update first (faster if it exists)
         await categoriesApi.updateCategoryTranslation(
           categoryId,
           targetLang,
@@ -130,10 +126,15 @@ const Categories: React.FC = () => {
           }
         );
         toast.success(t('translationUpdated', { lang: targetLang.toUpperCase() }));
-      } else {
-        // Create new translation
-        await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
-        toast.success(t('translationCreated', { lang: targetLang.toUpperCase() }));
+      } catch (updateError: any) {
+        // If update fails with 404, create new translation
+        if (updateError.response?.status === 404) {
+          await categoriesApi.createCategoryTranslation(categoryId, translationPayload);
+          toast.success(t('translationCreated', { lang: targetLang.toUpperCase() }));
+        } else {
+          // Re-throw other errors
+          throw updateError;
+        }
       }
 
       translateModal.closeModal();
