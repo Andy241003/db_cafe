@@ -12,8 +12,8 @@ import uuid
 from urllib.parse import urlparse
 
 from app.api.deps import SessionDep, CurrentUser
-from app.models import Tenant, Property, Event, ActivityLog, AnalyticsSummary, EventType, DeviceType, UserRole
-from app.models.activity_log import ActivityType
+from app.models import Tenant, Property, Event, AnalyticsSummary, EventType, DeviceType, UserRole
+from app.models.activity_log import ActivityLog  # Only for admin activity stats, NOT for analytics tracking
 from app.core.security import get_client_ip
 
 router = APIRouter()
@@ -26,6 +26,8 @@ class TrackingRequest(BaseModel):
     user_agent: Optional[str] = Field(default=None, max_length=255)
     url: Optional[str] = Field(default=None, max_length=500)
     referrer: Optional[str] = Field(default=None, max_length=500)
+    session_id: Optional[str] = Field(default=None, max_length=100)
+    page_title: Optional[str] = Field(default=None, max_length=500)
 
 class AnalyticsStatsResponse(BaseModel):
     total_page_views: int
@@ -141,6 +143,148 @@ async def test_connection():
     """Test endpoint to verify API connectivity"""
     return {"status": "ok", "message": "Analytics API is connected"}
 
+@router.get("/public-stats")
+def get_public_analytics_stats(
+    session: SessionDep,
+    days: int = 30,
+    tenant_id: int = 4  # Default to tenant 4 (Boton Blue) for demo
+):
+    """
+    PUBLIC endpoint for analytics stats (NO AUTH REQUIRED)
+    Used for demo/testing purposes
+    In production, use /stats endpoint with authentication
+    """
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+    
+    # Total page views
+    total_page_views = session.exec(
+        select(func.count(Event.id)).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.event_type == EventType.PAGE_VIEW,
+                Event.created_at >= start_date
+            )
+        )
+    ).first() or 0
+    
+    # Unique visitors
+    unique_visitors = session.exec(
+        select(func.count(distinct(Event.ip_hash))).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.created_at >= start_date
+            )
+        )
+    ).first() or 0
+    
+    # Total events
+    total_events = session.exec(
+        select(func.count(Event.id)).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.created_at >= start_date
+            )
+        )
+    ).first() or 0
+    
+    # Properties count
+    properties_count = session.exec(
+        select(func.count(Property.id)).where(Property.tenant_id == tenant_id)
+    ).first() or 0
+    
+    # Page views by day (for chart)
+    page_views_by_day = session.exec(
+        select(
+            func.date(Event.created_at).label('date'),
+            func.count(Event.id).label('views')
+        ).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.event_type == EventType.PAGE_VIEW,
+                Event.created_at >= start_date
+            )
+        ).group_by(func.date(Event.created_at)).order_by(func.date(Event.created_at))
+    ).all()
+
+    # Popular pages (based on URL if available, otherwise event type)
+    popular_pages = session.exec(
+        select(
+            Event.url,
+            func.count(Event.id).label('views')
+        ).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.event_type == EventType.PAGE_VIEW,
+                Event.created_at >= start_date,
+                Event.url.isnot(None)
+            )
+        ).group_by(Event.url).order_by(func.count(Event.id).desc()).limit(10)
+    ).all()
+
+    # If no URLs, fallback to event types
+    if not popular_pages:
+        popular_pages = session.exec(
+            select(
+                Event.event_type,
+                func.count(Event.id).label('views')
+            ).where(
+                and_(
+                    Event.tenant_id == tenant_id,
+                    Event.created_at >= start_date
+                )
+            ).group_by(Event.event_type).order_by(func.count(Event.id).desc()).limit(5)
+        ).all()
+
+    # Traffic sources (device breakdown)
+    traffic_sources = session.exec(
+        select(
+            Event.device,
+            func.count(Event.id).label('views')
+        ).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.event_type == EventType.PAGE_VIEW,
+                Event.created_at >= start_date
+            )
+        ).group_by(Event.device).order_by(func.count(Event.id).desc()).limit(5)
+    ).all()
+
+    # Popular features (click events by device or URL)
+    popular_features = session.exec(
+        select(
+            Event.device,
+            func.count(Event.id).label('clicks')
+        ).where(
+            and_(
+                Event.tenant_id == tenant_id,
+                Event.event_type == EventType.CLICK,
+                Event.created_at >= start_date
+            )
+        ).group_by(Event.device).order_by(func.count(Event.id).desc()).limit(5)
+    ).all()
+
+    return {
+        "total_page_views": total_page_views,
+        "unique_visitors": unique_visitors,
+        "total_events": total_events,
+        "properties_count": properties_count,
+        "period_start": start_date.isoformat(),
+        "period_end": end_date.isoformat(),
+        "page_views_by_day": [
+            {"date": str(row.date), "views": row.views} for row in page_views_by_day
+        ],
+        "popular_pages": [
+            {"event_type": getattr(row, 'url', None) or getattr(row, 'event_type', 'Unknown'), "views": row.views} for row in popular_pages
+        ],
+        "traffic_sources": [
+            {"device": row.device or "unknown", "views": row.views} for row in traffic_sources
+        ],
+        "popular_features": [
+            {"device": row.device or "unknown", "clicks": row.clicks} for row in popular_features
+        ]
+    }
+
 @router.post("/track")
 async def track_analytics_event(
     request: Request,
@@ -169,38 +313,23 @@ async def track_analytics_event(
         if not device and tracking_data.user_agent:
             device = detect_device_from_user_agent(tracking_data.user_agent)
         
-        # Create event record
+        # Create event record in events table with FULL tracking data
         event = Event(
             tenant_id=property_obj.tenant_id,
             property_id=property_obj.id,
             event_type=tracking_data.event_type,
             device=device,
             user_agent=tracking_data.user_agent,
-            ip_hash=ip_hash
+            ip_hash=ip_hash,  # ✅ IP address (hashed for privacy)
+            url=tracking_data.url,  # ✅ URL of the page
+            referrer=tracking_data.referrer,  # ✅ Traffic source
+            session_id=tracking_data.session_id,  # ✅ Session ID
+            page_title=tracking_data.page_title  # ✅ Page title
         )
         
         session.add(event)
         session.commit()
         session.refresh(event)
-        
-        # Log activity in activity_logs
-        activity_details = {
-            "event_id": event.id,
-            "property_name": property_obj.property_name,
-            "url": tracking_data.url,
-            "referrer": tracking_data.referrer,
-            "device": device.value if device else None,
-            "ip_hash": ip_hash[:8]  # Only store first 8 chars for debugging
-        }
-        
-        activity_log = ActivityLog(
-            tenant_id=property_obj.tenant_id,
-            activity_type=ActivityType.ANALYTICS_EVENT,
-            details=activity_details
-        )
-        
-        session.add(activity_log)
-        session.commit()
         
         # Update analytics summary in background
         background_tasks.add_task(

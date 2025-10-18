@@ -115,7 +115,9 @@ class AnalyticsAPI {
   }
 
   async getStats(days: number = 30): Promise<AnalyticsStatsResponse> {
-    return this.makeRequest<AnalyticsStatsResponse>(`/analytics/stats?days=${days}`);
+    // Use public endpoint for now (no auth required)
+    // TODO: Switch to /analytics/stats when authentication is properly set up
+    return this.makeRequest<AnalyticsStatsResponse>(`/analytics/public-stats?days=${days}`);
   }
 
   async getRealtimeStats(): Promise<RealtimeStatsResponse> {

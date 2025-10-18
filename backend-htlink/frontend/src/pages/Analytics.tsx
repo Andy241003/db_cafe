@@ -3,293 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 import Chart from "chart.js/auto";
 import type { Chart as ChartJS } from "chart.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faArrowUp, faArrowDown, faCalendar, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faDownload, faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { usePermissions } from "../hooks/usePermissions";
 // import { usePageTracking } from "../hooks/usePageTracking";
 import LoadingSpinner from "../components/analytics/LoadingSpinner";
 import ErrorMessage from "../components/analytics/ErrorMessage";
-import RealTimeStats from "../components/analytics/RealTimeStats";
-import ApiStatus from "../components/analytics/ApiStatus";
-import DebugPanel from "../components/analytics/DebugPanel";
-import { testAnalyticsAPI, setupAuth, clearAuth } from "../utils/apiTest";
-
-// DateRange interface
-export interface DateRange {
-  startDate: string;
-  endDate: string;
-  label: string;
-  period: 'month' | 'quarter' | 'year' | 'custom';
-}
-
-// DateRangePicker Component
-interface DateRangePickerProps {
-  selectedRange: DateRange;
-  onRangeChange: (range: DateRange) => void;
-}
-
-const PRESET_RANGES: DateRange[] = [
-  {
-    startDate: '2024-12-01',
-    endDate: '2024-12-31',
-    label: 'This Month',
-    period: 'month'
-  },
-  {
-    startDate: '2024-11-01',
-    endDate: '2024-11-30',
-    label: 'Last Month',
-    period: 'month'
-  },
-  {
-    startDate: '2024-10-01',
-    endDate: '2024-12-31',
-    label: 'This Quarter (Q4)',
-    period: 'quarter'
-  },
-  {
-    startDate: '2024-07-01',
-    endDate: '2024-09-30',
-    label: 'Last Quarter (Q3)',
-    period: 'quarter'
-  },
-  {
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    label: 'This Year (2024)',
-    period: 'year'
-  },
-  {
-    startDate: '2023-01-01',
-    endDate: '2023-12-31',
-    label: 'Last Year (2023)',
-    period: 'year'
-  }
-];
-
-const DateRangePicker: React.FC<DateRangePickerProps> = ({
-  selectedRange,
-  onRangeChange
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
-  const [activeTab, setActiveTab] = useState<'preset' | 'custom'>('preset');
-  
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handlePresetSelect = (range: DateRange) => {
-    onRangeChange(range);
-    setIsOpen(false);
-  };
-
-  const handleCustomRangeApply = () => {
-    if (customStartDate && customEndDate) {
-      const customRange: DateRange = {
-        startDate: customStartDate,
-        endDate: customEndDate,
-        label: `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`,
-        period: 'custom'
-      };
-      onRangeChange(customRange);
-      setIsOpen(false);
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const groupedRanges = {
-    month: PRESET_RANGES.filter(r => r.period === 'month'),
-    quarter: PRESET_RANGES.filter(r => r.period === 'quarter'),
-    year: PRESET_RANGES.filter(r => r.period === 'year')
-  };
-
-  return (
-    <div className="relative">
-      <button
-        ref={buttonRef}
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm cursor-pointer hover:bg-gray-50 transition-colors"
-      >
-        <FontAwesomeIcon icon={faCalendar} className="text-gray-500" />
-        <span>{selectedRange.label}</span>
-        <FontAwesomeIcon 
-          icon={faChevronDown} 
-          className={`text-gray-400 text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-        />
-      </button>
-
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-80"
-        >
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('preset')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'preset'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Quick Select
-            </button>
-            <button
-              onClick={() => setActiveTab('custom')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'custom'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Custom Range
-            </button>
-          </div>
-
-          <div className="p-4 max-h-80 overflow-y-auto">
-            {activeTab === 'preset' ? (
-              <div className="space-y-4">
-                {/* Debug info */}
-                <div className="text-xs text-gray-400 mb-2">
-                  Total ranges: {PRESET_RANGES.length}
-                </div>
-                
-                {/* Monthly */}
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Monthly ({groupedRanges.month.length})
-                  </h4>
-                  <div className="space-y-1">
-                    {groupedRanges.month.map((range, index) => (
-                      <button
-                        key={`month-${index}`}
-                        onClick={() => handlePresetSelect(range)}
-                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                          selectedRange.label === range.label
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quarterly */}
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Quarterly ({groupedRanges.quarter.length})
-                  </h4>
-                  <div className="space-y-1">
-                    {groupedRanges.quarter.map((range, index) => (
-                      <button
-                        key={`quarter-${index}`}
-                        onClick={() => handlePresetSelect(range)}
-                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                          selectedRange.label === range.label
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Yearly */}
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Yearly ({groupedRanges.year.length})
-                  </h4>
-                  <div className="space-y-1">
-                    {groupedRanges.year.map((range, index) => (
-                      <button
-                        key={`year-${index}`}
-                        onClick={() => handlePresetSelect(range)}
-                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                          selectedRange.label === range.label
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="flex-1 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCustomRangeApply}
-                    disabled={!customStartDate || !customEndDate}
-                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 // Main Analytics Component
 const Analytics: React.FC = () => {
@@ -303,19 +22,10 @@ const Analytics: React.FC = () => {
 
   // UI state (filters)
   const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "90d">("30d");
-  const [flowFilter, setFlowFilter] = useState<"all" | "new" | "returning">("all");
   const [isExporting, setIsExporting] = useState(false);
   
-  // Date range state
-  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>({
-    startDate: '2024-11-01',
-    endDate: '2024-11-30',
-    label: 'Last Month',
-    period: 'month'
-  });
-  
   // Use analytics hook
-  const { data, loading, error, refreshData, exportData, realTimeStats, isApiConnected, lastUpdate } = useAnalytics(selectedDateRange, timeFilter);
+  const { data, loading, error, refreshData, exportData } = useAnalytics(timeFilter);
 
   // Get permissions
   const permissions = usePermissions();
@@ -469,39 +179,18 @@ const Analytics: React.FC = () => {
           <p className="text-gray-600 mt-1">Key metrics and performance insights</p>
         </div>
         <div className="flex items-center gap-3">
-          <DateRangePicker
-            selectedRange={selectedDateRange}
-            onRangeChange={setSelectedDateRange}
-          />
           {permissions.canExportAnalytics && (
             <button
               className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleExportData}
               disabled={isExporting}
-              title={permissions.canExportAnalytics ? 'Export analytics data' : 'Only OWNER and ADMIN can export data'}
             >
               <FontAwesomeIcon icon={faDownload} />
               {isExporting ? 'Exporting...' : 'Export'}
             </button>
           )}
-          {!permissions.canExportAnalytics && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-sm font-semibold cursor-not-allowed" title="Only OWNER and ADMIN can export data">
-              <FontAwesomeIcon icon={faDownload} />
-              Export (No Permission)
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Real-time stats */}
-      {realTimeStats && (
-        <div className="mb-6">
-          <RealTimeStats 
-            activeUsers={realTimeStats.activeUsers} 
-            currentPageViews={realTimeStats.currentPageViews} 
-          />
-        </div>
-      )}
 
       {/* Top stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5 mb-8">
@@ -596,52 +285,6 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* User Flow */}
-      <div className="bg-white rounded-xl shadow-sm p-5">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">User Journey Flow</h3>
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
-            {["all", "new", "returning"].map((filter) => (
-              <button
-                key={filter}
-                className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors capitalize ${flowFilter === filter ? "bg-white text-blue-600 shadow-sm" : "bg-transparent text-gray-600 hover:bg-gray-200"}`}
-                onClick={() => setFlowFilter(filter as "all" | "new" | "returning")}
-              >
-                {filter} Users
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          {data.userFlow.map(step => (
-            <div key={step.num} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">{step.num}</div>
-                <div>
-                  <h4 className="font-semibold text-gray-800">{step.title}</h4>
-                  <p className="text-xs text-gray-500">{step.desc}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-gray-800">{step.users.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">{step.conversion.toFixed(1)}%</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* API Status Indicator */}
-      <ApiStatus isConnected={isApiConnected} lastUpdate={lastUpdate || undefined} />
-      
-      {/* Debug Panel (Development Only) */}
-      {import.meta.env.DEV && (
-        <DebugPanel
-          onTestApi={testAnalyticsAPI}
-          onSetupAuth={setupAuth}
-          onClearAuth={clearAuth}
-        />
-      )}
     </div>
   );
 };

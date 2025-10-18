@@ -15,17 +15,8 @@ export const testAnalyticsAPI = async () => {
       return false;
     }
     
-    // Test tracking
-    console.log('2. Testing event tracking...');
-    try {
-      const trackResult = await analyticsAPI.testTracking();
-      console.log('✅ Tracking test successful:', trackResult);
-    } catch (error) {
-      console.log('❌ Tracking test failed:', error);
-    }
-    
     // Test stats
-    console.log('3. Testing stats endpoint...');
+    console.log('2. Testing stats endpoint...');
     try {
       const stats = await analyticsAPI.getStats(7);
       console.log('✅ Stats retrieved:', stats);

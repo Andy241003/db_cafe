@@ -318,11 +318,19 @@ class Event(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     tenant_id: int = Field(foreign_key="tenants.id")
-    property_id: int = Field(foreign_key="properties.id") 
+    property_id: int = Field(foreign_key="properties.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="feature_categories.id")
+    feature_id: Optional[int] = Field(default=None, foreign_key="features.id")
+    post_id: Optional[int] = Field(default=None, foreign_key="posts.id")
+    locale: Optional[str] = Field(default=None, max_length=10)
     event_type: EventType = Field(sa_column=Column(Enum("page_view", "click", "share", name="eventtype")))
     device: Optional[DeviceType] = Field(default=None, sa_column=Column(Enum("desktop", "tablet", "mobile", name="devicetype")))
-    user_agent: Optional[str] = Field(max_length=255)
-    ip_hash: Optional[str] = Field(max_length=64)
+    user_agent: Optional[str] = Field(default=None, max_length=255)
+    ip_hash: Optional[str] = Field(default=None, max_length=64)
+    url: Optional[str] = Field(default=None, max_length=500)
+    referrer: Optional[str] = Field(default=None, max_length=500)
+    session_id: Optional[str] = Field(default=None, max_length=100)
+    page_title: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships

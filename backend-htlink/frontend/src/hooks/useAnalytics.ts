@@ -1,7 +1,6 @@
 // src/hooks/useAnalytics.ts
 import { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '../services/analyticsAPI';
-import type { DateRange } from '../pages/Analytics';
 
 export interface AnalyticsStats {
   totalPageViews: number;
@@ -79,7 +78,6 @@ export interface UseAnalyticsReturn {
 }
 
 export const useAnalytics = (
-  dateRange: DateRange,
   timeFilter: string = '30d'
 ): UseAnalyticsReturn => {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -202,7 +200,7 @@ export const useAnalytics = (
     } finally {
       setLoading(false);
     }
-  }, [dateRange, timeFilter]);
+  }, [timeFilter]);
 
   const fetchRealTimeStats = useCallback(async () => {
     try {
@@ -228,11 +226,11 @@ export const useAnalytics = (
     fetchRealTimeStats();
   }, [fetchData, fetchRealTimeStats]);
 
-  const exportData = useCallback(async (format: 'csv' | 'xlsx' = 'xlsx') => {
+  const exportData = useCallback(async (_format: 'csv' | 'xlsx' = 'xlsx') => {
     try {
       // For now, export to CSV since we don't have a real export API yet
       if (data) {
-        exportToCSV(data, dateRange);
+        exportToCSV(data);
       }
       
       // Simulate download delay
@@ -241,7 +239,7 @@ export const useAnalytics = (
     } catch (err) {
       throw new Error('Export failed');
     }
-  }, [data, dateRange]);
+  }, [data]);
 
   useEffect(() => {
     fetchData();
@@ -336,13 +334,14 @@ const getDemoData = (): AnalyticsData => ({
 });
 
 // Export CSV function
-const exportToCSV = (analyticsData: AnalyticsData, range: DateRange) => {
+const exportToCSV = (analyticsData: AnalyticsData) => {
   const csvContent = generateCSVContent(analyticsData);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
-  link.setAttribute('download', `analytics-${range.startDate}-${range.endDate}.csv`);
+  const today = new Date().toISOString().split('T')[0];
+  link.setAttribute('download', `analytics-${today}.csv`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();

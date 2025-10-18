@@ -1,6 +1,5 @@
 // src/services/analyticsService.ts
 import axios from 'axios';
-import type { DateRange } from '../pages/Analytics';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -80,31 +79,28 @@ export interface AnalyticsData {
 }
 
 export const analyticsService = {
-  // Get analytics data for a specific date range
-  async getAnalytics(dateRange: DateRange, timeFilter: string = '30d'): Promise<AnalyticsData> {
+  // Get analytics data for a specific time filter
+  async getAnalytics(timeFilter: string = '30d'): Promise<AnalyticsData> {
     try {
+      const days = timeFilter === '7d' ? 7 : timeFilter === '30d' ? 30 : 90;
       const response = await api.get('/analytics/', {
         params: {
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate,
-          time_filter: timeFilter,
+          days: days,
         },
       });
       
       return response.data;
     } catch (error) {
       // Return mock data if API fails (for development/demo)
-      return getMockData(dateRange, timeFilter);
+      return getMockData(timeFilter);
     }
   },
 
   // Export analytics data
-  async exportData(dateRange: DateRange, format: 'csv' | 'xlsx' = 'xlsx'): Promise<Blob> {
+  async exportData(format: 'csv' | 'xlsx' = 'xlsx'): Promise<Blob> {
     try {
       const response = await api.get('/analytics/export', {
         params: {
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate,
           format,
         },
         responseType: 'blob',
@@ -161,7 +157,7 @@ export const analyticsService = {
 };
 
 // Mock data generator (for development/fallback)
-function getMockData(_dateRange: DateRange, timeFilter: string): AnalyticsData {
+function getMockData(timeFilter: string): AnalyticsData {
   const isShortRange = timeFilter === '7d';
   
   return {
