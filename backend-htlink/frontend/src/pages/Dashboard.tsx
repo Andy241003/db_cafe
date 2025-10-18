@@ -22,13 +22,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        // Track page view
-        try {
-          await analyticsAPI.trackPageView('/dashboard');
-        } catch (trackError) {
-          console.warn('Failed to track page view:', trackError);
-        }
-        
         // Load current user
         const userData = await authAPI.getCurrentUser();
         setCurrentUser(userData);
@@ -112,19 +105,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleQuickAction = async (action: string) => {
-    // Log the user activity
-    try {
-      await analyticsAPI.logActivity(
-        'system_update',
-        `User clicked "${action}" from dashboard`,
-        'dashboard_action',
-        undefined,
-        { action, source: 'dashboard_quick_actions' }
-      );
-    } catch (error) {
-      console.warn('Failed to log activity:', error);
-    }
-
+    // Simple navigation without logging
     if (action === "Add Feature") {
       navigate("/features"); // 👈 nhảy qua Features.tsx
     }
