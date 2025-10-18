@@ -381,20 +381,15 @@ export default function MediaLibrary() {
 
   const downloadMedia = async (file: MediaFile) => {
     try {
-      console.log(`🔽 Download request for file:`, file);
-      
       // Always use API download for better control
       if (file.id && !isNaN(Number(file.id))) {
-        console.log(`📋 Using API download for file ID: ${file.id}`);
         await mediaApi.downloadMediaFile(Number(file.id), file.name);
         message.success(`Started downloading ${file.name}`);
       } else {
         // Fallback: show alert for mock files
-        console.log(`⚠️ Mock file download:`, file);
         message.info(`${file.name} is a demo file - download not available`);
       }
     } catch (error) {
-      console.error('Download error:', error);
       alert(`Failed to download ${file.name}. Please try again.`);
     }
   };

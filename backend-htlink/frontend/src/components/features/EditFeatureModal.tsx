@@ -35,6 +35,20 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const { categories, loading: categoriesLoading } = useCategories();
 
+  // Get default language from property settings
+  const getDefaultLanguage = () => {
+    try {
+      const storedSettings = localStorage.getItem('property_settings');
+      if (storedSettings) {
+        const parsed = JSON.parse(storedSettings);
+        return parsed.defaultLanguage || 'en';
+      }
+    } catch (error) {
+      // Silent fallback
+    }
+    return 'en';
+  };
+
   const [featureForm, setFeatureForm] = useState<EditFeatureFormData>({
     name: '',
     category: '',
@@ -136,11 +150,19 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
                   <option value="">
                     {categoriesLoading ? 'Loading categories...' : 'Select category...'}
                   </option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.name}
-                    </option>
-                  ))}
+                  {categories.map((category) => {
+                    const defaultLang = getDefaultLanguage();
+                    // Get translated title with fallback chain
+                    const categoryTitle = category.translations?.[defaultLang]?.title || 
+                                         category.translations?.en?.title || 
+                                         category.name || 
+                                         category.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    return (
+                      <option key={category.id} value={category.slug}>
+                        {categoryTitle}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

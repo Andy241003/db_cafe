@@ -91,8 +91,6 @@ class AnalyticsAPI {
       },
     };
 
-    console.log(`API Request: ${config.method || 'GET'} ${url}`, config);
-
     try {
       const response = await fetch(url, config);
       
@@ -101,10 +99,8 @@ class AnalyticsAPI {
       }
 
       const data = await response.json();
-      console.log(`API Response:`, data);
       return data;
     } catch (error) {
-      console.error(`API Error for ${endpoint}:`, error);
       throw error;
     }
   }
@@ -114,7 +110,6 @@ class AnalyticsAPI {
       await this.makeRequest('/analytics/test');
       return true;
     } catch (error) {
-      console.error('API connection test failed:', error);
       return false;
     }
   }
@@ -161,7 +156,6 @@ class AnalyticsAPI {
       const logs = await this.makeRequest<ActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=7`);
       return this.transformActivityLogs(logs);
     } catch (error) {
-      console.warn('Activity logs API not available, using mock data');
       return this.getMockActivities(limit);
     }
   }
@@ -171,7 +165,6 @@ class AnalyticsAPI {
       const logs = await this.makeRequest<ActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=${days}`);
       return this.transformActivityLogs(logs);
     } catch (error) {
-      console.warn('Activity logs API not available, using mock data');
       return this.getMockActivities(limit);
     }
   }

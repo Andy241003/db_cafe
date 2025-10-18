@@ -109,7 +109,6 @@ export const useAnalytics = (
       setIsApiConnected(isConnected);
 
       if (!isConnected) {
-        console.warn('API not connected, using demo data');
         setData(getDemoData());
         setLastUpdate(new Date());
         return;
@@ -118,8 +117,6 @@ export const useAnalytics = (
       // Get main stats
       const days = getDaysFromFilter(timeFilter);
       const stats = await analyticsAPI.getStats(days);
-      
-      console.log('Analytics stats received:', stats);
 
       // Transform API data to component format
       const transformedData: AnalyticsData = {
@@ -233,8 +230,6 @@ export const useAnalytics = (
 
   const exportData = useCallback(async (format: 'csv' | 'xlsx' = 'xlsx') => {
     try {
-      console.log(`Exporting analytics data in ${format} format...`);
-      
       // For now, export to CSV since we don't have a real export API yet
       if (data) {
         exportToCSV(data, dateRange);
@@ -244,7 +239,6 @@ export const useAnalytics = (
       await new Promise(resolve => setTimeout(resolve, 1000));
       
     } catch (err) {
-      console.error('Export error:', err);
       throw new Error('Export failed');
     }
   }, [data, dateRange]);

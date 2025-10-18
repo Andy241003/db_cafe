@@ -2,7 +2,6 @@
 export const testAuth = () => {
   // Set production domain for testing
   const productionDomain = new URL(window.location.href).hostname;
-  console.log('Current domain:', productionDomain);
   
   // Map production domain to tenant code
   let tenantCode = 'demo'; // default for localhost
@@ -11,7 +10,6 @@ export const testAuth = () => {
     tenantCode = 'premier_admin'; // or whatever your production tenant code is
   }
   
-  console.log('Setting tenant code:', tenantCode);
   localStorage.setItem('tenant_domain', tenantCode);
   
   // Test API call - use same origin for production
@@ -26,16 +24,9 @@ export const testAuth = () => {
       'Content-Type': 'application/json',
     }
   })
-  .then(response => {
-    console.log('Auth test response:', response.status);
-    return response.json();
-  })
-  .then(data => {
-    console.log('Auth test data:', data);
-    return data;
-  })
+  .then(response => response.json())
+  .then(data => data)
   .catch(error => {
-    console.error('Auth test error:', error);
     throw error;
   });
 };

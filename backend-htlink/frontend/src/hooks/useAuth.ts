@@ -57,8 +57,6 @@ export const useAuth = () => {
     // Clear ALL localStorage to prevent any cache issues
     localStorage.clear();
     
-    console.log('🔴 Logout: All localStorage cleared');
-    
     // Dispatch custom event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));
     

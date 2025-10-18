@@ -29,6 +29,20 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const { categories, loading: categoriesLoading } = useCategories();
 
+  // Get default language from property settings
+  const getDefaultLanguage = () => {
+    try {
+      const storedSettings = localStorage.getItem('property_settings');
+      if (storedSettings) {
+        const parsed = JSON.parse(storedSettings);
+        return parsed.defaultLanguage || 'en';
+      }
+    } catch (error) {
+      // Silent fallback
+    }
+    return 'en';
+  };
+
   // Close icon picker when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -156,11 +170,19 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                   <option value="">
                     {categoriesLoading ? 'Loading categories...' : 'Select category...'}
                   </option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.name}
-                    </option>
-                  ))}
+                  {categories.map((category) => {
+                    const defaultLang = getDefaultLanguage();
+                    // Get translated title with fallback chain
+                    const categoryTitle = category.translations?.[defaultLang]?.title || 
+                                         category.translations?.en?.title || 
+                                         category.name || 
+                                         category.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    return (
+                      <option key={category.id} value={category.slug}>
+                        {categoryTitle}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -218,7 +240,6 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                     className="flex items-center gap-3 p-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-blue-400 transition-colors w-full text-left"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('Icon picker clicked, current state:', iconPickerOpen);
                       setIconPickerOpen(!iconPickerOpen);
                     }}
                   >
@@ -246,10 +267,7 @@ export const AddFeatureModal: React.FC<AddFeatureModalProps> = ({ isOpen, onClos
                               key={name}
                               className={`w-12 h-12 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 ${selectedIcon === name ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200'
                                 }`}
-                              onClick={() => {
-                                console.log('Selected icon:', name);
-                                selectIcon(name);
-                              }}
+                              onClick={() => selectIcon(name)}
                             >
                               <FontAwesomeIcon icon={icon} className="text-lg" />
                             </button>

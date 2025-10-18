@@ -52,14 +52,12 @@ export const testAnalyticsAPI = async () => {
 };
 
 export const setupAuth = () => {
-  // For demo purposes, just log the setup
-  console.log('🔐 Auth setup (demo mode)');
+  // For demo purposes
   localStorage.setItem('analytics_demo_auth', 'true');
   alert('Demo auth setup completed!');
 };
 
 export const clearAuth = () => {
-  console.log('🧹 Clearing auth data');
   localStorage.removeItem('analytics_demo_auth');
   sessionStorage.removeItem('analytics_session_id');
   alert('Auth data cleared!');

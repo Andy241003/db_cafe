@@ -93,13 +93,6 @@ export const analyticsService = {
       
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-      
-      // If it's a 401, redirect to login
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        console.log('Authentication failed, using mock data for demo');
-      }
-      
       // Return mock data if API fails (for development/demo)
       return getMockData(dateRange, timeFilter);
     }
