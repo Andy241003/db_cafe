@@ -18,8 +18,13 @@ export const getApiBaseUrl = (): string => {
   // Auto-detect based on current URL (PRIORITY: Use same domain as frontend)
   const { protocol, hostname } = window.location;
 
-  // For production domains, always use HTTPS and same domain
-  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn')) {
+  // For new production domain app.botonblue.com, use backend at travel.link360.vn
+  if (hostname.includes('app.botonblue.com')) {
+    return 'https://travel.link360.vn/api/v1';
+  }
+
+  // For old production domains or backend domain itself
+  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn') || hostname.includes('trip360.vn')) {
     return `https://${hostname}/api/v1`;
   }
 
