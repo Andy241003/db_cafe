@@ -54,7 +54,7 @@ export const HotelItem: React.FC<HotelItemProps> = ({
   const visitUrl = hotel.website_url && hotel.website_url.trim() !== ''
     ? hotel.website_url
     : hotel.code
-      ? `https://${hotel.code}.trip360.vn`
+      ? `https://app.${hotel.code.replace(/_/g, '')}.com`
       : '';
 
   return (

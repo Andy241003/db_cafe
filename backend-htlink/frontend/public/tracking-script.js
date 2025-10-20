@@ -1,6 +1,6 @@
 /**
  * Hotel Analytics Tracking Script
- * This script should be embedded in the target website (botonblue.trip360.vn)
+ * This script should be embedded in the target website (app.botonblue.com)
  * to track page views and user interactions
  */
 
@@ -10,7 +10,7 @@
   // Configuration
   const CONFIG = {
     API_BASE_URL: 'http://localhost:8000/api/v1/analytics',
-    TRACKING_KEY: 'botonblue-tracking-key', // Unique key for botonblue.trip360.vn
+    TRACKING_KEY: 'botonblue-tracking-key', // Unique key for app.botonblue.com
     DEBUG: true
   };
 

@@ -124,7 +124,7 @@
         event_type: eventType,
         device: device,
         user_agent: getRandomUserAgent(device),
-        url: `https://botonblue.trip360.vn${page}`,
+        url: `https://app.botonblue.com${page}`,
         referrer: referrer
       };
       
@@ -158,7 +158,7 @@
       event_type: 'page_view',
       device: 'desktop',
       user_agent: navigator.userAgent,
-      url: 'https://botonblue.trip360.vn/test',
+      url: 'https://app.botonblue.com/test',
       referrer: null
     });
     console.log('✅ Tracking key is valid!');

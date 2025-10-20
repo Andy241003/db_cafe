@@ -152,8 +152,8 @@ export function transformUIToApiPropertyCreate(uiData: any): ApiPropertyCreate {
     address: uiData.address,
     phone_number: uiData.phone,
     email: uiData.email,
-    // If website_url not provided, generate from code: https://{code}.trip360.vn
-    website_url: uiData.website_url || `https://${(uiData.code || generatePropertyCode(uiData.name)).toLowerCase()}.trip360.vn`,
+    // If website_url not provided, generate from code: https://app.{code}.com
+    website_url: uiData.website_url || `https://app.${(uiData.code || generatePropertyCode(uiData.name)).toLowerCase().replace(/_/g, '')}.com`,
     // Map fields
     google_map_url: uiData.googleMapUrl,
     latitude: uiData.latitude,
