@@ -105,19 +105,22 @@ app.add_middleware(ProxyHeadersMiddleware)
 # Add auto-tenant middleware for API docs
 app.add_middleware(AutoTenantMiddleware)
 
-# Set all CORS enabled origins - Always allow for development
-# Restrict CORS origins for development: allow the local frontend dev server(s)
-print(f"🌐 CORS Origins: {settings.all_cors_origins}", flush=True)
-print(f"🌐 BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
-print(f"🌐 FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.all_cors_origins,
-    allow_origin_regex=r"^https?://localhost(:[0-9]+)?$" if settings.ALLOW_LOCALHOST_CORS else None,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS is now handled by Nginx in production to avoid duplicate headers
+# Only enable CORS middleware in local development
+if settings.ENVIRONMENT == "local":
+    print(f"🌐 CORS Origins: {settings.all_cors_origins}", flush=True)
+    print(f"🌐 BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
+    print(f"🌐 FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.all_cors_origins,
+        allow_origin_regex=r"^https?://localhost(:[0-9]+)?$" if settings.ALLOW_LOCALHOST_CORS else None,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    print(f"🌐 CORS disabled in backend - handled by Nginx reverse proxy", flush=True)
 
 app.include_router(api_router)
 
