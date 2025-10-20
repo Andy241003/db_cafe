@@ -213,6 +213,14 @@ export const useProperties = () => {
       throw new Error('Post not found');
     }
 
+    if (!translationData.targetLanguage) {
+      throw new Error('Target language is required');
+    }
+
+    if (!translationData.translatedContent) {
+      throw new Error('Translated content is required');
+    }
+
     const translatedPost: HotelPost = {
       id: Date.now(),
       hotelId: originalPost.hotelId,
