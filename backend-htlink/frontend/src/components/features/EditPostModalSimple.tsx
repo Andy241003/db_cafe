@@ -154,33 +154,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             </small>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Open Link In</label>
-            <div className="flex gap-5 mt-1.5">
-              <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="target"
-                  value="self"
-                  checked={postForm.target === 'self'}
-                  onChange={(e) => setPostForm(prev => ({ ...prev, target: e.target.value }))}
-                  className="accent-blue-600 w-4 h-4"
-                />
-                Current Page
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="target"
-                  value="blank"
-                  checked={postForm.target === 'blank'}
-                  onChange={(e) => setPostForm(prev => ({ ...prev, target: e.target.value }))}
-                  className="accent-blue-600 w-4 h-4"
-                />
-                New Tab
-              </label>
-            </div>
-          </div>
+        
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Content</label>

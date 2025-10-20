@@ -6,6 +6,7 @@ import { faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import type { UIPost } from '../../services/api';
 import { localesApi, type Locale } from '../../services/localesApi';
 import { usePropertySettings } from '../../hooks/usePropertySettings';
+import { getApiBaseUrl } from '../../utils/api';
 
 interface EditPostModalProps {
   isOpen: boolean;
@@ -48,8 +49,9 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
       try {
         const tenantCode = localStorage.getItem('tenant_code') || '';
         const token = localStorage.getItem('access_token') || '';
+        const apiBaseUrl = getApiBaseUrl();
         
-        const response = await fetch('/api/v1/media/upload', {
+        const response = await fetch(`${apiBaseUrl}/media/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -61,10 +63,21 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
         if (response.ok) {
           const data = await response.json();
           
-          const imageUrl = data.url || data.file_path || data.public_url || data.path;
+          // Backend returns: { id, file_key, original_filename, url, ... }
+          let imageUrl = data.url || data.file_path || data.public_url || data.path;
+          
+          // If backend doesn't provide URL, construct it from media ID
+          if (!imageUrl && data.id) {
+            imageUrl = `${apiBaseUrl}/media/${data.id}/view`;
+          }
+          
+          // IMPORTANT: Convert /download to /view for public access (no auth required)
+          if (imageUrl && imageUrl.includes('/download')) {
+            imageUrl = imageUrl.replace('/download', '/view');
+          }
           
           if (!imageUrl) {
-            console.error('❌ No URL found in response:', data);
+            console.error('No URL found in response:', data);
             alert('Image uploaded but URL not found in response');
             return;
           }
@@ -77,12 +90,13 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             quill.insertEmbed(index, 'image', imageUrl);
             quill.setSelection(index + 1);
           } else {
-            console.error('❌ Quill editor not found');
+            console.error('Quill editor not found');
+            alert('Quill editor not found');
           }
         } else {
           const errorText = await response.text();
-          console.error('❌ Upload failed:', response.status, errorText);
-          alert(`Failed to upload image: ${response.status}`);
+          console.error('Upload failed:', response.status, errorText);
+          alert(`Failed to upload image: ${response.status} - ${errorText}`);
         }
       } catch (error) {
         console.error('Image upload error:', error);
@@ -250,34 +264,6 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
             <small className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
               <FontAwesomeIcon icon={faInfoCircle} /> Optional: Link to virtual reality tour of the hotel
             </small>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Open Link In</label>
-            <div className="flex gap-5 mt-1.5">
-              <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="target"
-                  value="self"
-                  checked={postForm.target === 'self'}
-                  onChange={(e) => setPostForm(prev => ({ ...prev, target: e.target.value }))}
-                  className="accent-blue-600 w-4 h-4"
-                />
-                <span>Current Page</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="target"
-                  value="blank"
-                  checked={postForm.target === 'blank'}
-                  onChange={(e) => setPostForm(prev => ({ ...prev, target: e.target.value }))}
-                  className="accent-blue-600 w-4 h-4"
-                />
-                <span>New Tab</span>
-              </label>
-            </div>
           </div>
 
           <div className="mb-4">

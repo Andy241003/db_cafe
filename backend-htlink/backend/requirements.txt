@@ -16,3 +16,4 @@ pydantic-settings>=2.2.1
 sentry-sdk[fastapi]>=1.40.6
 pyjwt>=2.8.0
 uvicorn>=0.20.0
+aiomysql
