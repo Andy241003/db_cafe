@@ -7,11 +7,12 @@ Fix banner image URLs in database:
 
 import re
 import json
+import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-# Database connection
-DATABASE_URL = "mysql+pymysql://root:VeryStrongRootPass2024!@localhost:3307/hotellink360_db"
+# Database connection - use environment variable or default
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:VeryStrongRootPass2024!@db:3306/hotellink360_db")
 
 def fix_banner_urls():
     engine = create_engine(DATABASE_URL)
