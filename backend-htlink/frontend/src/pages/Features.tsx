@@ -731,6 +731,18 @@ const Features: React.FC = () => {
         }
       }
 
+      // If slug changed, update posts slug in memory (instant UI update)
+      if (formData.slug && loadedPosts.has(featureId)) {
+        const currentPosts = loadedPosts.get(featureId) || [];
+        const updatedPosts = currentPosts.map(post => ({
+          ...post,
+          slug: formData.slug
+        }));
+        const newLoadedPosts = new Map(loadedPosts);
+        newLoadedPosts.set(featureId, updatedPosts);
+        setLoadedPosts(newLoadedPosts);
+      }
+
       await refreshFeatures();
       toast.success('Feature updated successfully!');
       setIsEditFeatureModalOpen(false);

@@ -1024,57 +1024,6 @@ export default function MediaLibrary() {
           </div>
         )}
 
-        {/* Icon Library Section */}
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Icon Library <span className="text-sm font-normal text-gray-500">(max 10)</span>
-          </h2>
-          
-          <div className="flex flex-wrap gap-4 mb-6">
-            {icons.map(icon => (
-              <div
-                key={icon.id}
-                className="w-20 text-center cursor-pointer group"
-                onClick={() => deleteIcon(icon.id, icon.name)}
-              >
-                <div className="w-16 h-16 mx-auto border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center transition-all group-hover:bg-red-50 group-hover:border-red-200 group-hover:-translate-y-0.5">
-                  {typeof icon.preview === 'string' && icon.preview.startsWith('data:') ? (
-                    <img src={icon.preview} alt={icon.name} className="w-8 h-8 object-contain" />
-                  ) : (
-                    getIconComponent(icon.preview)
-                  )}
-                </div>
-                <div className="text-xs text-gray-700 mt-1.5 break-all" title={icon.name}>
-                  {icon.name}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Icon Upload Area */}
-          <div
-            className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-10 text-center cursor-pointer transition-all hover:border-blue-400 hover:bg-gray-50"
-            onClick={() => iconInputRef.current?.click()}
-            onDrop={(e) => handleDrop(e, 'icon')}
-            onDragOver={handleDragOver}
-          >
-            <div className="w-12 h-12 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-              <Upload className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="text-base font-medium text-gray-900 mb-2">Drag & drop hotel icons here</div>
-            <div className="text-sm text-gray-600 mb-4">or click to browse your computer</div>
-            <div className="text-xs text-gray-500">Max 10 icons • Supported: PNG, JPG, SVG • Recommended size: 64×64</div>
-          </div>
-          
-          <input
-            ref={iconInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => handleIconUpload(e.target.files)}
-          />
-        </div>
       </div>
 
       {/* Media Preview Modal */}

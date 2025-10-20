@@ -121,7 +121,7 @@ const Settings: React.FC = () => {
 
   // Form states
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
-    propertyName: 'Tabi Tower Hotel',
+    propertyName: 'Hotel Name',
     propertyCode: 'tabi-tower',
     propertySlogan: '',
     propertyDescription: ''
@@ -749,7 +749,7 @@ const Settings: React.FC = () => {
     switch (section) {
         case 'general':
           setGeneralSettings({
-            propertyName: 'Tabi Tower Hotel',
+            propertyName: 'Hotel Name',
             propertyCode: 'tabi-tower',
             propertySlogan: '',
             propertyDescription: ''

@@ -207,7 +207,7 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="e.g., Tabi Tower Hotel"
+                  placeholder="e.g., Hotel Name"
                   className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
                 />
               </div>

@@ -22,7 +22,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   onLogout, 
-  currentProperty = "Tabi Tower Hotel" 
+  currentProperty = "Hotel Name" 
 }) => {
   const location = useLocation();
 

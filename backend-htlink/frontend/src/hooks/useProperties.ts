@@ -6,7 +6,7 @@ import type { Hotel, HotelFormData, HotelPost, TranslationData } from '../types/
 const mockHotels: Hotel[] = [
   {
     id: 'tabi-tower',
-    name: 'Tabi Tower Hotel',
+    name: 'Hotel Name',
     phone: '+84 28 3825 1234',
     email: 'info@tabitower.com',
     address: '123 Nguyen Hue Street, District 1, Ho Chi Minh City',
@@ -19,8 +19,8 @@ const mockHotels: Hotel[] = [
       {
         id: 1,
         hotelId: 'tabi-tower',
-        title: 'Welcome to Tabi Tower Hotel',
-        content: '<p><strong>Experience luxury and comfort at the heart of Ho Chi Minh City.</strong></p><p>Our 5-star hotel offers world-class amenities, stunning city views, and exceptional service. Located in the vibrant District 1, Tabi Tower Hotel provides easy access to major attractions, shopping centers, and business districts.</p><ul><li>Rooftop infinity pool</li><li>Full-service spa</li><li>Multiple dining options</li><li>State-of-the-art fitness center</li></ul>',
+        title: 'Welcome to Hotel Name',
+        content: '<p><strong>Experience luxury and comfort at the heart of Ho Chi Minh City.</strong></p><p>Our 5-star hotel offers world-class amenities, stunning city views, and exceptional service. Located in the vibrant District 1, Hotel Name provides easy access to major attractions, shopping centers, and business districts.</p><ul><li>Rooftop infinity pool</li><li>Full-service spa</li><li>Multiple dining options</li><li>State-of-the-art fitness center</li></ul>',
         locale: 'en',
         status: 'published',
         address: '123 Nguyen Hue Street, District 1, Ho Chi Minh City',

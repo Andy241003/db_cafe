@@ -228,7 +228,26 @@ def update_feature(
     if not feature:
         raise HTTPException(status_code=404, detail="Feature not found")
     
+    # Store old slug before update
+    old_slug = feature.slug
+    
     feature = crud.feature.update(session, db_obj=feature, obj_in=feature_in)
+    
+    # If slug changed, update all posts of this feature
+    if feature_in.slug and feature_in.slug != old_slug:
+        from sqlmodel import select
+        from app.models import Post
+        
+        posts_to_update = session.exec(
+            select(Post).where(Post.feature_id == feature_id)
+        ).all()
+        
+        for post in posts_to_update:
+            post.slug = feature_in.slug
+            session.add(post)
+        
+        session.commit()
+        session.refresh(feature)
     
     # Log activity
     log_activity(

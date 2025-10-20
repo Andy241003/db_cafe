@@ -95,7 +95,7 @@ async def test_long_text_chunking():
     
     # Generate a long text (simulate a blog post)
     long_text = """
-    Welcome to Tabi Tower Hotel, a premier luxury destination in Ho Chi Minh City.
+    Welcome to Hotel Name, a premier luxury destination in Ho Chi Minh City.
     
     Our hotel offers an unparalleled experience with world-class amenities and services.
     From the moment you check-in, our dedicated concierge team ensures every aspect

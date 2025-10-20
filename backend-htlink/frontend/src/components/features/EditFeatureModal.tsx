@@ -174,6 +174,7 @@ const EditFeatureModal: React.FC<EditFeatureModalProps> = ({ isOpen, onClose, on
                   value={featureForm.slug}
                   onChange={(e) => setFeatureForm(prev => ({ ...prev, slug: e.target.value }))}
                   placeholder="e.g., swimming-pool"
+                  autoComplete="off"
                   required
                 />
               </div>
