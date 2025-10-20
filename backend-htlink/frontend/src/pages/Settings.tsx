@@ -730,85 +730,6 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Reset settings
-  const resetSettings = (section: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Reset Settings',
-      message: 'Are you sure you want to reset these settings? This action cannot be undone.',
-      confirmText: 'Reset',
-      variant: 'warning',
-      onConfirm: () => {
-        performReset(section);
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      }
-    });
-  };
-
-  const performReset = (section: string) => {
-    switch (section) {
-        case 'general':
-          setGeneralSettings({
-            propertyName: 'Hotel Name',
-            propertyCode: 'tabi-tower',
-            propertySlogan: '',
-            propertyDescription: ''
-          });
-          break;
-        case 'branding':
-          setBrandingSettings({
-            primaryColor: '#3b82f6',
-            secondaryColor: '#64748b',
-            logoUrl: '',
-            copyrightText: '',
-            termsUrl: '',
-            privacyUrl: ''
-          });
-          break;
-        case 'localization':
-          setLocalizationSettings({
-            defaultLanguage: 'en',
-            fallbackLanguage: 'en',
-            supportedLanguages: ['en', 'vi'],
-            timezone: 'Asia/Tokyo',
-            dateFormat: 'YYYY-MM-DD'
-          });
-          break;
-        case 'contact':
-          setContactSettings({
-            address: '3-1-6 Mita, Minato, Tokyo 108-0068',
-            district: 'Minato',
-            city: 'Tokyo',
-            country: 'Japan',
-            postalCode: '108-0068',
-            latitude: '',
-            longitude: '',
-            googleMapUrl: '',
-            phoneNumber: '',
-            emailAddress: '',
-            websiteUrl: '',
-            zaloOaId: '',
-            facebookUrl: '',
-            instagramUrl: '',
-            youtubeUrl: '',
-            tiktokUrl: ''
-          });
-          break;
-        case 'advanced':
-          setAdvancedSettings({
-            introVideoUrl: '',
-            vr360Url: '',
-            bannerImages: [],
-            autoLanguageDetection: true,
-            analyticsTracking: true,
-            cacheSystem: true,
-            propertyActive: true
-          });
-          break;
-    }
-    toast.success('Settings reset to default values.');
-  };
-
   // Load existing locales from database
   const loadExistingLocales = async () => {
     try {
@@ -1576,7 +1497,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('general')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveGeneralSettings}>Save</button>
               </div>
             </div>
@@ -1641,7 +1561,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('branding')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveBrandingSettings}>Save</button>
               </div>
             </div>
@@ -1702,7 +1621,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('branding')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLegalSettings}>Save</button>
               </div>
             </div>
@@ -1827,7 +1745,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('localization')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLocalizationSettings}>Save</button>
               </div>
             </div>
@@ -1878,7 +1795,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('localization')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveRegionalSettings}>Save</button>
               </div>
             </div>
@@ -2012,7 +1928,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveLocationSettings}>Save</button>
               </div>
             </div>
@@ -2088,7 +2003,6 @@ const Settings: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                  <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
                   <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveContactSettings}>Save</button>
                 </div>
               </div>
@@ -2163,7 +2077,6 @@ const Settings: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                  <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('contact')}>Reset</button>
                   <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveSocialSettings}>Save</button>
                 </div>
               </div>
@@ -2328,12 +2241,6 @@ const Settings: React.FC = () => {
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
                 <button 
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" 
-                  onClick={() => resetSettings('advanced')}
-                >
-                  Reset
-                </button>
-                <button 
                   className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" 
                   onClick={saveAdvancedSettings}
                 >
@@ -2411,7 +2318,6 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 mt-6">
-                <button className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100" onClick={() => resetSettings('advanced')}>Reset</button>
                 <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700" onClick={saveSystemSettings}>Save</button>
               </div>
             </div>

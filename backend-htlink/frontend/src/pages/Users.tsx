@@ -296,7 +296,6 @@ const Users: React.FC = () => {
             {currentUser && (
               <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
                 Logged in as: {currentUser.name} ({currentUser.role.toUpperCase()}) 
-                | Tenant: {localStorage.getItem('tenant_code')?.toUpperCase() || 'UNKNOWN'}
               </span>
             )}
           </p>
