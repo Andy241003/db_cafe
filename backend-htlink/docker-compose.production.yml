@@ -25,6 +25,8 @@ services:
       - .env.production
     ports:
       - "8000:8000"
+    volumes:
+      - app-uploads:/app/uploads
     networks:
       - app-network
     environment:
@@ -60,6 +62,7 @@ services:
 
 volumes:
   app-db-data:
+  app-uploads:
 
 networks:
   app-network:
