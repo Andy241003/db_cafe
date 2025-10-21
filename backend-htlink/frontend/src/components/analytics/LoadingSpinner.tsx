@@ -8,7 +8,7 @@ interface LoadingSpinnerProps {
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
   size = 'medium', 
-  text = 'Loading...' 
+  text = 'Đang tải dữ liệu...' 
 }) => {
   const sizeClasses = {
     small: 'w-4 h-4',
@@ -19,7 +19,8 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   return (
     <div className="flex flex-col items-center justify-center p-8">
       <div className={`${sizeClasses[size]} border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3`}></div>
-      <p className="text-gray-600 text-sm">{text}</p>
+      <p className="text-lg font-semibold text-slate-700">{text}</p>
+      <p className="text-sm text-slate-500 mt-1">Vui lòng chờ trong giây lát</p>
     </div>
   );
 };

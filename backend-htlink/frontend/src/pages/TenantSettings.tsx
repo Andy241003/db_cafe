@@ -156,7 +156,8 @@ const TenantSettings: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <FontAwesomeIcon icon={faSpinner} spin size="2x" className="text-blue-600 mb-4" />
-          <p className="text-slate-600">Loading tenant settings...</p>
+          <p className="text-lg font-semibold text-slate-700">Đang tải dữ liệu...</p>
+          <p className="text-sm text-slate-500 mt-2">Vui lòng chờ trong giây lát</p>
         </div>
       </div>
     );

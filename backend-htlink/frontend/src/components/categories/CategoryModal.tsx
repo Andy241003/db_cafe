@@ -463,26 +463,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               />
             </div>
 
-            {/* Priority Field */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Priority (Display Order)
-                <span className="text-xs text-gray-500 ml-2 font-normal">
-                  Higher number = appears first (0 = default)
-                </span>
-              </label>
-              <input
-                type="number"
-                value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Example: Priority 100 will appear before Priority 50
-              </p>
-            </div>
 
             {/* Icon Selection */}
             <div className="mb-6">

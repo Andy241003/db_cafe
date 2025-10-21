@@ -51,7 +51,8 @@ const Activities: React.FC = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading activities...</p>
+            <p className="mt-4 text-lg font-semibold text-slate-700">Đang tải dữ liệu...</p>
+            <p className="text-sm text-slate-500 mt-1">Vui lòng chờ trong giây lát</p>
           </div>
         </div>
       </div>

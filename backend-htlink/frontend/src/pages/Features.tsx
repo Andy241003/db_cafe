@@ -877,8 +877,9 @@ const Features: React.FC = () => {
     return (
       <div className="p-6 bg-slate-50 min-h-[calc(100vh-64px)] flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-slate-600">Loading features...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-lg font-semibold text-slate-700">Đang tải dữ liệu...</p>
+          <p className="text-sm text-slate-500 mt-2">Vui lòng chờ trong giây lát</p>
         </div>
       </div>
     );

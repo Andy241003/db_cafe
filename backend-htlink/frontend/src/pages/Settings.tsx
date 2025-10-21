@@ -1319,7 +1319,8 @@ const Settings: React.FC = () => {
       <div className="text-slate-800 bg-slate-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading settings...</p>
+          <p className="text-lg font-semibold text-slate-700">Đang tải dữ liệu...</p>
+          <p className="text-sm text-slate-500 mt-2">Vui lòng chờ trong giây lát</p>
         </div>
       </div>
     );
