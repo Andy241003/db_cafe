@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 from sqlmodel import Session, select
 from sqlalchemy import text
 from app.models.property_posts import (
@@ -9,6 +10,22 @@ from app.models.property_posts import (
     PropertyPostTranslationCreate,
     PropertyPostTranslationUpdate
 )
+
+
+def _extract_title_and_content(html_content: str) -> tuple[str, str]:
+    """Extract title from <h2> tag at the beginning of content"""
+    if not html_content:
+        return '', ''
+    
+    # Match <h2>Title</h2> at the start (with optional whitespace)
+    match = re.match(r'^\s*<h2>(.*?)</h2>\s*', html_content, re.IGNORECASE | re.DOTALL)
+    if match:
+        title = match.group(1).strip()
+        # Remove the h2 tag from content
+        content = html_content[match.end():].strip()
+        return title, content
+    
+    return '', html_content
 
 
 def create_property_post(session: Session, post_data: PropertyPostCreate) -> PropertyPost:
@@ -24,9 +41,18 @@ def create_property_post(session: Session, post_data: PropertyPostCreate) -> Pro
     
     # Create translations
     for translation_data in post_data.translations:
+        # Merge title into content if title is provided
+        content = translation_data.content or ''
+        if translation_data.title:
+            # Remove existing <h2> tag if present
+            content = re.sub(r'^\s*<h2>.*?</h2>\s*', '', content, count=1, flags=re.IGNORECASE | re.DOTALL)
+            # Prepend new title as h2 tag
+            content = f'<h2>{translation_data.title}</h2>\n{content}'
+        
         db_translation = PropertyPostTranslation(
             post_id=db_post.id,
-            **translation_data.model_dump()
+            locale=translation_data.locale,
+            content=content
         )
         session.add(db_translation)
     
@@ -105,9 +131,18 @@ def update_property_post(
         
         # Add new translations
         for translation_data in post_data.translations:
+            # Merge title into content if title is provided
+            content = translation_data.content or ''
+            if translation_data.title:
+                # Remove existing <h2> tag if present
+                content = re.sub(r'^\s*<h2>.*?</h2>\s*', '', content, count=1, flags=re.IGNORECASE | re.DOTALL)
+                # Prepend new title as h2 tag
+                content = f'<h2>{translation_data.title}</h2>\n{content}'
+            
             db_translation = PropertyPostTranslation(
                 post_id=post_id,
-                **translation_data.model_dump()
+                locale=translation_data.locale,
+                content=content
             )
             session.add(db_translation)
     

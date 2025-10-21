@@ -83,6 +83,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         else:
             update_data = obj_in.dict(exclude_unset=True)
         
+        print(f"CRUD UPDATE - Before update: {obj_data}")
+        print(f"CRUD UPDATE - Update data: {update_data}")
+        
         for field in obj_data:
             if field in update_data:
                 setattr(db_obj, field, update_data[field])
@@ -91,6 +94,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         try:
             db.commit()
             db.refresh(db_obj)
+            
+            print(f"CRUD UPDATE - After refresh: {db_obj.dict()}")
+            
             return db_obj
         except IntegrityError as e:
             db.rollback()

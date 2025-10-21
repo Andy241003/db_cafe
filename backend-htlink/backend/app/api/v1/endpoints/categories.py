@@ -31,7 +31,7 @@ def list_categories(
     """List feature categories - requires authentication"""
     # If requesting specific tenant categories, check access
     if tenant_id > 0:
-        if current_user.role != UserRole.OWNER and current_user.tenant_id != tenant_id:
+        if current_user.role.upper() != "OWNER" and current_user.tenant_id != tenant_id:
             raise HTTPException(status_code=403, detail="Access denied to this tenant")
 
     statement = select(FeatureCategory).where(
@@ -70,7 +70,7 @@ def get_category(
 
     # Check tenant access for non-system categories
     if category.tenant_id > 0:
-        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+        if current_user.role.upper() != "OWNER" and current_user.tenant_id != category.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied to this category")
 
     return category
@@ -89,8 +89,6 @@ def create_category(
     if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    print(f"🔥 CREATE_CATEGORY called by {current_user.email} for tenant {tenant_id}")
-
     # Set tenant_id from current tenant context
     category_data = category_in.model_dump()
     category_data['tenant_id'] = tenant_id
@@ -99,28 +97,20 @@ def create_category(
     db.add(category)
     db.commit()
     db.refresh(category)
-    print(f"✅ Category created: {category.slug} (ID: {category.id}, tenant_id: {category.tenant_id})")
 
     # Log activity
-    try:
-        print(f"📝 Logging activity for category {category.slug}...")
-        log_activity(
-            db=db,
-            tenant_id=current_user.tenant_id,
-            activity_type=ActivityType.CREATE_CATEGORY,
-            details={
-                "message": f"Category '{category.slug}' created by {current_user.email}",
-                "category_id": category.id,
-                "category_slug": category.slug,
-                "user_id": current_user.id,
-                "username": current_user.email
-            }
-        )
-        print(f"✅ Activity logged successfully")
-    except Exception as e:
-        print(f"❌ Error logging activity: {e}")
-        import traceback
-        traceback.print_exc()
+    log_activity(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        activity_type=ActivityType.CREATE_CATEGORY,
+        details={
+            "message": f"Category '{category.slug}' created by {current_user.email}",
+            "category_id": category.id,
+            "category_slug": category.slug,
+            "user_id": current_user.id,
+            "username": current_user.email
+        }
+    )
 
     return category
 
@@ -138,13 +128,17 @@ def update_category(
     if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    category = db.get(FeatureCategory, category_id)
+    # Use explicit select to force reload all columns including priority
+    from sqlmodel import select as sqlmodel_select
+    statement = sqlmodel_select(FeatureCategory).where(FeatureCategory.id == category_id)
+    category = db.exec(statement).first()
+    
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
     # Check tenant access for non-system categories
     if category.tenant_id > 0:
-        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+        if current_user.role.upper() != "OWNER" and current_user.tenant_id != category.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied to this category")
 
     update_data = category_in.model_dump(exclude_unset=True)
@@ -180,9 +174,9 @@ def delete_category(
     current_user: CurrentUser,
     category_id: int
 ):
-    """Delete feature category - requires OWNER or ADMIN role only"""
-    # Check permissions - only OWNER, ADMIN can delete
-    if current_user.role.upper() not in ["OWNER", "ADMIN"]:
+    """Delete feature category - requires OWNER, ADMIN, or EDITOR role"""
+    # Check permissions - OWNER, ADMIN, EDITOR can delete
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     category = db.get(FeatureCategory, category_id)
@@ -191,7 +185,7 @@ def delete_category(
 
     # Check tenant access for non-system categories
     if category.tenant_id > 0:
-        if current_user.role != UserRole.OWNER and current_user.tenant_id != category.tenant_id:
+        if current_user.role.upper() != "OWNER" and current_user.tenant_id != category.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied to this category")
 
     # Store info before deletion
@@ -238,50 +232,31 @@ def create_category_translation(
     translation_in: FeatureCategoryTranslationCreate
 ):
     """Create translation for category"""
-    try:
-        print(f"🔥 CREATE CATEGORY TRANSLATION called", flush=True)
-        print(f"   Category ID: {category_id}", flush=True)
-        print(f"   Translation data: {translation_in.model_dump()}", flush=True)
+    # Check if category exists
+    category = db.get(FeatureCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
 
-        # Check if category exists
-        category = db.get(FeatureCategory, category_id)
-        if not category:
-            print(f"❌ Category {category_id} not found", flush=True)
-            raise HTTPException(status_code=404, detail="Category not found")
+    # Check if translation already exists
+    existing = db.exec(select(FeatureCategoryTranslation).where(
+        FeatureCategoryTranslation.category_id == category_id,
+        FeatureCategoryTranslation.locale == translation_in.locale
+    )).first()
 
-        print(f"✅ Category found: {category.id}, slug: {category.slug}", flush=True)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Translation for locale '{translation_in.locale}' already exists. Use PUT to update.")
 
-        # Check if translation already exists
-        existing = db.exec(select(FeatureCategoryTranslation).where(
-            FeatureCategoryTranslation.category_id == category_id,
-            FeatureCategoryTranslation.locale == translation_in.locale
-        )).first()
+    # Get translation data and ensure category_id from URL is used
+    translation_data = translation_in.model_dump(exclude_unset=True)
+    # Always use category_id from URL path (override if present in body)
+    translation_data['category_id'] = category_id
 
-        if existing:
-            print(f"⚠️  Translation already exists for category {category_id}, locale {translation_in.locale}", flush=True)
-            raise HTTPException(status_code=400, detail=f"Translation for locale '{translation_in.locale}' already exists. Use PUT to update.")
+    translation = FeatureCategoryTranslation(**translation_data)
+    db.add(translation)
+    db.commit()
+    db.refresh(translation)
 
-        # Get translation data and ensure category_id from URL is used
-        translation_data = translation_in.model_dump(exclude_unset=True)
-        # Always use category_id from URL path (override if present in body)
-        translation_data['category_id'] = category_id
-
-        print(f"📦 Creating translation with data: {translation_data}", flush=True)
-
-        translation = FeatureCategoryTranslation(**translation_data)
-        db.add(translation)
-        db.commit()
-        db.refresh(translation)
-
-        print(f"✅ Category translation created successfully", flush=True)
-        return translation
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Error creating category translation: {str(e)}", flush=True)
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    return translation
 
 
 @router.put("/{category_id}/translations/{locale}")

@@ -47,15 +47,9 @@ usersApiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
-usersApiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Setup interceptors for auth and permission handling
+import { setupAxiosInterceptors } from '../utils/axiosInterceptors';
+setupAxiosInterceptors(usersApiClient);
 
 export interface ApiUser {
   id: number;

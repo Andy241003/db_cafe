@@ -5,6 +5,7 @@ export interface Category {
   id: number;
   slug: string;
   icon: string;
+  priority: number; // Higher number = higher priority (appears first)
   status: 'active' | 'inactive';
   type: 'system' | 'custom';
   featureCount: number;
@@ -25,6 +26,7 @@ export interface CategoryFilters {
 export interface CategoryFormData {
   slug: string;
   icon: string;
+  priority: number;
   translations: {
     en: CategoryTranslation;
     vi: CategoryTranslation;

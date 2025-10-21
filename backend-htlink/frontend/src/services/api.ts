@@ -9,6 +9,12 @@ const API_BASE_URL = getApiBaseUrl();
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  // FORCE no cache for all requests
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  }
 });
 
 // Get tenant code from user login (multi-tenant support)
@@ -49,22 +55,9 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle auth errors
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid, clear storage and redirect to login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('currentUser');
-      localStorage.setItem('isAuthenticated', 'false');
-      
-      // Redirect to login page
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+// Setup interceptors for auth and permission handling
+import { setupAxiosInterceptors } from '../utils/axiosInterceptors';
+setupAxiosInterceptors(apiClient);
 
 // Types
 export interface LoginRequest {
@@ -143,6 +136,7 @@ export interface FeatureCategory {
   tenant_id: number;
   slug: string;
   icon_key?: string;
+  priority?: number; // Higher number = higher priority
   is_system: boolean;
   created_at: string;
   // Translations keyed by locale code (added by backend)
@@ -195,6 +189,7 @@ export interface FeatureCategoryCreate {
 export interface FeatureCategoryUpdate {
   slug?: string;
   icon_key?: string;
+  priority?: number;
   is_system?: boolean;
 }
 
@@ -332,7 +327,10 @@ export const categoriesAPI = {
   },
 
   update: async (id: number, category: FeatureCategoryUpdate): Promise<FeatureCategory> => {
-    const response: AxiosResponse<FeatureCategory> = await apiClient.put(`/categories/${id}`, category);
+    console.log(`🚀 Sending PUT to /categories/${id} with:`, category);
+    const response: AxiosResponse<FeatureCategory> = await apiClient.put(`/categories/${id}?_t=${Date.now()}`, category);
+    console.log('🚀 PUT response received:', response.data);
+    console.log('🚀 Response status:', response.status);
     return response.data;
   },
 

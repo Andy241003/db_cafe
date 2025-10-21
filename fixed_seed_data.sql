@@ -17,7 +17,7 @@ ON DUPLICATE KEY UPDATE name=VALUES(name);
 INSERT INTO properties (tenant_id, property_name, code, address, city, country, created_at)
 VALUES (
   (SELECT id FROM tenants WHERE code='demo'),
-  'Tabi Tower Hotel', 'tabi-tower', '3-1-6 Mita, Minato, Tokyo 108-0068', 'Tokyo', 'Japan', NOW()
+  'Hotel Name', 'tabi-tower', '3-1-6 Mita, Minato, Tokyo 108-0068', 'Tokyo', 'Japan', NOW()
 )
 ON DUPLICATE KEY UPDATE property_name=VALUES(property_name), address=VALUES(address);
 

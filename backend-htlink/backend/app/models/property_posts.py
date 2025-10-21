@@ -74,6 +74,7 @@ class PropertyPostTranslationCreate(SQLModel):
     required/accepted from the client.
     """
     locale: str = Field(max_length=10)
+    title: Optional[str] = None  # Frontend sends title separately
     content: Optional[str] = None
 
 
@@ -84,3 +85,4 @@ class PropertyPostTranslationUpdate(SQLModel):
 class PropertyPostTranslationRead(PropertyPostTranslationBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+    title: Optional[str] = None  # Extracted from content for frontend

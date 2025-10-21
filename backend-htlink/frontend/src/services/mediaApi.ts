@@ -43,15 +43,9 @@ mediaApiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
-mediaApiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Setup interceptors for auth and permission handling
+import { setupAxiosInterceptors } from '../utils/axiosInterceptors';
+setupAxiosInterceptors(mediaApiClient);
 
 export interface MediaFile {
   id: number;

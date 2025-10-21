@@ -106,8 +106,14 @@ def create_user(
     Create new user in tenant. Requires admin or owner role.
     """
     # Check if user has permission to create users (case-insensitive)
-    if current_user.role.lower() not in ["owner", "admin"]:
+    current_role = current_user.role.lower()
+    if current_role not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Admins can only create editors and viewers (not owners or other admins)
+    new_user_role = user_in.role.lower() if user_in.role else "editor"
+    if current_role == "admin" and new_user_role not in ["editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Admins can only create editors and viewers")
     
     # Ensure the user is being created in the correct tenant
     user_in.tenant_id = tenant_id
@@ -155,9 +161,17 @@ def update_user(
     if user.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
-    # Non-owners cannot modify owner users (case-insensitive)
-    if current_user.role.lower() != "owner" and user.role.lower() == "owner":
+    # Permission checks (case-insensitive)
+    current_role = current_user.role.lower()
+    target_role = user.role.lower()
+    
+    # Non-owners cannot modify owner users
+    if current_role != "owner" and target_role == "owner":
         raise HTTPException(status_code=403, detail="Cannot modify owner user")
+    
+    # Admins can only modify editors and viewers (not other admins or owners)
+    if current_role == "admin" and target_role not in ["editor", "viewer"]:
+        raise HTTPException(status_code=403, detail="Admins can only modify editors and viewers")
     
     user = crud.admin_user.update(session, db_obj=user, obj_in=user_in)
     

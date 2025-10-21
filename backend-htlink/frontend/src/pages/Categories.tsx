@@ -11,14 +11,40 @@ import { t } from '../utils/i18n';
 import type { Category, CategoryFormData, Language } from '../types/categories';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/common/ConfirmModal';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 const Categories: React.FC = () => {
   const navigate = useNavigate();
-  const { categories, loading, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { categories, loading, createCategory, updateCategory, deleteCategory, refreshCategories } = useCategories();
   const { filters, filteredCategories, updateFilters } = useFilters(categories);
   
   const categoryModal = useModal<Category>();
   const translateModal = useModal<Category>();
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Confirm Modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -102,6 +128,116 @@ const Categories: React.FC = () => {
 
   const handleAddCategory = (): void => {
     categoryModal.openModal();
+  };
+
+  // Handle drag end - update priorities based on new order
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const draggedCategory = filteredCategories.find((cat) => cat.id === active.id);
+    const targetCategory = filteredCategories.find((cat) => cat.id === over.id);
+
+    if (!draggedCategory || !targetCategory) return;
+
+    // Sort categories by priority DESC (highest priority first)
+    const sortedCategories = [...filteredCategories].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    
+    const draggedIndex = sortedCategories.findIndex((cat) => cat.id === active.id);
+    const targetIndex = sortedCategories.findIndex((cat) => cat.id === over.id);
+    
+    let newPriority: number;
+    
+    // Determine if dragging UP or DOWN
+    if (draggedIndex > targetIndex) {
+      // Dragging UP (to higher priority)
+      if (targetIndex === 0) {
+        // Dropped on #1 position - become new #1
+        newPriority = (sortedCategories[0].priority || 0) + 1;
+      } else {
+        // Dropped between items - get priority between the two neighbors
+        const above = sortedCategories[targetIndex - 1];
+        const below = sortedCategories[targetIndex];
+        const priorityAbove = above.priority || 0;
+        const priorityBelow = below.priority || 0;
+        
+        // If there's a gap, use middle value, otherwise add 1 to below
+        if (priorityAbove - priorityBelow > 1) {
+          newPriority = Math.floor((priorityAbove + priorityBelow) / 2);
+        } else {
+          newPriority = priorityBelow + 1;
+        }
+      }
+    } else {
+      // Dragging DOWN (to lower priority)
+      if (targetIndex === sortedCategories.length - 1) {
+        // Dropped on last position
+        const lastPriority = sortedCategories[sortedCategories.length - 1].priority || 0;
+        newPriority = Math.max(0, lastPriority - 1);
+      } else {
+        // Dropped between items
+        const above = sortedCategories[targetIndex];
+        const below = sortedCategories[targetIndex + 1];
+        const priorityAbove = above.priority || 0;
+        const priorityBelow = below.priority || 0;
+        
+        // If there's a gap, use middle value, otherwise subtract 1 from above
+        if (priorityAbove - priorityBelow > 1) {
+          newPriority = Math.floor((priorityAbove + priorityBelow) / 2);
+        } else {
+          newPriority = Math.max(0, priorityAbove - 1);
+        }
+      }
+    }
+    
+    try {
+      // Only update the dragged category's priority
+      await updateCategory(draggedCategory.id, {
+        slug: draggedCategory.slug,
+        icon: draggedCategory.icon,
+        priority: newPriority,
+        translations: draggedCategory.translations as any
+      });
+      
+      await refreshCategories();
+    } catch (error) {
+      toast.error('Failed to reorder categories');
+    }
+  };
+
+  // Quick priority adjustment handlers
+  const handleIncreasePriority = async (category: Category) => {
+    try {
+      const newPriority = (category.priority || 0) + 1;
+      await updateCategory(category.id, {
+        slug: category.slug,
+        icon: category.icon,
+        priority: newPriority,
+        translations: category.translations as any
+      });
+      await refreshCategories();
+    } catch (error) {
+      toast.error('Failed to update priority');
+    }
+  };
+
+  const handleDecreasePriority = async (category: Category) => {
+    try {
+      const currentPriority = category.priority || 0;
+      if (currentPriority <= 0) return;
+      
+      const newPriority = currentPriority - 1;
+      await updateCategory(category.id, {
+        slug: category.slug,
+        icon: category.icon,
+        priority: newPriority,
+        translations: category.translations as any
+      });
+      await refreshCategories();
+    } catch (error) {
+      toast.error('Failed to update priority');
+    }
   };
 
   const handleAcceptTranslation = async (categoryId: number, targetLang: Language, translatedData: any): Promise<void> => {
@@ -211,25 +347,45 @@ const Categories: React.FC = () => {
         <SearchFilters filters={filters} onFiltersChange={updateFilters} />
       </div>
 
-      {/* Categories Grid */}
+      {/* Categories Grid with Drag & Drop */}
       {filteredCategories.length === 0 ? (
         <div className="text-center text-gray-500 py-16 bg-white rounded-lg shadow">
           <h3 className="text-xl font-semibold mb-2">No Categories Found</h3>
           <p>Try adjusting your filters or add a new category to get started.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredCategories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              onEdit={() => handleEditCategory(category)}
-              onDelete={() => handleDeleteCategory(category.id)}
-              onViewFeatures={() => handleViewFeatures(category.id)}
-              onTranslate={() => handleTranslateCategory(category)}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredCategories.map((cat) => cat.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCategories.map((category) => {
+                // Calculate ranking: sort by priority desc, then assign rank
+                const sortedCategories = [...filteredCategories].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+                const rank = sortedCategories.findIndex(c => c.id === category.id) + 1;
+                
+                return (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    rank={rank}
+                    onEdit={() => handleEditCategory(category)}
+                    onDelete={() => handleDeleteCategory(category.id)}
+                    onViewFeatures={() => handleViewFeatures(category.id)}
+                    onTranslate={() => handleTranslateCategory(category)}
+                    onIncreasePriority={handleIncreasePriority}
+                    onDecreasePriority={handleDecreasePriority}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Category Modal */}

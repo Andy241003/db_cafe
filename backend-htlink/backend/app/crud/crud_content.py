@@ -70,6 +70,9 @@ class CRUDFeatureCategory(CRUDBase[FeatureCategory, FeatureCategoryCreate, Featu
             query = query.where((FeatureCategory.tenant_id == tenant_id) | (FeatureCategory.tenant_id == 0))
         else:
             query = query.where(FeatureCategory.tenant_id == tenant_id)
+        
+        # Sort by priority (DESC) and then by created_at (DESC) - higher priority first
+        query = query.order_by(FeatureCategory.priority.desc(), FeatureCategory.created_at.desc())
             
         return db.exec(query.offset(skip).limit(limit)).all()
 

@@ -39,7 +39,7 @@ def read_feature_categories(
     return categories
 
 
-@router.post("/categories", response_model=FeatureCategoryResponse)
+@router.post("/categories/", response_model=FeatureCategoryResponse)
 def create_feature_category(
     *,
     session: SessionDep,
@@ -48,9 +48,10 @@ def create_feature_category(
     category_in: FeatureCategoryCreate,
 ) -> Any:
     """
-    Create new feature category. Only admins and owners can create categories.
+    Create new feature category. Owners, admins, and editors can create categories.
     """
-    if current_user.role not in ["owner", "admin"]:
+    user_role = current_user.role.upper() if current_user.role else ""
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     category_in.tenant_id = tenant_id
@@ -82,9 +83,10 @@ def update_feature_category(
     category_in: FeatureCategoryUpdate,
 ) -> Any:
     """
-    Update feature category. Only admins and owners can update.
+    Update feature category. Owners, admins, and editors can update.
     """
-    if current_user.role not in ["owner", "admin"]:
+    user_role = current_user.role.upper() if current_user.role else ""
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     category = crud.feature_category.get(session, id=category_id)
@@ -92,6 +94,7 @@ def update_feature_category(
         raise HTTPException(status_code=404, detail="Category not found")
     
     category = crud.feature_category.update(session, db_obj=category, obj_in=category_in)
+    
     return category
 
 
@@ -166,11 +169,11 @@ def create_feature(
     feature_in: FeatureCreate,
 ) -> Any:
     """
-    Create new feature. Only owners and admins can create features.
+    Create new feature. Owners, admins, and editors can create features.
     """
     # Fix role check - database has "OWNER" but code expects "owner"
     user_role = current_user.role.upper() if current_user.role else ""
-    if user_role not in ["OWNER", "ADMIN"]:
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     feature_in.tenant_id = tenant_id
@@ -217,11 +220,11 @@ def update_feature(
     feature_in: FeatureUpdate,
 ) -> Any:
     """
-    Update feature. Only owners and admins can update features.
+    Update feature. Owners, admins, and editors can update features.
     """
     # Fix role check - database has "OWNER" but code expects "owner"
     user_role = current_user.role.upper() if current_user.role else ""
-    if user_role not in ["OWNER", "ADMIN"]:
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     feature = crud.feature.get(session, id=feature_id)
@@ -274,11 +277,11 @@ def delete_feature(
     feature_id: int,
 ) -> Any:
     """
-    Delete feature. Only owners and admins can delete features.
+    Delete feature. Owners, admins, and editors can delete features.
     """
     # Fix role check - database has "OWNER" but code expects "owner"
     user_role = current_user.role.upper() if current_user.role else ""
-    if user_role not in ["OWNER", "ADMIN"]:
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     feature = crud.feature.get(session, id=feature_id)

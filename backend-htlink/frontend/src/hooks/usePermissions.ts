@@ -99,9 +99,9 @@ export const usePermissions = (): Permissions => {
     // Content management
     canCreateContent: canEdit, // OWNER, ADMIN, EDITOR
     canEditContent: canEdit, // OWNER, ADMIN, EDITOR
-    canDeleteContent: isOwnerOrAdmin, // Only OWNER, ADMIN
+    canDeleteContent: canEdit, // OWNER, ADMIN, EDITOR (UPDATED!)
     canPublishContent: canEdit, // OWNER, ADMIN, EDITOR
-    canArchiveContent: isOwnerOrAdmin, // Only OWNER, ADMIN
+    canArchiveContent: canEdit, // OWNER, ADMIN, EDITOR (UPDATED!)
     canViewContent: true, // All authenticated users
     
     // Property management
@@ -113,7 +113,7 @@ export const usePermissions = (): Permissions => {
     // Media management
     canUploadMedia: canEdit, // OWNER, ADMIN, EDITOR
     canEditMedia: canEdit, // OWNER, ADMIN, EDITOR
-    canDeleteMedia: isOwnerOrAdmin, // Only OWNER, ADMIN
+    canDeleteMedia: canEdit, // OWNER, ADMIN, EDITOR (UPDATED!)
     canViewMedia: true, // All authenticated users
     
     // Settings

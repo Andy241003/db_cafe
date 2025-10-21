@@ -27,16 +27,9 @@ def read_properties(
     """
     Retrieve properties in tenant.
     """
-    # Debug logging
-    print(f"🏨 GET /properties - tenant_id: {tenant_id}, user: {current_user.email}")
-    
     properties = crud.property.get_by_tenant(
         session, tenant_id=tenant_id, skip=skip, limit=limit
     )
-    
-    print(f"🏨 Found {len(properties)} properties for tenant {tenant_id}")
-    for prop in properties:
-        print(f"  - {prop.property_name} (ID: {prop.id})")
     
     return properties
 
@@ -53,9 +46,6 @@ def create_property(
     """
     Create new property in tenant. Requires admin or owner role.
     """
-    # Debug logging
-    print(f"Creating property with data: {property_in.model_dump()}")
-    
     # Check permissions
     if not is_admin_or_owner(current_user):
         raise HTTPException(status_code=403, detail="Not enough permissions")
@@ -167,10 +157,10 @@ def update_property(
     property_in: PropertyUpdate,
 ) -> Any:
     """
-    Update a property. Requires editor role or above.
+    Update a property. OWNER, ADMIN, and EDITOR can update properties.
     """
-    # Check permissions
-    if is_viewer(current_user):
+    # Check permissions - OWNER, ADMIN, EDITOR can update
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     property = crud.property.get(session, id=property_id)

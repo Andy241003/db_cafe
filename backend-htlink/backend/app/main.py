@@ -23,6 +23,12 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
     """Add no-cache headers to API responses to prevent stale data"""
 
     async def dispatch(self, request: Request, call_next):
+        # LOG EVERY REQUEST
+        import sys
+        if request.method == "PUT" and "/categories/" in request.url.path:
+            print(f"🔴🔴🔴 MIDDLEWARE: PUT request to {request.url.path}", flush=True)
+            sys.stdout.flush()
+        
         response = await call_next(request)
 
         # Add no-cache headers for API endpoints

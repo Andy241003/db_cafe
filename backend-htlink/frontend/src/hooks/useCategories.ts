@@ -21,6 +21,10 @@ export const useCategories = (): UseCategoriesReturn => {
     try {
       setLoading(true);
       
+      // Clear cache to force fresh data
+      sessionStorage.removeItem('cached_categories');
+      sessionStorage.removeItem('cached_categories_time');
+      
       // Optimized: Load categories, features, and translations in parallel
       const [apiCategories, apiFeatures] = await Promise.all([
         categoriesAPI.getAll(),
@@ -66,12 +70,21 @@ export const useCategories = (): UseCategoriesReturn => {
           name: cat.slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert slug to title
           slug: cat.slug,
           icon: cat.icon_key || 'fas fa-layer-group',
+          priority: cat.priority || 0, // Get priority from API
           status: 'active' as const,
           type: cat.is_system ? 'system' as const : 'custom' as const,
           featureCount: featureCount, // Real count from API
           translations: translations
         };
       }));
+
+      // Sort by priority (DESC) then by name (ASC)
+      convertedCategories.sort((a, b) => {
+        if (a.priority !== b.priority) {
+          return b.priority - a.priority; // Higher priority first
+        }
+        return a.name.localeCompare(b.name); // Alphabetical if same priority
+      });
 
       setCategories(convertedCategories);
       
@@ -158,6 +171,7 @@ export const useCategories = (): UseCategoriesReturn => {
         name: englishTranslation.title,
         slug: apiCategory.slug,
         icon: formData.icon,
+        priority: formData.priority || 0,
         status: 'active',
         type: 'custom',
         featureCount: 0,
@@ -171,10 +185,18 @@ export const useCategories = (): UseCategoriesReturn => {
   const updateCategory = async (id: number, formData: CategoryFormData): Promise<Category> => {
     try {
       // 1. Update category
-      await categoriesAPI.update(id, {
+      const updatePayload = {
         slug: formData.slug,
-        icon_key: formData.icon
-      });
+        icon_key: formData.icon,
+        priority: formData.priority
+      };
+      
+      try {
+        await categoriesAPI.update(id, updatePayload);
+      } catch (apiError) {
+        console.error('categoriesAPI.update FAILED:', apiError);
+        throw apiError;
+      }
 
       // 2. Update translations for all locales
       const { categoriesApi } = await import('../services/categoriesApi');
@@ -199,6 +221,7 @@ export const useCategories = (): UseCategoriesReturn => {
         name: formData.translations.en.title,
         slug: formData.slug,
         icon: formData.icon,
+        priority: formData.priority || 0,
         status: 'active' as const,
         type: 'custom' as const,
         featureCount: 0,

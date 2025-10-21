@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from app.api.deps import get_current_user, SessionDep
@@ -19,6 +20,21 @@ from app.crud import property_posts as crud_property_posts
 router = APIRouter()
 
 
+def _extract_title_from_content(html_content: str) -> tuple[str, str]:
+    """Extract title from <h2> tag at the beginning of content"""
+    if not html_content:
+        return '', ''
+    
+    # Match <h2>Title</h2> at the start (with optional whitespace)
+    match = re.match(r'^\s*<h2>(.*?)</h2>\s*', html_content, re.IGNORECASE | re.DOTALL)
+    if match:
+        title = match.group(1).strip()
+        # Keep full content including h2 for backward compatibility
+        return title, html_content
+    
+    return '', html_content
+
+
 @router.post("/", response_model=PropertyPostRead)
 def create_property_post(
     *,
@@ -27,8 +43,12 @@ def create_property_post(
     post_in: PropertyPostCreate,
 ) -> PropertyPost:
     """
-    Create a new property post with translations.
+    Create a new property post. OWNER, ADMIN, and EDITOR can create posts.
     """
+    # Check permissions - OWNER, ADMIN, EDITOR can create
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
     # Check if user has access to this property (tenant isolation)
     # This would require additional logic to verify property belongs to user's tenant
     
@@ -40,11 +60,11 @@ def create_property_post(
         tenant_id=current_user.tenant_id,
         activity_type=ActivityType.CREATE_POST,
         details={
-            "message": f"Post '{post.slug}' created by {current_user.email}",
+            "message": f"Property post #{post.id} created by {current_user.email}",
             "user_id": current_user.id,
             "username": current_user.email,
             "post_id": post.id,
-            "post_slug": post.slug
+            "property_id": post.property_id
         }
     )
     
@@ -59,7 +79,7 @@ def read_property_posts(
     status: Optional[str] = Query(None, description="Filter by status"),
     skip: int = Query(0, ge=0, description="Number of posts to skip"),
     limit: int = Query(100, ge=1, le=100, description="Number of posts to return"),
-) -> List[PropertyPost]:
+) -> List[dict]:
     """
     Retrieve property posts with optional filters.
     """
@@ -70,7 +90,34 @@ def read_property_posts(
         skip=skip,
         limit=limit
     )
-    return posts
+    
+    # Convert to dict and add extracted title for each translation
+    result = []
+    for post in posts:
+        post_dict = {
+            "id": post.id,
+            "property_id": post.property_id,
+            "status": post.status,
+            "created_at": post.created_at,
+            "updated_at": post.updated_at,
+            "translations": []
+        }
+        
+        for translation in post.translations:
+            title, content = _extract_title_from_content(translation.content or '')
+            trans_dict = {
+                "post_id": translation.post_id,
+                "locale": translation.locale,
+                "content": translation.content,
+                "title": title,
+                "created_at": translation.created_at,
+                "updated_at": translation.updated_at
+            }
+            post_dict["translations"].append(trans_dict)
+        
+        result.append(post_dict)
+    
+    return result
 
 
 @router.get("/by-locale", response_model=List[dict])
@@ -103,14 +150,37 @@ def read_property_post(
     session: SessionDep,
     current_user: AdminUser = Depends(get_current_user),
     post_id: int,
-) -> PropertyPost:
+) -> dict:
     """
     Get a specific property post by ID.
     """
     post = crud_property_posts.get_property_post(session, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
-    return post
+    
+    # Convert to dict and add extracted title for each translation
+    post_dict = {
+        "id": post.id,
+        "property_id": post.property_id,
+        "status": post.status,
+        "created_at": post.created_at,
+        "updated_at": post.updated_at,
+        "translations": []
+    }
+    
+    for translation in post.translations:
+        title, content = _extract_title_from_content(translation.content or '')
+        trans_dict = {
+            "post_id": translation.post_id,
+            "locale": translation.locale,
+            "content": translation.content,
+            "title": title,
+            "created_at": translation.created_at,
+            "updated_at": translation.updated_at
+        }
+        post_dict["translations"].append(trans_dict)
+    
+    return post_dict
 
 
 @router.put("/{post_id}", response_model=PropertyPostRead)
@@ -122,8 +192,12 @@ def update_property_post(
     post_in: PropertyPostUpdate,
 ) -> PropertyPost:
     """
-    Update a property post.
+    Update a property post. OWNER, ADMIN, and EDITOR can update posts.
     """
+    # Check permissions - OWNER, ADMIN, EDITOR can update
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
     post = crud_property_posts.update_property_post(session, post_id, post_in)
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
@@ -134,11 +208,11 @@ def update_property_post(
         tenant_id=current_user.tenant_id,
         activity_type=ActivityType.UPDATE_POST,
         details={
-            "message": f"Post '{post.slug}' updated by {current_user.email}",
+            "message": f"Property post #{post.id} updated by {current_user.email}",
             "user_id": current_user.id,
             "username": current_user.email,
             "post_id": post.id,
-            "post_slug": post.slug
+            "property_id": post.property_id
         }
     )
     
@@ -153,14 +227,18 @@ def delete_property_post(
     post_id: int,
 ) -> dict:
     """
-    Delete a property post.
+    Delete a property post. OWNER, ADMIN, and EDITOR can delete posts.
     """
+    # Check permissions - OWNER, ADMIN, EDITOR can delete
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
     # Get post info before deletion for logging
     post = crud_property_posts.get_property_post(session, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
     
-    post_slug = post.slug
+    property_id = post.property_id
     success = crud_property_posts.delete_property_post(session, post_id)
     
     if success:
@@ -170,11 +248,11 @@ def delete_property_post(
             tenant_id=current_user.tenant_id,
             activity_type=ActivityType.DELETE_POST,
             details={
-                "message": f"Post '{post_slug}' deleted by {current_user.email}",
+                "message": f"Property post #{post_id} deleted by {current_user.email}",
                 "user_id": current_user.id,
                 "username": current_user.email,
                 "post_id": post_id,
-                "post_slug": post_slug
+                "property_id": property_id
             }
         )
     
@@ -206,15 +284,16 @@ def create_property_post_translation(
     translation_in: PropertyPostTranslationCreate,
 ) -> PropertyPostTranslation:
     """
-    Create a translation for an existing property post.
+    Create a translation for an existing property post. OWNER, ADMIN, and EDITOR can create translations.
     """
+    # Check permissions - OWNER, ADMIN, EDITOR can create translations
+    if current_user.role.upper() not in ["OWNER", "ADMIN", "EDITOR"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
     # Verify post exists
     post = crud_property_posts.get_property_post(session, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Property post not found")
-
-    # DEBUG log incoming translation
-    print(f"[PROPERTY_POSTS] Create translation request for post_id={post_id} locale={translation_in.locale} content_len={len(translation_in.content or '')}", flush=True)
 
     # Ensure translation for locale doesn't already exist
     existing = session.get(PropertyPostTranslation, (post_id, translation_in.locale))
@@ -229,8 +308,6 @@ def create_property_post_translation(
     session.add(db_translation)
     session.commit()
     session.refresh(db_translation)
-
-    print(f"[PROPERTY_POSTS] Translation created id=(post_id={db_translation.post_id}, locale={db_translation.locale})", flush=True)
     
     # Log activity
     log_activity(

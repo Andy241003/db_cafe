@@ -8,6 +8,7 @@ from ..models import PostStatus, EventType, DeviceType, MediaKind
 class FeatureCategoryBase(BaseModel):
     slug: str = Field(max_length=100)
     icon_key: Optional[str] = Field(None, max_length=120)
+    priority: int = 0  # Higher number = higher priority
     is_system: bool = False
 
 
@@ -18,6 +19,7 @@ class FeatureCategoryCreate(FeatureCategoryBase):
 class FeatureCategoryUpdate(BaseModel):
     slug: Optional[str] = Field(None, max_length=100)
     icon_key: Optional[str] = Field(None, max_length=120)
+    priority: Optional[int] = None
 
 
 class FeatureCategoryResponse(FeatureCategoryBase):

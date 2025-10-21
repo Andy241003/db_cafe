@@ -4,22 +4,46 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { findIconByName, DEFAULT_ICON } from '../../config/icons';
 import { getIconGradient } from '../../utils/iconColors';
 import type { Category } from '../../types/categories';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface CategoryCardProps {
   category: Category;
+  rank: number;
   onEdit: (category: Category) => void;
   onDelete: (id: number) => void;
   onViewFeatures: (id: number) => void;
   onTranslate: (category: Category) => void;
+  onIncreasePriority?: (category: Category) => void;
+  onDecreasePriority?: (category: Category) => void;
 }
 
 export const CategoryCard: React.FC<CategoryCardProps> = ({
   category,
+  rank,
   onEdit,
   onDelete,
   onViewFeatures,
   onTranslate,
+  onIncreasePriority,
+  onDecreasePriority,
 }) => {
+  // Sortable hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   // Get gradient from centralized utility based on icon category
   const gradient = getIconGradient(category.icon);
   
@@ -69,25 +93,75 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
   const iconObject = findIconByName(category.icon) || DEFAULT_ICON;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+    <div 
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`
+        bg-white rounded-xl border border-gray-200 shadow-sm 
+        hover:shadow-md transition-shadow
+        ${isDragging ? 'cursor-grabbing ring-2 ring-blue-400' : 'cursor-grab'}
+      `}
+    >
       {/* Header with icon and menu */}
       <div className="flex items-start justify-between p-4 pb-3">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white text-lg shadow-sm`}>
-          <FontAwesomeIcon icon={iconObject} />
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white text-lg shadow-sm`}>
+            <FontAwesomeIcon icon={iconObject} />
+          </div>
+          
+          {/* Ranking Badge - Show rank instead of priority */}
+          <div className="flex items-center justify-center min-w-[40px]">
+            <div className={`
+              px-2.5 py-1 rounded-lg font-bold text-sm
+              ${category.priority > 0 
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-400 border border-gray-200'
+              }
+            `}>
+              #{rank}
+            </div>
+          </div>
         </div>
         
-        {/* Type badge and menu */}
+        {/* Type badge and priority controls */}
         <div className="flex flex-col items-end gap-1">
           {category.type === 'system' && (
             <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-600 tracking-wide">
               SYSTEM
             </span>
           )}
-          <button className="text-gray-400 hover:text-gray-600 p-1">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-          </button>
+          
+          {/* Ranking Controls */}
+          {(onIncreasePriority || onDecreasePriority) && (
+            <div className="flex gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onIncreasePriority?.(category);
+                }}
+                className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDecreasePriority?.(category);
+                }}
+                disabled={category.priority <= 0}
+                className="w-6 h-6 flex items-center justify-center text-gray-400 hover:bg-gray-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

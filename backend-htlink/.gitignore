@@ -9,7 +9,7 @@ node_modules/
 # Environment files - keep templates, ignore actual config
 .env
 .env.local
-# .env.production
+.env.production
 .env.staging
 backend/.env
 frontend/.env

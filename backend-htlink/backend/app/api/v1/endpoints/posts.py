@@ -8,7 +8,7 @@ from app.models import Post, PostStatus, UserRole
 from app.models.activity_log import ActivityType
 from app.utils.decorators.track_activity import track_activity
 from app.schemas import PostCreate, PostResponse, PostUpdate, PostWithTranslationResponse
-from app.core.permissions_utils import is_admin_or_owner
+from app.core.permissions_utils import is_admin_or_owner, can_edit_content
 
 router = APIRouter()
 
@@ -188,10 +188,10 @@ def delete_post(
     post_id: int,
 ) -> Any:
     """
-    Delete post. Only OWNER and ADMIN can delete posts.
+    Delete post. OWNER, ADMIN, and EDITOR can delete posts.
     """
-    # Check permissions - only OWNER, ADMIN can delete
-    if not is_admin_or_owner(current_user):
+    # Check permissions - OWNER, ADMIN, EDITOR can delete
+    if not can_edit_content(current_user):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
@@ -217,7 +217,8 @@ def publish_post(
     """
     Publish a post. Editors and above can publish posts.
     """
-    if current_user.role not in ["owner", "admin", "editor"]:
+    user_role = current_user.role.upper() if current_user.role else ""
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)
@@ -247,7 +248,8 @@ def archive_post(
     """
     Archive a post. Editors and above can archive posts.
     """
-    if current_user.role not in ["owner", "admin", "editor"]:
+    user_role = current_user.role.upper() if current_user.role else ""
+    if user_role not in ["OWNER", "ADMIN", "EDITOR"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     post = crud.post.get(session, id=post_id)

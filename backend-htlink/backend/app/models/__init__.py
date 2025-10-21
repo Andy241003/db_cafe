@@ -188,6 +188,7 @@ class FeatureCategory(SQLModel, table=True):
     tenant_id: int = Field(default=0)  # 0 means system-wide
     slug: str = Field(max_length=100)
     icon_key: Optional[str] = Field(max_length=120)
+    priority: int = Field(default=0)  # Higher number = higher priority (for sorting)
     is_system: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -424,12 +425,14 @@ class FeatureCategoryTranslationUpdate(SQLModel):
 class FeatureCategoryCreate(SQLModel):
     slug: str
     icon_key: Optional[str] = None
+    priority: int = 0
     is_system: bool = False
 
 
 class FeatureCategoryUpdate(SQLModel):
     slug: Optional[str] = None
     icon_key: Optional[str] = None
+    priority: Optional[int] = None
     is_system: Optional[bool] = None
 
 
