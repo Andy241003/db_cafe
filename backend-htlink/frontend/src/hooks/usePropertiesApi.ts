@@ -252,11 +252,8 @@ export const usePropertiesApi = () => {
     };
 
     try {
-      console.log('Updating property post via API with data:', updateData);
-
       // Update the post via propertyPostsApi
-      const updatedPost = await propertyPostsApi.updatePropertyPost(postData.id, updateData);
-      console.log('Property post updated successfully:', updatedPost);
+      await propertyPostsApi.updatePropertyPost(postData.id, updateData);
 
       // Reload posts for this specific hotel only
       const hotelId = postData.hotelId;
@@ -266,20 +263,17 @@ export const usePropertiesApi = () => {
           skip: 0,
           limit: 100
         });
-        console.log('Fresh posts loaded for hotel:', hotelId, apiPosts);
 
         // Update only the posts for this hotel in the state
         setHotels(prev => prev.map(hotel => {
           if (hotel.id === hotelId) {
             const updatedPosts: HotelPost[] = apiPosts.map(apiPost => transformApiPostToUI(apiPost, hotelId));
 
-            console.log('Updated hotel posts:', updatedPosts);
             return { ...hotel, posts: updatedPosts };
           }
           return hotel;
         }));
 
-        console.log('Data updated after post update');
       } catch (reloadError) {
         console.error('Error reloading posts after update:', reloadError);
         // Fallback: reload all data if post reload fails
@@ -319,13 +313,11 @@ export const usePropertiesApi = () => {
   };
 
   const translatePost = async (postId: number, translationData: TranslationData) => {
-    console.log('Translating post:', postId, translationData);
     try {
       // Ensure we have the post's property_id (hotel) from the server instead of relying on local state
       let postRecord: any = null;
       try {
         postRecord = await propertyPostsApi.getPropertyPost(postId);
-        console.log('Fetched post record for translation refresh:', postRecord);
       } catch (fetchErr) {
         console.warn('Failed to fetch post record; will try to infer hotel from local state', fetchErr);
       }

@@ -327,10 +327,7 @@ export const categoriesAPI = {
   },
 
   update: async (id: number, category: FeatureCategoryUpdate): Promise<FeatureCategory> => {
-    console.log(`🚀 Sending PUT to /categories/${id} with:`, category);
     const response: AxiosResponse<FeatureCategory> = await apiClient.put(`/categories/${id}?_t=${Date.now()}`, category);
-    console.log('🚀 PUT response received:', response.data);
-    console.log('🚀 Response status:', response.status);
     return response.data;
   },
 
