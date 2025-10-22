@@ -15,6 +15,7 @@ interface Post {
   status: 'published' | 'draft' | 'archived';
   updatedAt: string;
   content?: string;
+  content_html?: string; // Full HTML content with images
   translations?: any[];
 }
 
@@ -99,8 +100,7 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
           setAvailableLocales(allLocales);
         }
       } catch (error) {
-        console.error('❌ Failed to load locales:', error);
-        // Fallback to basic locales
+        // Fallback to basic locales on error
         const fallback = [
           { code: 'en', name: 'English', native_name: 'English' },
           { code: 'vi', name: 'Vietnamese', native_name: 'Tiếng Việt' },
@@ -114,18 +114,20 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
     loadLocales();
   }, [isOpen]);
 
-  // Format HTML for better readability
+  // Format HTML for better readability - PRESERVE images and all HTML tags
   const formatHTML = (html: string): string => {
     if (!html) return '';
     
     return html
-      // Add newlines after closing tags
+      // Add newlines after closing tags (including img)
       .replace(/<\/(h[1-6]|p|div|ul|ol|li|blockquote)>/gi, '</$1>\n')
       // Add newlines before opening tags
       .replace(/<(h[1-6]|p|div|ul|ol|li|blockquote)/gi, '\n<$1')
+      // Add newlines around img tags to make them visible
+      .replace(/(<img[^>]*>)/gi, '\n$1\n')
       // Add indentation for list items
       .replace(/<li>/gi, '  <li>')
-      // Clean up multiple newlines
+      // Clean up multiple newlines (but keep at least one)
       .replace(/\n\n+/g, '\n\n')
       // Trim leading/trailing whitespace
       .trim();
@@ -133,8 +135,9 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
 
   useEffect(() => {
     if (post && isOpen) {
-      // Set original content
-      setOriginalContent(post.content || post.excerpt || '');
+      // Set original content - prioritize content_html (has images) over content
+      const fullContent = post.content_html || post.content || post.excerpt || '';
+      setOriginalContent(fullContent);
 
       // Check if translation already exists for target language
       const existingTranslation = post.translations?.find(t => t.locale === targetLanguage);
@@ -144,7 +147,7 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
         setTranslatedTitle(existingTranslation.title || '');
         setTranslatedContent(existingTranslation.content_html || existingTranslation.content || '');
       } else {
-        // Auto-translate using API
+        // Auto-translate using API - PRESERVE HTML and IMAGES
         const autoTranslate = async () => {
           setIsRegenerating(true);
           try {
@@ -152,14 +155,16 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
               [post.title],
               targetLanguage,
               'auto',
-              false,
+              false, // Title is plain text
               4
             );
+            
+            // IMPORTANT: Set is_html=true to preserve images and HTML structure
             const contentResult = await translationsApi.translateBatch(
-              [post.content || post.excerpt || ''],
+              [fullContent],
               targetLanguage,
               'auto',
-              true,
+              true, // ✅ Preserve HTML and images
               4
             );
 
@@ -168,10 +173,9 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
             const formattedContent = formatHTML(contentResult[0] || '');
             setTranslatedContent(formattedContent);
           } catch (error) {
-            console.error('Auto-translation failed:', error);
-            // Fallback to original
+            // Fallback to original on error
             setTranslatedTitle(post.title);
-            setTranslatedContent(post.content || post.excerpt || '');
+            setTranslatedContent(fullContent);
           } finally {
             setIsRegenerating(false);
           }
@@ -189,14 +193,16 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
         [post?.title || ''],
         targetLanguage,
         'auto',
-        false,
+        false, // Title is plain text
         4
       );
+      
+      // IMPORTANT: Set is_html=true to preserve images and HTML structure
       const contentResult = await translationsApi.translateBatch(
-        [originalContent],
+        [originalContent], // Use original content with images
         targetLanguage,
         'auto',
-        true,
+        true, // ✅ Preserve HTML and images
         4
       );
 
@@ -205,7 +211,6 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
       const formattedContent = formatHTML(contentResult[0] || '');
       setTranslatedContent(formattedContent);
     } catch (error) {
-      console.error('Regeneration failed:', error);
       alert('Failed to regenerate translation. Please try again.');
     } finally {
       setIsRegenerating(false);
@@ -419,7 +424,7 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-600">Content</label>
-                <div className="mt-1 p-3 bg-slate-50 rounded-md text-sm prose max-w-none" dangerouslySetInnerHTML={{ __html: post.content || post.excerpt }} />
+                <div className="mt-1 p-3 bg-slate-50 rounded-md text-sm prose max-w-none" dangerouslySetInnerHTML={{ __html: post.content_html || post.content || post.excerpt }} />
               </div>
             </div>
 

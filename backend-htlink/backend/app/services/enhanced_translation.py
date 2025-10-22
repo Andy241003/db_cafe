@@ -156,8 +156,15 @@ def _extract_text_from_html(html: str, batch_mode: bool = True) -> tuple[list[st
             
             if part.startswith('<'):
                 if is_inline_tag:
-                    # Keep inline tags in current batch
-                    current_template.append(part)
+                    # Flush current text batch if any
+                    if current_text.strip():
+                        template_parts.append(f'{{{{TRANSLATE_{placeholder_index}}}}}')
+                        text_segments.append(current_text)
+                        placeholder_index += 1
+                        current_text = ""
+                        current_template = []
+                    # Add inline tag directly to template (PRESERVE IT)
+                    template_parts.append(part)
                 else:
                     # Block tag - flush current batch
                     if current_text.strip():
