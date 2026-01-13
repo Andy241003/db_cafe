@@ -1,10 +1,32 @@
 // src/App.tsx
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
+import DashboardSelection from './pages/DashboardSelection';
 import Login from './pages/Login';
+
+// Admin imports
+import AdminLayout from './pages/admin/AdminLayout';
+
+// Shared imports
+import SharedSettingsLayout from './layouts/SharedSettingsLayout';
+
+// VR Hotel imports
+import VRHotelContact from './pages/vr-hotel/Contact';
+import VRHotelDashboard from './pages/vr-hotel/Dashboard';
+import VRHotelDining from './pages/vr-hotel/Dining';
+import VRHotelFacilities from './pages/vr-hotel/Facilities';
+import VRHotelIntroduction from './pages/vr-hotel/Introduction';
+import VRHotelOffers from './pages/vr-hotel/Offers';
+import VRHotelPolicies from './pages/vr-hotel/Policies';
+import VRHotelRooms from './pages/vr-hotel/Rooms';
+import VRHotelRules from './pages/vr-hotel/Rules';
+import VRHotelSettings from './pages/vr-hotel/Settings';
+import VRHotelLayout from './pages/vr-hotel/VRHotelLayout';
+
 import { autoDetectLanguage } from './utils/languageDetection';
 
 // Create a client
@@ -81,6 +103,65 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route 
+              path="/dashboard-selection" 
+              element={isAuthenticated ? <DashboardSelection /> : <Navigate to="/login" replace />} 
+            />
+            
+            {/* Core Admin Routes - Super Admin only */}
+            <Route 
+              path="/admin/*" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute requireOwner>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              } 
+            />
+            
+            {/* Shared Settings Route - Accessible by all authenticated users */}
+            <Route 
+              path="/settings" 
+              element={
+                isAuthenticated ? (
+                  <SharedSettingsLayout />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              } 
+            />
+            
+            {/* VR Hotel Routes */}
+            <Route 
+              path="/vr-hotel/*" 
+              element={
+                isAuthenticated ? (
+                  <ProtectedRoute requireService="vr-hotel">
+                    <Routes>
+                      <Route element={<VRHotelLayout />}>
+                        <Route path="" element={<VRHotelDashboard />} />
+                        <Route path="introduction" element={<VRHotelIntroduction />} />
+                        <Route path="rooms" element={<VRHotelRooms />} />
+                        <Route path="dining" element={<VRHotelDining />} />
+                        <Route path="offers" element={<VRHotelOffers />} />
+                        <Route path="facilities" element={<VRHotelFacilities />} />
+                        <Route path="policies" element={<VRHotelPolicies />} />
+                        <Route path="rules" element={<VRHotelRules />} />
+                        <Route path="contact" element={<VRHotelContact />} />
+                        <Route path="settings" element={<VRHotelSettings />} />
+                      </Route>
+                    </Routes>
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              } 
+            />
+
+            {/* Travel Link Routes (MainLayout) */}
             <Route 
               path="/" 
               element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" replace />} 

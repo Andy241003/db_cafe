@@ -96,6 +96,7 @@ class AdminUser(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     full_name: str = Field(max_length=180)
     role: UserRole = Field(default=UserRole.EDITOR)
+    service_access: int = Field(default=0, description="0=Travel Link only, 1=VR Hotel only, 2=Both services")
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
@@ -357,6 +358,7 @@ class AdminUserCreate(SQLModel):
     password: str
     full_name: str
     role: UserRole = UserRole.EDITOR
+    service_access: int = 0
     tenant_id: int
 
 
@@ -364,6 +366,7 @@ class AdminUserUpdate(SQLModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
+    service_access: Optional[int] = None
     is_active: Optional[bool] = None
 
 
@@ -459,6 +462,26 @@ from app.models.property_posts import (
     PropertyPostTranslationRead
 )
 
+# Import VR Hotel models
+from app.models.vr_hotel import (
+    # Enums
+    RoomStatus, DiningStatus, FacilityStatus, OfferDiscountType, OfferStatus, VRContentType,
+    # Settings models
+    VRHotelSettings, VRHotelContact, VRHotelSEO,
+    # Room models
+    VRRoom, VRRoomTranslation, VRRoomMedia,
+    # Dining models
+    VRDining, VRDiningTranslation, VRDiningMedia,
+    # Facility models
+    VRFacility, VRFacilityTranslation, VRFacilityMedia,
+    # Offer models
+    VROffer, VROfferTranslation,
+    # Content models
+    VRContent,
+    # Language model
+    VRLanguage
+)
+
 # Import all models to ensure they are registered
 __all__ = [
     "Plan", "Tenant", "Locale", "AdminUser", "Property", "PropertyTranslation",
@@ -473,6 +496,14 @@ __all__ = [
     # Property posts models
     "PropertyPost", "PropertyPostTranslation",
     "PropertyPostCreate", "PropertyPostUpdate", "PropertyPostRead", "PropertyPostTranslationRead",
+    # VR Hotel models
+    "RoomStatus", "DiningStatus", "FacilityStatus", "OfferDiscountType", "OfferStatus", "VRContentType",
+    "VRHotelSettings", "VRHotelContact", "VRHotelSEO",
+    "VRRoom", "VRRoomTranslation", "VRRoomMedia",
+    "VRDining", "VRDiningTranslation", "VRDiningMedia",
+    "VRFacility", "VRFacilityTranslation", "VRFacilityMedia",
+    "VROffer", "VROfferTranslation",
+    "VRContent", "VRLanguage",
     # Schema models
     "AdminUserCreate", "AdminUserUpdate",
     "LocaleCreate", "LocaleUpdate",

@@ -1,5 +1,5 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react';
+import { defineConfig, loadEnv } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => {
   server: {
     host: true,
     port: 5173,
+    watch: {
+      usePolling: true,  // Enable polling for Docker on Windows
+      interval: 1000,    // Check for changes every 1 second
+    },
     // API proxy for development
     proxy: {
       '/api': {

@@ -1,0 +1,51 @@
+{
+  "recommendations": [
+    // Essential extensions
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-eslint",
+    // React & JavaScript
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-json",
+    // Python & FastAPI
+    "ms-python.python",
+    "ms-python.flake8",
+    "ms-python.black-formatter",
+    "ms-python.pylint",
+    "ms-toolsai.jupyter",
+    // Docker & Containers
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers",
+    // Database
+    "ms-mssql.mssql",
+    "formulahendry.vscode-mysql",
+    // Git
+    "eamodio.gitlens",
+    "donjayamanne.githistory",
+    // Utilities
+    "gruntfuggly.todo-tree",
+    "ms-vscode.powershell",
+    "redhat.vscode-yaml",
+    "ms-vscode.hexdump",
+    // Theme & Icons
+    "pkief.material-icon-theme",
+    "github.github-vscode-theme",
+    // Productivity
+    "streetsidesoftware.code-spell-checker",
+    "aaron-bond.better-comments",
+    "usernamehw.errorlens",
+    "ms-vscode.live-server",
+    // Auto-import & IntelliSense
+    "typescript-importer.typescript-importer",
+    "visualstudioexptteam.vscodeintellicode",
+    // Testing
+    "orta.vscode-jest",
+    "ms-playwright.playwright",
+    // API Development
+    "humao.rest-client",
+    "rangav.vscode-thunder-client"
+  ]
+}

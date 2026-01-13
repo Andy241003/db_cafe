@@ -1,0 +1,113 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Frontend Dev Server",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend-htlink/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5173,
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "🐍 FastAPI Backend",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend-htlink/backend/app/main.py",
+      "cwd": "${workspaceFolder}/backend-htlink/backend",
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend-htlink/backend",
+        "DATABASE_URL": "mysql+pymysql://root:yourpassword@localhost:3306/hotellink360_db"
+      },
+      "args": []
+    },
+    {
+      "name": "🔗 Chrome Debug Frontend",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/backend-htlink/frontend/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "🧪 Run Tests (Frontend)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend-htlink/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "test"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "🧪 Run Tests (Backend)",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "cwd": "${workspaceFolder}/backend-htlink/backend",
+      "args": [
+        "app/tests/",
+        "-v",
+        "--tb=short"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend-htlink/backend"
+      }
+    },
+    {
+      "name": "🐳 Docker Compose Dev",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend-htlink",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": [
+        "-f",
+        "docker-compose.dev.yml",
+        "up",
+        "--build"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "🔍 Attach to Docker Backend",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/backend-htlink/backend",
+          "remoteRoot": "/app"
+        }
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 Full Stack Development",
+      "configurations": [
+        "🚀 Frontend Dev Server",
+        "🐍 FastAPI Backend"
+      ],
+      "stopAll": true
+    }
+  ]
+}

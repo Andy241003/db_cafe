@@ -1,0 +1,239 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "📦 Install Frontend Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/frontend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🚀 Start Frontend Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/frontend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "ERROR\\s+(.*):(\\d+):(\\d+)\\s+(.*)",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*Local:",
+          "endsPattern": "ready in \\d+ms"
+        }
+      }
+    },
+    {
+      "label": "🏗️ Build Frontend",
+      "type": "shell",
+      "command": "npm run build",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/frontend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [
+        "$tsc",
+        {
+          "owner": "vite",
+          "pattern": {
+            "regexp": "ERROR\\s+(.*):(\\d+):(\\d+)\\s+(.*)",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "message": 4
+          }
+        }
+      ]
+    },
+    {
+      "label": "🧪 Run Frontend Tests",
+      "type": "shell",
+      "command": "npm test",
+      "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/frontend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🐍 Install Backend Dependencies",
+      "type": "shell",
+      "command": "pip install -r requirements.txt",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/backend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🚀 Start FastAPI Server",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/backend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "ERROR\\s+(.*):(\\d+):(\\d+)\\s+(.*)",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^INFO:",
+          "endsPattern": "Uvicorn running on"
+        }
+      }
+    },
+    {
+      "label": "🧪 Run Backend Tests",
+      "type": "shell",
+      "command": "pytest app/tests/ -v",
+      "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/backend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🐳 Docker Compose Up (Dev)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml up --build",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "🐳 Docker Compose Down",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml down",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🗄️ Database Migration",
+      "type": "shell",
+      "command": "alembic upgrade head",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-htlink/backend"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔄 Restart All Services",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "🐳 Docker Compose Down",
+        "🐳 Docker Compose Up (Dev)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "🚀 Full Development Setup",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "📦 Install Frontend Dependencies",
+        "🐍 Install Backend Dependencies"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ]
+}

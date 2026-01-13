@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { tenantApi } from '../services/tenantApi';
-import { propertiesApi } from '../services/propertiesApi';
-import { mediaApi } from '../services/mediaApi';
-import { localesApi } from '../services/localesApi';
+import { useLocation } from 'react-router-dom';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { autoDetectLanguage } from '../utils/languageDetection';
+import { getCurrentUserFromStorage } from '../services/api';
+import { localesApi } from '../services/localesApi';
+import { mediaApi } from '../services/mediaApi';
+import { propertiesApi } from '../services/propertiesApi';
+import { propertyLocalesApi } from '../services/propertyLocalesApi';
+import { tenantApi } from '../services/tenantApi';
 import { getApiBaseUrl } from '../utils/api';
+import { autoDetectLanguage } from '../utils/languageDetection';
 // import type { TenantSettings } from '../services/tenantApi'; // Will be used later
 import type { ApiProperty } from '../types/properties-api';
 
@@ -81,8 +84,15 @@ interface Language {
 }
 
 const Settings: React.FC = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<number | null>(null);
+  
+  // Detect if user came from VR Hotel context
+  const currentUser = getCurrentUserFromStorage();
+  const savedContext = localStorage.getItem('admin_context');
+  const isVRHotelOnly = currentUser?.service_access === 1;
+  const cameFromVRHotel = isVRHotelOnly || savedContext === 'vr-hotel';
   
   // Tenant data - will be used for tenant-level settings in future
   // const [tenantData, setTenantData] = useState<TenantSettings | null>(null);
@@ -177,13 +187,19 @@ const Settings: React.FC = () => {
   const [languages, setLanguages] = useState<Language[]>([]);
   const [isLoadingLanguages, setIsLoadingLanguages] = useState(true);
 
-  const tabs = [
+  // Filter tabs based on context
+  const allTabs = [
     { id: 'general', icon: 'fas fa-cog', text: 'General' },
     { id: 'branding', icon: 'fas fa-palette', text: 'Branding' },
     { id: 'localization', icon: 'fas fa-globe', text: 'Localization' },
     { id: 'contact', icon: 'fas fa-address-card', text: 'Contact Info' },
     { id: 'advanced', icon: 'fas fa-sliders-h', text: 'Advanced' }
   ];
+
+  // Users from VR Hotel context only see Localization tab
+  const tabs = cameFromVRHotel 
+    ? allTabs.filter(tab => tab.id === 'localization')
+    : allTabs;
 
   const timezoneOptions = [
     { value: 'Asia/Tokyo', label: 'Asia/Tokyo (GMT+9)' },
@@ -386,15 +402,28 @@ const Settings: React.FC = () => {
     }
 
     try {
+      // Update property default_locale only (not settings_json)
       const propertyUpdateData = {
         default_locale: localizationSettings.defaultLanguage,
         settings_json: {
           ...selectedProperty.settings_json,
-          localization: localizationSettings
+          localization: {
+            // Only store non-language configs in settings_json
+            timezone: localizationSettings.timezone,
+            dateFormat: localizationSettings.dateFormat,
+            fallbackLanguage: localizationSettings.fallbackLanguage
+          }
         }
       };
       
       await propertiesApi.updateProperty(selectedPropertyId, propertyUpdateData);
+      
+      // Sync locales with property_locales table (Single Source of Truth)
+      await propertyLocalesApi.syncLocales(selectedPropertyId, localizationSettings.supportedLanguages);
+      
+      // Set default locale in property_locales
+      await propertyLocalesApi.setDefaultLocale(selectedPropertyId, localizationSettings.defaultLanguage);
+      
       showSuccess('Localization settings saved successfully!');
       await loadProperties();
       
@@ -776,7 +805,7 @@ const Settings: React.FC = () => {
   };
 
   // Update form data based on selected property
-  const updateFormWithPropertyData = (property: ApiProperty) => {
+  const updateFormWithPropertyData = async (property: ApiProperty) => {
     // Update General Settings
     setGeneralSettings(prev => ({
       ...prev,
@@ -819,22 +848,46 @@ const Settings: React.FC = () => {
     }));
     
     // Update Localization Settings
-    const localizationData = (property as any).settings_json?.localization || {};
-    const finalLocalizationSettings = {
-      defaultLanguage: property.default_locale || 'en',
-      fallbackLanguage: localizationData.fallbackLanguage || 'en',
-      supportedLanguages: localizationData.supportedLanguages || ['en', 'vi'],
-      timezone: localizationData.timezone || 'Asia/Ho_Chi_Minh',
-      dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
-    };
-    
-    setLocalizationSettings(prev => ({
-      ...prev,
-      ...finalLocalizationSettings
-    }));
-    
-    // Save to localStorage for CategoryModal to use
-    localStorage.setItem('property_settings', JSON.stringify(finalLocalizationSettings));
+    // Load supported languages from property_locales table (Single Source of Truth)
+    try {
+      const propertyLocales = await propertyLocalesApi.getLocales(property.id);
+      const supportedLanguages = propertyLocales.map(locale => locale.locale_code);
+      
+      const localizationData = (property as any).settings_json?.localization || {};
+      const finalLocalizationSettings = {
+        defaultLanguage: property.default_locale || 'en',
+        fallbackLanguage: localizationData.fallbackLanguage || 'en',
+        supportedLanguages: supportedLanguages.length > 0 ? supportedLanguages : ['en', 'vi'],
+        timezone: localizationData.timezone || 'Asia/Ho_Chi_Minh',
+        dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
+      };
+      
+      setLocalizationSettings(prev => ({
+        ...prev,
+        ...finalLocalizationSettings
+      }));
+      
+      // Save to localStorage for CategoryModal to use
+      localStorage.setItem('property_settings', JSON.stringify(finalLocalizationSettings));
+    } catch (error) {
+      console.error('Error loading property locales:', error);
+      // Fallback to settings_json if property_locales fails
+      const localizationData = (property as any).settings_json?.localization || {};
+      const finalLocalizationSettings = {
+        defaultLanguage: property.default_locale || 'en',
+        fallbackLanguage: localizationData.fallbackLanguage || 'en',
+        supportedLanguages: localizationData.supportedLanguages || ['en', 'vi'],
+        timezone: localizationData.timezone || 'Asia/Ho_Chi_Minh',
+        dateFormat: localizationData.dateFormat || 'DD/MM/YYYY'
+      };
+      
+      setLocalizationSettings(prev => ({
+        ...prev,
+        ...finalLocalizationSettings
+      }));
+      
+      localStorage.setItem('property_settings', JSON.stringify(finalLocalizationSettings));
+    }
     
     // Update Advanced Settings - Read from property fields directly
     const advancedData = (property as any).settings_json?.advanced || {};
@@ -1128,6 +1181,18 @@ const Settings: React.FC = () => {
     await saveAdvancedSettingsWithBanners(updatedBannerImages);
     showSuccess('Banner image removed successfully!');
   };
+
+  // Check URL query param for tab selection
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab && tabs.some(t => t.id === tab)) {
+      setActiveTab(tab);
+    } else if (cameFromVRHotel) {
+      // Users from VR Hotel default to localization tab
+      setActiveTab('localization');
+    }
+  }, [location.search, cameFromVRHotel]);
 
   // Load languages from database
   useEffect(() => {

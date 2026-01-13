@@ -1,0 +1,243 @@
+{
+  // Performance & Memory Optimization
+  "workbench.reduceMotion": "on",
+  "editor.smoothScrolling": false,
+  "workbench.list.smoothScrolling": false,
+  "terminal.integrated.smoothScrolling": false,
+  "editor.cursorSmoothCaretAnimation": "off",
+  "workbench.enableExperiments": false,
+  "extensions.autoCheckUpdates": false,
+  "extensions.autoUpdate": false,
+  "update.mode": "manual",
+  "telemetry.telemetryLevel": "off",
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  // Memory Management
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.maxTsServerMemory": 2048,
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": false,
+  "typescript.suggest.enabled": true,
+  "typescript.suggestionActions.enabled": false,
+  // File Watcher Limits
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/venv/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/*.pyc": true,
+    "**/logs/**": true
+  },
+  // Disable heavy features
+  "editor.occurrencesHighlight": "off",
+  "editor.selectionHighlight": false,
+  "editor.wordBasedSuggestions": "off",
+  "editor.wordBasedSuggestionsMode": "currentDocument",
+  "editor.suggest.localityBonus": true,
+  "editor.suggest.shareSuggestSelections": false,
+  "editor.parameterHints.enabled": false,
+  "editor.quickSuggestionsDelay": 100,
+  // Reduce background processing
+  "git.autoRepositoryDetection": false,
+  "git.decorations.enabled": false,
+  "scm.diffDecorations": "none",
+  "editor.lightbulb.enabled": "off",
+  "problems.decorations.enabled": false,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  // TypeScript settings
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.format.semicolons": "insert",
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  // File exclusions
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/venv": true,
+    "**/.venv": true
+  },
+  // Search exclusions
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.log": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true
+  },
+  // Python settings
+  // Language Server Limits
+  "eslint.runtime": "node",
+  "eslint.options": {
+    "maxWarnings": 0
+  },
+  "python.analysis.maxWorkspaceSymbols": 500,
+  "python.analysis.cacheFolderPath": "./temp/pylance",
+  "python.analysis.autoImportCompletions": false,
+  "python.defaultInterpreterPath": "./backend-htlink/backend/venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.formatting.provider": "black",
+  // Emmet
+  "emmet.includeLanguages": {
+    "typescript": "typescriptreact",
+    "javascript": "javascriptreact"
+  },
+  // File associations
+  "files.associations": {
+    "*.tsx": "typescriptreact",
+    "*.ts": "typescript",
+    "docker-compose*.yml": "dockercompose"
+  },
+  // Explorer settings
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js, ${capture}.d.ts.map, ${capture}.d.ts, ${capture}.js.map",
+    "*.tsx": "${capture}.js, ${capture}.jsx",
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml",
+    "docker-compose.yml": "docker-compose.*.yml, Dockerfile*, .dockerignore",
+    "tsconfig.json": "tsconfig.*.json",
+    "vite.config.*": "vitest.config.*"
+  },
+  // Tailwind CSS
+  "tailwindCSS.includeLanguages": {
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    [
+      "clsx\\(([^)]*)\\)",
+      "(?:'|\"|`)([^']*)(?:'|\"|`)"
+    ],
+    [
+      "className\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]",
+      "([a-zA-Z0-9\\-:]+)"
+    ],
+    [
+      "cn\\(([^)]*)\\)",
+      "(?:'|\"|`)([^']*)(?:'|\"|`)"
+    ]
+  ],
+  // Git settings
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  // Auto save
+  "files.autoSave": "onFocusChange",
+  // Terminal
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  // Bracket pair colorization
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  // Minimap & Editor Performance
+  "editor.minimap.enabled": false,
+  "editor.minimap.renderCharacters": false,
+  "editor.minimap.maxColumn": 80,
+  "editor.codeLens": false,
+  "editor.hover.enabled": "off",
+  "editor.links": false,
+  "editor.matchBrackets": "never",
+  "editor.renderWhitespace": "none",
+  "editor.renderControlCharacters": false,
+  "editor.glyphMargin": false,
+  "editor.folding": false,
+  "editor.foldingHighlight": false,
+  "editor.showFoldingControls": "never",
+  // Word wrap
+  "editor.wordWrap": "on",
+  "editor.rulers": [
+    80,
+    120
+  ],
+  // Extension Performance
+  "extensions.ignoreRecommendations": true,
+  "workbench.startupEditor": "none",
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.enablePreviewFromQuickOpen": false,
+  "workbench.colorCustomizations": {},
+  "workbench.iconTheme": "vs-seti",
+  "workbench.colorTheme": "Default Dark Modern",
+  // IntelliSense Performance
+  "editor.acceptSuggestionOnEnter": "off",
+  "editor.suggestOnTriggerCharacters": false,
+  "editor.quickSuggestions": {
+    "comments": "off",
+    "strings": "off",
+    "other": "off"
+  },
+  "editor.parameterHints.cycle": false,
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "editor.suggest.filterGraceful": false,
+  "editor.suggest.maxVisibleSuggestions": 5,
+  // Extensions specific settings
+  "eslint.workingDirectories": [
+    "backend-htlink/frontend"
+  ],
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  // Docker
+  "docker.showStartPage": false,
+  // Auto-fix on save for specific file types
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+  // Final Performance Tweaks
+  "search.followSymlinks": false,
+  "search.smartCase": false,
+  "search.useGlobalIgnoreFiles": true,
+  "search.useParentIgnoreFiles": true,
+  "workbench.editor.closeOnFileDelete": true,
+  "workbench.editor.highlightModifiedTabs": false,
+  "workbench.tree.renderIndentGuides": "none",
+  "[sql]": {
+    "editor.defaultFormatter": "ms-mssql.mssql"
+  },
+  "editor.guides.indentation": false
+}

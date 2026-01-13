@@ -1,0 +1,101 @@
+{
+  // React Functional Component with TypeScript
+  "React Functional Component": {
+    "prefix": "rfc",
+    "body": [
+      "import React from 'react';",
+      "",
+      "interface ${1:ComponentName}Props {",
+      "  ${2:// props}",
+      "}",
+      "",
+      "const ${1:ComponentName}: React.FC<${1:ComponentName}Props> = ({ ${3:props} }) => {",
+      "  return (",
+      "    <div>",
+      "      $0",
+      "    </div>",
+      "  );",
+      "};",
+      "",
+      "export default ${1:ComponentName};"
+    ],
+    "description": "Create React Functional Component with TypeScript"
+  },
+  // Custom Hook
+  "Custom Hook": {
+    "prefix": "hook",
+    "body": [
+      "import { useState, useEffect } from 'react';",
+      "",
+      "interface Use${1:HookName}Return {",
+      "  ${2:// return type}",
+      "}",
+      "",
+      "export const use${1:HookName} = (): Use${1:HookName}Return => {",
+      "  ${3:// hook logic}",
+      "  ",
+      "  return {",
+      "    $0",
+      "  };",
+      "};"
+    ],
+    "description": "Create custom React hook with TypeScript"
+  },
+  // Service API Function
+  "API Service Function": {
+    "prefix": "api",
+    "body": [
+      "export const ${1:functionName} = async (${2:params}): Promise<${3:ReturnType}> => {",
+      "  try {",
+      "    const response = await apiClient.${4:method}('${5:endpoint}', ${6:data});",
+      "    return response.data;",
+      "  } catch (error) {",
+      "    console.error('Error in ${1:functionName}:', error);",
+      "    throw error;",
+      "  }",
+      "};"
+    ],
+    "description": "Create API service function"
+  },
+  // FastAPI Endpoint
+  "FastAPI Endpoint": {
+    "prefix": "endpoint",
+    "body": [
+      "@router.${1:method}(\"/${2:path}\", response_model=${3:ResponseModel})",
+      "async def ${4:function_name}(",
+      "    ${5:params},",
+      "    session: SessionDep,",
+      "    current_user: CurrentUser",
+      "):",
+      "    \"\"\"${6:Description}\"\"\"",
+      "    try:",
+      "        ${7:# Logic here}",
+      "        return ${8:response}",
+      "    except Exception as e:",
+      "        raise HTTPException(status_code=400, detail=str(e))"
+    ],
+    "description": "Create FastAPI endpoint"
+  },
+  // Tailwind Component
+  "Tailwind Component": {
+    "prefix": "twc",
+    "body": [
+      "const ${1:ComponentName}: React.FC<${1:ComponentName}Props> = ({ ${2:props} }) => {",
+      "  return (",
+      "    <div className=\"${3:tailwind-classes}\">",
+      "      $0",
+      "    </div>",
+      "  );",
+      "};"
+    ],
+    "description": "Create component with Tailwind CSS"
+  },
+  // Console Log Debug
+  "Console Debug": {
+    "prefix": "cld",
+    "body": [
+      "console.log('🐛 ${1:label}:', ${2:variable});"
+    ],
+    "description": "Console log for debugging"
+  }
+}

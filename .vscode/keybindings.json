@@ -1,0 +1,12 @@
+{
+  // Intellisense cho TypeScript
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.paths": true,
+  // Snippets cho React + TypeScript
+  "editor.snippetSuggestions": "top",
+  // Workspace-specific keybindings
+  "key": "ctrl+shift+r",
+  "command": "workbench.action.tasks.runTask",
+  "args": "🔄 Restart All Services"
+}

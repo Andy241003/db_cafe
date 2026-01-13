@@ -6,6 +6,17 @@ from .crud_content import (
 )
 from . import property_posts
 
+# VR Hotel CRUD imports
+from .vr_hotel import (
+    vr_hotel_settings,
+    vr_hotel_contact,
+    vr_hotel_seo,
+    vr_room,
+    vr_dining,
+    vr_facility,
+    vr_offer
+)
+
 # For backwards compatibility, also import the old single crud functions
 def create_user(session, user_create):
     """Create admin user - compatibility function"""
@@ -22,5 +33,9 @@ __all__ = [
     "feature", "feature_translation", "property_category", "property_feature",
     "post", "post_translation", "media_file", "post_media", "event", "setting",
     "property_posts",
+    # VR Hotel CRUD
+    "vr_hotel_settings", "vr_hotel_contact", "vr_hotel_seo",
+    "vr_room", "vr_dining", "vr_facility", "vr_offer",
+    # Utilities
     "create_user", "create_admin_user"
 ]

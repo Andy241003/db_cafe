@@ -1,22 +1,15 @@
 // src/layouts/MainLayout.tsx
 import React from 'react';
-import { Routes, Route, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { isAuthenticated } from '../services/api';
-import Sidebar from '../components/layout/Sidebar'; // Corrected import path
-import Header from '../components/layout/Header';   // Corrected import path
-import ProtectedRoute from '../components/ProtectedRoute';
-import Dashboard from '../pages/Dashboard';
-import Users from '../pages/Users';
-import Settings from '../pages/Settings';
-import Categories from '../pages/Categories';
-import Features from '../pages/Features';
-import Properties from '../pages/Properties';
-import Media from '../pages/Media';
-import Analytics from '../pages/Analytics';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import Header from '../components/layout/Header';
+import Sidebar from '../components/layout/Sidebar';
 import Activities from '../pages/Activities';
-
-// Lazy load TenantSettings to avoid type-only import issue
-const TenantSettings = React.lazy(() => import('../pages/TenantSettings'));
+import Analytics from '../pages/Analytics';
+import Categories from '../pages/Categories';
+import Dashboard from '../pages/Dashboard';
+import Features from '../pages/Features';
+import Media from '../pages/Media';
+import { isAuthenticated } from '../services/api';
 
 const MainLayout: React.FC = () => {
   const location = useLocation();
@@ -30,29 +23,19 @@ const MainLayout: React.FC = () => {
   const getPageInfo = (pathname: string) => {
     switch (pathname) {
       case '/':
-        return { title: 'Dashboard', breadcrumb: 'Main / Dashboard' };
-      case '/users':
-        return { title: 'Users & Roles', breadcrumb: 'Management / Users & Roles' };
-      case '/settings':
-        return { title: 'Settings', breadcrumb: 'Management / Settings' };
-      case '/tenant-settings':
-        return { title: 'Tenant Settings', breadcrumb: 'Management / Tenant Settings' };
-      case '/reports':
-        return { title: 'Reports', breadcrumb: 'Analytics / Reports' };
+        return { title: 'Dashboard', breadcrumb: 'Travel Link / Dashboard' };
       case '/categories':
-        return { title: 'Categories', breadcrumb: 'Main / Categories' };
+        return { title: 'Categories', breadcrumb: 'Travel Link / Categories' };
       case '/features':
-        return { title: 'Features', breadcrumb: 'Main / Features' };
-      case '/properties':
-        return { title: 'Properties', breadcrumb: 'Main / Properties' };
+        return { title: 'Features', breadcrumb: 'Travel Link / Features' };
       case '/media':
-        return { title: 'Media Library', breadcrumb: 'Content / Media Library' };
+        return { title: 'Media Library', breadcrumb: 'Travel Link / Media' };
       case '/analytics':
-        return { title: 'Analytics', breadcrumb: 'Content / Analytics' };
+        return { title: 'Analytics', breadcrumb: 'Travel Link / Analytics' };
       case '/activities':
-        return { title: 'Activity Log', breadcrumb: 'Management / Activity Log' };
+        return { title: 'Activity Log', breadcrumb: 'Travel Link / Activity Log' };
       default:
-        return { title: 'Dashboard', breadcrumb: 'Home / Dashboard' };
+        return { title: 'Dashboard', breadcrumb: 'Travel Link / Dashboard' };
     }
   };
 
@@ -79,48 +62,10 @@ const MainLayout: React.FC = () => {
         <main className="pt-20 px-6 pb-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-
-            {/* Users - OWNER and ADMIN only */}
-            <Route
-              path="/users"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Settings - All authenticated users can view, but edit requires OWNER/ADMIN */}
-            <Route path="/settings/*" element={<Settings />} />
-
-            {/* Tenant Settings - OWNER only */}
-            <Route
-              path="/tenant-settings"
-              element={
-                <ProtectedRoute requireOwner>
-                  <React.Suspense fallback={<div className="p-6">Loading...</div>}>
-                    <TenantSettings />
-                  </React.Suspense>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Categories - All authenticated users can view */}
             <Route path="/categories/*" element={<Categories />} />
-
-            {/* Features - All authenticated users can view */}
             <Route path="/features/*" element={<Features />} />
-
-            {/* Properties - All authenticated users can view */}
-            <Route path="/properties/*" element={<Properties />} />
-
-            {/* Media - All authenticated users can view */}
             <Route path="/media" element={<Media />} />
-
-            {/* Analytics - All authenticated users can view */}
             <Route path="/analytics" element={<Analytics />} />
-
-            {/* Activities - All authenticated users can view */}
             <Route path="/activities" element={<Activities />} />
           </Routes>
           <Outlet />

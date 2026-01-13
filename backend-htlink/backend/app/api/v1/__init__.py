@@ -3,7 +3,8 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, plans, tenants, users, properties, features, features_test, posts, media,
     categories, events, settings, utils, locales, translations, property_categories,
-    analytics, test_upload, property_posts, activity_logs, activity_test
+    analytics, test_upload, property_posts, activity_logs, activity_test,
+    vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction
 )
 
 api_router = APIRouter()
@@ -28,3 +29,8 @@ api_router.include_router(property_categories.router, prefix="/property-categori
 api_router.include_router(property_posts.router, prefix="/property-posts", tags=["property-posts"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(test_upload.router, prefix="/test-upload", tags=["test-upload"])
+
+# VR Hotel routes
+api_router.include_router(vr_hotel_settings.router, prefix="/vr-hotel", tags=["vr-hotel"])
+api_router.include_router(vr_hotel_languages.router, prefix="/vr-hotel", tags=["vr-hotel"])
+api_router.include_router(vr_hotel_introduction.router, prefix="/vr-hotel", tags=["vr-hotel"])

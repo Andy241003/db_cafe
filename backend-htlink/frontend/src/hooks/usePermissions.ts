@@ -149,3 +149,30 @@ export const useUserRole = (): UserRole | null => {
   return permissions.role;
 };
 
+// Hook to check service access (0=Travel Link, 1=VR Hotel, 2=Both)
+export const useServiceAccess = () => {
+  const [serviceAccess, setServiceAccess] = useState<number>(0);
+  const [availableServices, setAvailableServices] = useState<string[]>(['travel-link']);
+
+  useEffect(() => {
+    // Check if already stored in localStorage
+    const storedServiceAccess = localStorage.getItem('service_access');
+    const storedServices = localStorage.getItem('available_services');
+    
+    if (storedServiceAccess !== null && storedServices !== null) {
+      setServiceAccess(Number(storedServiceAccess));
+      setAvailableServices(JSON.parse(storedServices));
+    }
+  }, []);
+
+  const canAccessTravelLink = availableServices.includes('travel-link');
+  const canAccessVrHotel = availableServices.includes('vr-hotel');
+
+  return {
+    serviceAccess,
+    availableServices,
+    canAccessTravelLink,
+    canAccessVrHotel,
+    hasMultipleServices: availableServices.length > 1,
+  };
+};

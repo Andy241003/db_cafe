@@ -192,3 +192,38 @@ def logout(
     # In a stateless JWT system, logout is handled client-side by discarding the token
     # No server-side session cleanup needed
     return {"message": "Successfully logged out"}
+
+
+@router.get("/me/services")
+def get_user_services(
+    session: SessionDep,
+    current_user: CurrentUser
+):
+    """
+    Get current user's service access configuration
+    
+    Returns:
+    - service_access: 0 = Travel Link only, 1 = VR Hotel only, 2 = Both services
+    - available_services: List of available service codes
+    
+    GET /api/v1/auth/me/services
+    Requires valid authentication token
+    """
+    # Get service access value (0, 1, or 2)
+    service_access = current_user.service_access or 0
+    
+    # Map service_access to available services
+    service_map = {
+        0: ["travel-link"],           # Travel Link only
+        1: ["vr-hotel"],              # VR Hotel only
+        2: ["travel-link", "vr-hotel"]  # Both services
+    }
+    
+    available_services = service_map.get(service_access, ["travel-link"])
+    
+    return {
+        "service_access": service_access,
+        "available_services": available_services,
+        "user_id": current_user.id,
+        "email": current_user.email
+    }

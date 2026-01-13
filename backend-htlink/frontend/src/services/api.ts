@@ -1,5 +1,5 @@
-import axios from 'axios';
 import type { AxiosResponse } from 'axios';
+import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 // API Base Configuration
@@ -97,6 +97,7 @@ export interface User {
   role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
   is_active: boolean;
   tenant_id: number;
+  service_access?: number; // 0 = Travel Link only, 1 = VR Hotel only, 2 = Both
   created_at: string;
   updated_at?: string;
 }
@@ -235,6 +236,11 @@ export const authAPI = {
     // Save user data to localStorage
     localStorage.setItem('currentUser', JSON.stringify(response.data));
     
+    return response.data;
+  },
+
+  getUserServices: async () => {
+    const response = await apiClient.get('/auth/me/services');
     return response.data;
   },
 };

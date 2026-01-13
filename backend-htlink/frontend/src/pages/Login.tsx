@@ -83,18 +83,30 @@ const Login: React.FC = () => {
         // Re-throw tenant errors for user to see
         throw tenantError;
       }
+
+      // Step 4: Get service access information
+      try {
+        const servicesResponse = await authAPI.getUserServices();
+        localStorage.setItem('service_access', servicesResponse.service_access.toString());
+        localStorage.setItem('available_services', JSON.stringify(servicesResponse.available_services));
+      } catch (serviceError) {
+        console.warn('Failed to load service access info, defaulting to Travel Link only:', serviceError);
+        // Fallback to default service if error
+        localStorage.setItem('service_access', '0');
+        localStorage.setItem('available_services', JSON.stringify(['travel-link']));
+      }
       
-      // Step 4: Trigger auth state change using useAuth hook
+      // Step 5: Trigger auth state change using useAuth hook
       login(); // This will set isAuthenticated state and dispatch event
       
-      // Step 5: Multiple redirect attempts to ensure it works
-      // Method 1: Immediate redirect
-      window.location.href = '/';
+      // Step 6: Multiple redirect attempts to ensure it works
+      // Method 1: Immediate redirect to dashboard selection
+      window.location.href = '/dashboard-selection';
       
       // Method 2: Fallback after 100ms
       setTimeout(() => {
         if (window.location.pathname === '/login') {
-          window.location.replace('/');
+          window.location.replace('/dashboard-selection');
         }
       }, 100);
       
