@@ -101,7 +101,7 @@ class AdminUserBase(BaseModel):
     email: EmailStr = Field(max_length=190)
     full_name: str = Field(max_length=180)
     role: UserRole = UserRole.EDITOR
-    service_access: int = 0
+    service_access: Optional[int] = 0
     is_active: bool = True
 
 
