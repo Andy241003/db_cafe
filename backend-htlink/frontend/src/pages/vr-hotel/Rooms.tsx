@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faPlus,
-  faEdit,
-  faTrash,
   faCheckCircle,
+  faEdit,
+  faEye,
+  faFlag,
+  faImages,
   faInfoCircle,
+  faPlay,
+  faPlus,
+  faRulerCombined,
   faSave,
   faTag,
-  faRulerCombined,
-  faUsers,
-  faVrCardboard,
-  faImages,
-  faFlag,
   faTimes,
-  faEye,
-  faPlay
+  faTrash,
+  faUsers,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { vrHotelRoomsApi, type Room, type RoomCreate, type RoomUpdate, type RoomTranslation, vrHotelSettingsApi } from '../../services/vrHotelApi';
-import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { mediaApi } from '../../services/mediaApi';
+import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
+import { vrHotelRoomsApi, vrHotelSettingsApi, type Room, type RoomCreate, type RoomTranslation, type RoomUpdate } from '../../services/vrHotelApi';
 
 const VRHotelRooms: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -68,6 +68,25 @@ const VRHotelRooms: React.FC = () => {
   useEffect(() => {
     loadLocalesAndRooms();
   }, []);
+
+  // Auto-save VR360 settings when changed (with debounce)
+  useEffect(() => {
+    const saveTimer = setTimeout(async () => {
+      if (roomsVR360Link || roomsVRTitle) {
+        try {
+          await vrHotelSettingsApi.updatePageSettings('rooms', {
+            vr360_link: roomsVR360Link,
+            vr_title: roomsVRTitle
+          });
+          toast.success('Đã lưu cài đặt VR360', { duration: 2000 });
+        } catch (error) {
+          console.error('Failed to auto-save VR settings:', error);
+        }
+      }
+    }, 1500); // Debounce 1.5s
+    
+    return () => clearTimeout(saveTimer);
+  }, [roomsVR360Link, roomsVRTitle]);
 
   const loadLocalesAndRooms = async () => {
     setIsLoading(true);
@@ -542,29 +561,6 @@ const VRHotelRooms: React.FC = () => {
               </div>
             </div>
           )}
-          
-          {/* Save button for VR settings */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-            <button
-              onClick={async () => {
-                try {
-                  await vrHotelSettingsApi.updatePageSettings('rooms', {
-                    vr360_link: roomsVR360Link,
-                    vr_title: roomsVRTitle
-                  });
-                  toast.success('Đã lưu cài đặt VR360 cho trang phòng!');
-                } catch (error) {
-                  console.error('Failed to save VR settings:', error);
-                  toast.error('Không thể lưu cài đặt VR360');
-                }
-              }}
-              disabled={!isDisplaying}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <FontAwesomeIcon icon={faSave} />
-              Lưu cài đặt VR360
-            </button>
-          </div>
         </div>
       </div>
 
