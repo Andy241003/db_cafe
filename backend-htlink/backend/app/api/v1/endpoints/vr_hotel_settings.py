@@ -34,6 +34,9 @@ class VRSettingsResponse(BaseModel):
     
     # VR-specific settings (SEO)
     seo: Optional[Dict[str, Dict[str, str]]] = None  # {locale: {title, description, keywords}}
+    
+    # VR Page Settings (Hero sections for list pages)
+    pages: Optional[Dict[str, Any]] = None  # {page_type: {vr360_link, vr_title}}
 
 
 class VRSettingsUpdate(BaseModel):
@@ -49,6 +52,9 @@ class VRSettingsUpdate(BaseModel):
     
     # VR-specific SEO
     seo: Optional[Dict[str, Dict[str, str]]] = None
+    
+    # VR Page Settings (Hero sections for list pages)
+    pages: Optional[Dict[str, Any]] = None
 
 
 # ==========================================
@@ -132,7 +138,8 @@ def get_vr_hotel_settings(
         primary_color=settings.primary_color if settings else "#3b82f6",
         logo_media_id=settings.logo_media_id if settings else None,
         favicon_media_id=settings.favicon_media_id if settings else None,
-        seo=seo_dict
+        seo=seo_dict,
+        pages=settings.settings_json.get("pages") if settings and settings.settings_json else None
     )
 
 
@@ -176,9 +183,15 @@ def update_vr_hotel_settings(
         db.add(settings)
     
     # Update VR-specific settings fields only
-    update_data = settings_in.model_dump(exclude_unset=True, exclude={"seo"})
+    update_data = settings_in.model_dump(exclude_unset=True, exclude={"seo", "pages"})
     for field, value in update_data.items():
         setattr(settings, field, value)
+    
+    # Update pages settings in settings_json
+    if settings_in.pages is not None:
+        if not settings.settings_json:
+            settings.settings_json = {}
+        settings.settings_json["pages"] = settings_in.pages
     
     # Update or create SEO records
     if settings_in.seo:

@@ -149,7 +149,7 @@ class VRRoom(SQLModel, table=True):
     price_per_night: Optional[float] = Field(default=None, sa_column=Column(DECIMAL(15, 2)))
     
     # Status and attributes
-    status: RoomStatus = Field(default=RoomStatus.AVAILABLE)
+    status: str = Field(default="available", max_length=20)
     amenities_json: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
     attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     display_order: int = Field(default=0)

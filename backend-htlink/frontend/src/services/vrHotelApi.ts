@@ -91,9 +91,20 @@ export interface VRHotelSettings {
     meta_description?: string;
     meta_keywords?: string;
   }>;
+  
+  // VR Page Settings (Hero sections)
+  pages?: Record<string, {
+    vr360_link?: string;
+    vr_title?: string;
+  }>;
 }
 
 export interface VRHotelSettingsUpdate extends Partial<VRHotelSettings> {}
+
+export interface VRPageSettings {
+  vr360_link?: string;
+  vr_title?: string;
+}
 
 // ==========================================
 // Properties API
@@ -145,6 +156,26 @@ export const vrHotelSettingsApi = {
   updateSettings: async (data: VRHotelSettingsUpdate): Promise<VRHotelSettings> => {
     const response = await vrHotelClient.put('/vr-hotel/settings', data);
     return response.data;
+  },
+
+  /**
+   * Get VR page settings (for rooms, dining, offers, facilities hero sections)
+   */
+  getPageSettings: async (pageName: string): Promise<VRPageSettings | null> => {
+    const settings = await vrHotelSettingsApi.getSettings();
+    return settings.pages?.[pageName] || null;
+  },
+
+  /**
+   * Update VR page settings
+   */
+  updatePageSettings: async (pageName: string, settings: VRPageSettings): Promise<VRHotelSettings> => {
+    const currentSettings = await vrHotelSettingsApi.getSettings();
+    const updatedPages = {
+      ...currentSettings.pages,
+      [pageName]: settings
+    };
+    return vrHotelSettingsApi.updateSettings({ pages: updatedPages });
   },
 
   /**
@@ -305,8 +336,130 @@ export const vrHotelIntroductionApi = {
 // Export everything
 // ==========================================
 
+// ==========================================
+// Rooms API
+// ==========================================
+
+export interface RoomTranslation {
+  locale: string;
+  name: string;
+  description?: string;
+  amenities_text?: string;
+}
+
+export interface RoomMediaInfo {
+  media_id: number;
+  is_vr360?: boolean;
+  is_primary?: boolean;
+  sort_order?: number;
+}
+
+export interface Room {
+  id: number;
+  tenant_id: number;
+  property_id: number;
+  room_code: string;
+  room_type?: string;
+  floor?: number;
+  bed_type?: string;
+  capacity?: number;
+  size_sqm?: number;
+  price_per_night?: number;
+  status: string;
+  amenities_json?: string[];
+  attributes_json?: Record<string, any>;
+  display_order: number;
+  translations: Record<string, RoomTranslation>;
+  media: RoomMediaInfo[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface RoomCreate {
+  room_code: string;
+  room_type?: string;
+  floor?: number;
+  bed_type?: string;
+  capacity?: number;
+  size_sqm?: number;
+  price_per_night?: number;
+  status?: string;
+  amenities_json?: string[];
+  attributes_json?: Record<string, any>;
+  display_order?: number;
+  translations: RoomTranslation[];
+  media?: RoomMediaInfo[];
+}
+
+export interface RoomUpdate {
+  room_code?: string;
+  room_type?: string;
+  floor?: number;
+  bed_type?: string;
+  capacity?: number;
+  size_sqm?: number;
+  price_per_night?: number;
+  status?: string;
+  amenities_json?: string[];
+  attributes_json?: Record<string, any>;
+  display_order?: number;
+  translations?: RoomTranslation[];
+  media?: RoomMediaInfo[];
+}
+
+export const vrHotelRoomsApi = {
+  /**
+   * Get all rooms
+   */
+  getRooms: async (params?: {
+    skip?: number;
+    limit?: number;
+    room_type?: string;
+    status?: string;
+  }): Promise<Room[]> => {
+    const response = await vrHotelClient.get('/vr-hotel/rooms', { params });
+    return response.data;
+  },
+
+  /**
+   * Get specific room by ID
+   */
+  getRoom: async (roomId: number): Promise<Room> => {
+    const response = await vrHotelClient.get(`/vr-hotel/rooms/${roomId}`);
+    return response.data;
+  },
+
+  /**
+   * Create new room
+   */
+  createRoom: async (data: RoomCreate): Promise<Room> => {
+    const response = await vrHotelClient.post('/vr-hotel/rooms', data);
+    return response.data;
+  },
+
+  /**
+   * Update existing room
+   */
+  updateRoom: async (roomId: number, data: RoomUpdate): Promise<Room> => {
+    const response = await vrHotelClient.put(`/vr-hotel/rooms/${roomId}`, data);
+    return response.data;
+  },
+
+  /**
+   * Delete room
+   */
+  deleteRoom: async (roomId: number): Promise<void> => {
+    await vrHotelClient.delete(`/vr-hotel/rooms/${roomId}`);
+  }
+};
+
+// ==========================================
+// Export everything
+// ==========================================
+
 export default {
   settings: vrHotelSettingsApi,
   languages: vrLanguagesApi,
-  introduction: vrHotelIntroductionApi
+  introduction: vrHotelIntroductionApi,
+  rooms: vrHotelRoomsApi
 };
