@@ -6,6 +6,7 @@ Handles VR Hotel settings, contact, and SEO management
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
+from sqlalchemy.orm.attributes import flag_modified
 from pydantic import BaseModel
 
 from app.core.db import get_db
@@ -192,6 +193,8 @@ def update_vr_hotel_settings(
         if not settings.settings_json:
             settings.settings_json = {}
         settings.settings_json["pages"] = settings_in.pages
+        # Force SQLAlchemy to detect the change in JSON field
+        flag_modified(settings, 'settings_json')
     
     # Update or create SEO records
     if settings_in.seo:

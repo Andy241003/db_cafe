@@ -38,6 +38,7 @@ class RoomCreate(BaseModel):
     capacity: Optional[int] = None
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
+    vr_link: Optional[str] = None
     status: str = "available"
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None
@@ -53,6 +54,7 @@ class RoomUpdate(BaseModel):
     capacity: Optional[int] = None
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
+    vr_link: Optional[str] = None
     status: Optional[str] = None
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None
@@ -71,6 +73,7 @@ class RoomResponse(BaseModel):
     capacity: Optional[int] = None
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
+    vr_link: Optional[str] = None
     status: str
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None

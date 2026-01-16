@@ -22,10 +22,8 @@ class RoomStatus(str, PythonEnum):
     INACTIVE = "inactive"
 
 
-class DiningStatus(str, PythonEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    CLOSED = "closed"
+# DiningStatus enum removed - now using VARCHAR(20) to avoid SQLAlchemy enum caching issues
+# Valid values: 'active', 'inactive', 'closed'
 
 
 class FacilityStatus(str, PythonEnum):
@@ -148,6 +146,9 @@ class VRRoom(SQLModel, table=True):
     size_sqm: Optional[float] = Field(default=None, sa_column=Column(DECIMAL(10, 2)))
     price_per_night: Optional[float] = Field(default=None, sa_column=Column(DECIMAL(15, 2)))
     
+    # VR360 link for this room
+    vr_link: Optional[str] = Field(default=None, max_length=500)
+    
     # Status and attributes
     status: str = Field(default="available", max_length=20)
     amenities_json: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
@@ -196,8 +197,10 @@ class VRDining(SQLModel, table=True):
     cuisine_types: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
     capacity: Optional[int] = Field(default=None)
     operating_hours: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    vr_link: Optional[str] = Field(default=None, max_length=500)
     
-    status: DiningStatus = Field(default=DiningStatus.ACTIVE)
+    # Changed from ENUM to VARCHAR(20) to avoid SQLAlchemy enum caching issues
+    status: str = Field(default="active", max_length=20)  # active, inactive, closed
     attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     display_order: int = Field(default=0)
     
