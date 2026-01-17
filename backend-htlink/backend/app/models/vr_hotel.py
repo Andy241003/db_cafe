@@ -84,22 +84,24 @@ class VRHotelContact(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     property_id: int = Field(foreign_key="properties.id", index=True)
     
-    # Contact information
-    address: Optional[str] = Field(default=None, max_length=500)
+    # Display control
+    is_displaying: Optional[bool] = Field(default=True)
+    
+    # Basic contact information
     phone: Optional[str] = Field(default=None, max_length=50)
     email: Optional[str] = Field(default=None, max_length=100)
     website: Optional[str] = Field(default=None, max_length=255)
     
-    # Social media
-    facebook_url: Optional[str] = Field(default=None, max_length=255)
-    instagram_url: Optional[str] = Field(default=None, max_length=255)
-    youtube_url: Optional[str] = Field(default=None, max_length=255)
-    tripadvisor_url: Optional[str] = Field(default=None, max_length=255)
+    # Multi-language JSON fields
+    address_json: Optional[str] = Field(default=None, sa_column=Column(JSON))
+    social_media_json: Optional[str] = Field(default=None, sa_column=Column(JSON))
+    working_hours_json: Optional[str] = Field(default=None, sa_column=Column(JSON))
+    content_json: Optional[str] = Field(default=None, sa_column=Column(JSON))
     
-    # Location
-    map_latitude: Optional[float] = Field(default=None, sa_column=Column(DECIMAL(10, 8)))
-    map_longitude: Optional[float] = Field(default=None, sa_column=Column(DECIMAL(11, 8)))
-    google_map_url: Optional[str] = Field(default=None, max_length=512)
+    # Map & VR360
+    map_coordinates: Optional[str] = Field(default=None, max_length=100)
+    vr360_link: Optional[str] = Field(default=None, max_length=255)
+    vr_title: Optional[str] = Field(default=None, max_length=255)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)

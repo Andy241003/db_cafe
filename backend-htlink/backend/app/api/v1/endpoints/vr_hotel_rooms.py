@@ -139,6 +139,7 @@ def get_room_with_translations(session: Session, room_id: int) -> Optional[RoomR
         capacity=room.capacity,
         size_sqm=room.size_sqm,
         price_per_night=room.price_per_night,
+        vr_link=room.vr_link,
         status=room.status,
         amenities_json=room.amenities_json,
         attributes_json=room.attributes_json,

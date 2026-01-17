@@ -798,6 +798,36 @@ export const vrHotelServiceApi = {
   }
 };
 
+// ==========================================
+// Contact API
+// ==========================================
+
+export interface ContactData {
+  isDisplaying: boolean;
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: Record<string, string>;
+  socialMedia?: Record<string, string>;
+  mapCoordinates?: string;
+  workingHours?: Record<string, string>;
+  vr360Link?: string;
+  vrTitle?: string;
+  content?: Record<string, any>;
+}
+
+export const vrHotelContactApi = {
+  getContact: async (): Promise<ContactData> => {
+    const response = await vrHotelClient.get('/vr-hotel/contact');
+    return response.data;
+  },
+
+  updateContact: async (data: ContactData): Promise<ContactData> => {
+    const response = await vrHotelClient.put('/vr-hotel/contact', data);
+    return response.data;
+  }
+};
+
 export default {
   settings: vrHotelSettingsApi,
   languages: vrLanguagesApi,
@@ -807,5 +837,6 @@ export default {
   rooms: vrHotelRoomsApi,
   dining: vrHotelDiningApi,
   facilities: vrHotelFacilityApi,
-  services: vrHotelServiceApi
+  services: vrHotelServiceApi,
+  contact: vrHotelContactApi
 };
