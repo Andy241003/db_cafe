@@ -4,7 +4,7 @@ from app.api.v1.endpoints import (
     auth, plans, tenants, users, properties, features, features_test, posts, media,
     categories, events, settings, utils, locales, translations, property_categories,
     analytics, test_upload, property_posts, activity_logs, activity_test,
-    vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction, vr_hotel_policies, vr_hotel_rooms,
+    vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction, vr_hotel_policies, vr_hotel_rules, vr_hotel_rooms,
     vr_hotel_dining, vr_hotel_facility, vr_hotel_service
 )
 
@@ -36,6 +36,7 @@ api_router.include_router(vr_hotel_settings.router, prefix="/vr-hotel", tags=["v
 api_router.include_router(vr_hotel_languages.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_introduction.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_policies.router, prefix="/vr-hotel", tags=["vr-hotel"])
+api_router.include_router(vr_hotel_rules.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_rooms.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_dining.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_facility.router, prefix="/vr-hotel", tags=["vr-hotel"])

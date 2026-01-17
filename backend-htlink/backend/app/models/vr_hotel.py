@@ -438,6 +438,32 @@ class VRHotelPolicies(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default=None)
 
 
+class VRHotelRules(SQLModel, table=True):
+    """
+    VR Hotel House Rules page content with multi-language support
+    Stores all house rules content in a single JSON field for simplicity
+    """
+    __tablename__ = "vr_hotel_rules"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    property_id: int = Field(foreign_key="properties.id", index=True)
+    
+    # Display toggle
+    is_displaying: bool = Field(default=True)
+    
+    # VR360 settings
+    vr360_link: Optional[str] = Field(default=None, max_length=500)
+    vr_title: Optional[str] = Field(default=None, max_length=255)
+    
+    # Multi-language content stored as JSON
+    # Format: {"vi": {"title": "", "shortDescription": "", "detailedContent": ""}, "en": {...}}
+    content_json: Dict[str, Any] = Field(sa_column=Column(JSON))
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
 # ==========================================
 # Property Locales (VR Hotel Language Configuration)
 # ==========================================

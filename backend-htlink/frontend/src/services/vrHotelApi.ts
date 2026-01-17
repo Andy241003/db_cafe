@@ -369,6 +369,41 @@ export const vrHotelPoliciesApi = {
 };
 
 // ==========================================
+// Rules API
+// ==========================================
+
+export interface RulesContent {
+  title: string;
+  shortDescription: string;
+  detailedContent: string;
+}
+
+export interface RulesData {
+  isDisplaying: boolean;
+  content: Record<string, RulesContent>; // {locale: content}
+  vr360Link?: string;
+  vrTitle?: string;
+}
+
+export const vrHotelRulesApi = {
+  /**
+   * Get VR Hotel rules content
+   */
+  getRules: async (): Promise<RulesData> => {
+    const response = await vrHotelClient.get('/vr-hotel/rules');
+    return response.data;
+  },
+
+  /**
+   * Update VR Hotel rules content
+   */
+  updateRules: async (data: Partial<RulesData>): Promise<RulesData> => {
+    const response = await vrHotelClient.put('/vr-hotel/rules', data);
+    return response.data;
+  }
+};
+
+// ==========================================
 // Export everything
 // ==========================================
 
@@ -768,6 +803,7 @@ export default {
   languages: vrLanguagesApi,
   introduction: vrHotelIntroductionApi,
   policies: vrHotelPoliciesApi,
+  rules: vrHotelRulesApi,
   rooms: vrHotelRoomsApi,
   dining: vrHotelDiningApi,
   facilities: vrHotelFacilityApi,
