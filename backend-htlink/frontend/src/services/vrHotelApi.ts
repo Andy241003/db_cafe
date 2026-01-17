@@ -171,8 +171,9 @@ export const vrHotelSettingsApi = {
    */
   updatePageSettings: async (pageName: string, settings: VRPageSettings): Promise<VRHotelSettings> => {
     const currentSettings = await vrHotelSettingsApi.getSettings();
+    const currentPages = currentSettings.pages || {};
     const updatedPages = {
-      ...currentSettings.pages,
+      ...currentPages,
       [pageName]: settings
     };
     return vrHotelSettingsApi.updateSettings({ pages: updatedPages });
@@ -365,6 +366,7 @@ export interface Room {
   capacity?: number;
   size_sqm?: number;
   price_per_night?: number;
+  vr_link?: string;
   status: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
@@ -383,6 +385,7 @@ export interface RoomCreate {
   capacity?: number;
   size_sqm?: number;
   price_per_night?: number;
+  vr_link?: string;
   status?: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
@@ -399,6 +402,7 @@ export interface RoomUpdate {
   capacity?: number;
   size_sqm?: number;
   price_per_night?: number;
+  vr_link?: string;
   status?: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
@@ -454,6 +458,101 @@ export const vrHotelRoomsApi = {
 };
 
 // ==========================================
+// Dining Types & API
+// ==========================================
+
+export interface DiningTranslation {
+  locale: string;
+  name: string;
+  description?: string;
+}
+
+export interface DiningMediaInfo {
+  media_id: number;
+  is_vr360?: boolean;
+  is_primary?: boolean;
+  sort_order?: number;
+}
+
+export interface Dining {
+  id: number;
+  tenant_id: number;
+  property_id: number;
+  code: string;
+  dining_type?: string;
+  vr_link?: string;
+  status: string;
+  display_order: number;
+  translations: Record<string, DiningTranslation>;
+  media: DiningMediaInfo[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface DiningCreate {
+  code: string;
+  dining_type?: string;
+  vr_link?: string;
+  display_order?: number;
+  translations: DiningTranslation[];
+  media: DiningMediaInfo[];
+}
+
+export interface DiningUpdate {
+  code?: string;
+  dining_type?: string;
+  vr_link?: string;
+  display_order?: number;
+  translations?: DiningTranslation[];
+  media?: DiningMediaInfo[];
+}
+
+export const vrHotelDiningApi = {
+  /**
+   * Get all dining venues
+   */
+  getDinings: async (params?: {
+    skip?: number;
+    limit?: number;
+    dining_type?: string;
+  }): Promise<Dining[]> => {
+    const response = await vrHotelClient.get('/vr-hotel/dining', { params });
+    return response.data;
+  },
+
+  /**
+   * Get specific dining venue by ID
+   */
+  getDining: async (diningId: number): Promise<Dining> => {
+    const response = await vrHotelClient.get(`/vr-hotel/dining/${diningId}`);
+    return response.data;
+  },
+
+  /**
+   * Create new dining venue
+   */
+  createDining: async (data: DiningCreate): Promise<Dining> => {
+    const response = await vrHotelClient.post('/vr-hotel/dining', data);
+    return response.data;
+  },
+
+  /**
+   * Update existing dining venue
+   */
+  updateDining: async (diningId: number, data: DiningUpdate): Promise<Dining> => {
+    const response = await vrHotelClient.put(`/vr-hotel/dining/${diningId}`, data);
+    return response.data;
+  },
+
+  /**
+   * Delete dining venue
+   */
+  deleteDining: async (diningId: number): Promise<void> => {
+    await vrHotelClient.delete(`/vr-hotel/dining/${diningId}`);
+  }
+};
+
+// ==========================================
 // Export everything
 // ==========================================
 
@@ -461,5 +560,6 @@ export default {
   settings: vrHotelSettingsApi,
   languages: vrLanguagesApi,
   introduction: vrHotelIntroductionApi,
-  rooms: vrHotelRoomsApi
+  rooms: vrHotelRoomsApi,
+  dining: vrHotelDiningApi
 };

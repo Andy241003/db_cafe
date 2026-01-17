@@ -38,7 +38,7 @@ const VRHotelLayout: React.FC = () => {
       case '/settings':
         return { title: 'Settings', breadcrumb: 'VR Hotel / Settings' };
       default:
-        return { title: 'Dashboard', breadcrumb: 'VR Hotel / Dashboard' };
+        return { title: 'Services', breadcrumb: 'VR Hotel / Services' };
     }
   };
 

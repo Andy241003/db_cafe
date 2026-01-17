@@ -1,19 +1,19 @@
 import {
-  faCheckCircle,
-  faEdit,
-  faEye,
-  faFlag,
-  faImages,
-  faInfoCircle,
-  faPlay,
-  faPlus,
-  faRulerCombined,
-  faSave,
-  faTag,
-  faTimes,
-  faTrash,
-  faUsers,
-  faVrCardboard
+    faCheckCircle,
+    faEdit,
+    faEye,
+    faFlag,
+    faImages,
+    faInfoCircle,
+    faPlay,
+    faPlus,
+    faRulerCombined,
+    faSave,
+    faTag,
+    faTimes,
+    faTrash,
+    faUsers,
+    faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -34,6 +34,7 @@ const VRHotelRooms: React.FC = () => {
   const [newAmenity, setNewAmenity] = useState('');
   const [roomsVR360Link, setRoomsVR360Link] = useState('');
   const [roomsVRTitle, setRoomsVRTitle] = useState('');
+  const [isSavingVR, setIsSavingVR] = useState(false);
   
   const [formData, setFormData] = useState<{
     room_code: string;
@@ -68,25 +69,6 @@ const VRHotelRooms: React.FC = () => {
   useEffect(() => {
     loadLocalesAndRooms();
   }, []);
-
-  // Auto-save VR360 settings when changed (with debounce)
-  useEffect(() => {
-    const saveTimer = setTimeout(async () => {
-      if (roomsVR360Link || roomsVRTitle) {
-        try {
-          await vrHotelSettingsApi.updatePageSettings('rooms', {
-            vr360_link: roomsVR360Link,
-            vr_title: roomsVRTitle
-          });
-          toast.success('Đã lưu cài đặt VR360', { duration: 2000 });
-        } catch (error) {
-          console.error('Failed to auto-save VR settings:', error);
-        }
-      }
-    }, 1500); // Debounce 1.5s
-    
-    return () => clearTimeout(saveTimer);
-  }, [roomsVR360Link, roomsVRTitle]);
 
   const loadLocalesAndRooms = async () => {
     setIsLoading(true);
@@ -134,6 +116,24 @@ const VRHotelRooms: React.FC = () => {
     } catch (error) {
       console.error('Failed to load rooms:', error);
       toast.error('Không thể tải danh sách phòng');
+    }
+  };
+
+  const saveVRSettings = async () => {
+    const loadingToast = toast.loading('Đang lưu cài đặt VR360...');
+    setIsSavingVR(true);
+    try {
+      await vrHotelSettingsApi.updatePageSettings('rooms', {
+        vr360_link: roomsVR360Link,
+        vr_title: roomsVRTitle
+      });
+      toast.success('Đã lưu cài đặt VR360', { id: loadingToast, duration: 2000 });
+    } catch (error: any) {
+      console.error('Failed to save VR settings:', error);
+      const errorMsg = error?.response?.data?.detail || 'Lỗi lưu cài đặt VR360';
+      toast.error(errorMsg, { id: loadingToast, duration: 3000 });
+    } finally {
+      setIsSavingVR(false);
     }
   };
 
@@ -229,7 +229,7 @@ const VRHotelRooms: React.FC = () => {
       capacity: room.capacity || 2,
       size_sqm: room.size_sqm || 0,
       price_per_night: room.price_per_night || 0,
-      vr_link: room.attributes_json?.vr_link || '',
+      vr_link: room.vr_link || '',
       amenities_json: room.amenities_json || [],
       translations,
       images
@@ -317,9 +317,6 @@ const VRHotelRooms: React.FC = () => {
         })
       );
 
-      // Store VR link in attributes_json
-      const attributes_json = formData.vr_link ? { vr_link: formData.vr_link } : undefined;
-
       if (editingRoom) {
         // Update existing room
         const updateData: RoomUpdate = {
@@ -328,8 +325,8 @@ const VRHotelRooms: React.FC = () => {
           capacity: formData.capacity,
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
+          vr_link: formData.vr_link || undefined,
           amenities_json: formData.amenities_json,
-          attributes_json,
           translations,
           media
         };
@@ -343,8 +340,8 @@ const VRHotelRooms: React.FC = () => {
           capacity: formData.capacity,
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
+          vr_link: formData.vr_link || undefined,
           amenities_json: formData.amenities_json,
-          attributes_json,
           translations,
           media
         };
@@ -513,7 +510,7 @@ const VRHotelRooms: React.FC = () => {
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
               value={roomsVR360Link}
               onChange={(e) => setRoomsVR360Link(e.target.value)}
-              disabled={!isDisplaying}
+              disabled={!isDisplaying || isSavingVR}
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
@@ -529,8 +526,19 @@ const VRHotelRooms: React.FC = () => {
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
               value={roomsVRTitle}
               onChange={(e) => setRoomsVRTitle(e.target.value)}
-              disabled={!isDisplaying}
+              disabled={!isDisplaying || isSavingVR}
             />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={saveVRSettings}
+              disabled={!isDisplaying || isSavingVR}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <FontAwesomeIcon icon={faSave} />
+              {isSavingVR ? 'Đang lưu...' : 'Lưu'}
+            </button>
           </div>
 
           {roomsVR360Link && (
@@ -546,6 +554,7 @@ const VRHotelRooms: React.FC = () => {
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"
+                    allow="xr-spatial-tracking; gyroscope; accelerometer"
                   />
                 </div>
               </div>
@@ -588,7 +597,7 @@ const VRHotelRooms: React.FC = () => {
             </div>
           ) : (
             rooms.map(room => {
-              const hasVR = room.attributes_json?.vr_link;
+              const hasVR = room.vr_link;
               return (
                 <div key={room.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
                   <div className="flex-1">
@@ -770,7 +779,7 @@ const VRHotelRooms: React.FC = () => {
 
                 {/* VR360 Link */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                     <FontAwesomeIcon icon={faVrCardboard} className="text-purple-600" />
                     Link VR360 Panorama
                   </label>
@@ -853,7 +862,7 @@ const VRHotelRooms: React.FC = () => {
 
                 {/* Room Images */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                     <FontAwesomeIcon icon={faImages} />
                     Hình ảnh phòng
                   </label>

@@ -9,6 +9,7 @@ export interface PropertyLocale {
   tenant_id: number;
   property_id: number;
   locale_code: string;
+  locale_name?: string;
   is_default: boolean;
   is_active: boolean;
 }

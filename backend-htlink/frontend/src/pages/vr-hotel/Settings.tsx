@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { mediaApi } from '../../services/mediaApi';
-import { vrHotelPropertiesApi, vrHotelSettingsApi, type VRHotelSettings } from '../../services/vrHotelApi';
+import { vrHotelPropertiesApi, vrHotelSettingsApi } from '../../services/vrHotelApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const VRHotelSettings: React.FC = () => {

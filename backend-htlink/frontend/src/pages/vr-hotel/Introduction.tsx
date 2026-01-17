@@ -1,5 +1,4 @@
 import {
-    faCheckCircle,
     faEye,
     faFlag,
     faInfoCircle,
@@ -29,7 +28,6 @@ interface IntroductionData {
 
 const Introduction: React.FC = () => {
   const [activeLanguage, setActiveLanguage] = useState<string>('vi');
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [availableLocales, setAvailableLocales] = useState<PropertyLocale[]>([]);
   const [localeNames, setLocaleNames] = useState<Record<string, Locale>>({});
@@ -168,6 +166,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
 
   const handleToggleDisplay = () => {
     setFormData(prev => ({ ...prev, isDisplaying: !prev.isDisplaying }));
+    toast.success('Display status updated!');
   };
 
   const handleInputChange = (
@@ -198,19 +197,19 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
       await vrHotelIntroductionApi.updateIntroduction(formData);
       
       setOriginalData(formData);
-      setShowSuccessAlert(true);
-      setTimeout(() => setShowSuccessAlert(false), 3000);
+      toast.success('Introduction saved successfully!');
     } catch (error) {
       console.error('Error saving introduction:', error);
-      alert('Có lỗi xảy ra khi lưu. Vui lòng thử lại.');
+      toast.error('Failed to save introduction. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleReset = () => {
-    if (window.confirm('Bạn có chắc muốn hủy bỏ các thay đổi chưa lưu?')) {
+    if (window.confirm('Are you sure you want to discard unsaved changes?')) {
       setFormData(originalData);
+      toast.success('Changes discarded');
     }
   };
 
@@ -218,7 +217,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
     if (formData.vr360Link) {
       window.open(formData.vr360Link, '_blank', 'width=1200,height=800');
     } else {
-      alert('Vui lòng nhập link VR360 trước khi xem trước.');
+      toast.error('Please enter VR360 link before preview.');
     }
   };
 
@@ -238,18 +237,10 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
 
   return (
     <div className="space-y-6">
-      {/* Success Alert */}
-      {showSuccessAlert && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-          <FontAwesomeIcon icon={faCheckCircle} className="text-green-600 text-xl" />
-          <span className="text-green-800 font-medium">Đã lưu thay đổi thành công!</span>
-        </div>
-      )}
-
       {/* Display Status Card */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">Display Status</h2>
+          <h2 className="text-xl font-bold text-slate-800">Display Status - Introduction Section</h2>
             <div className="flex items-center gap-3">
             <span className={`text-sm font-medium ${formData.isDisplaying ? 'text-green-600' : 'text-slate-400'}`}>
                 {formData.isDisplaying ? 'Displaying' : 'Hidden'}
@@ -268,7 +259,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
             <FontAwesomeIcon icon={faInfoCircle} className="text-blue-600 text-xl mt-0.5" />
             <span className="text-blue-800 text-sm">
-              Khi tắt hiển thị, phần "Introduction" sẽ không xuất hiện trên website và tất cả các trường nhập liệu sẽ bị vô hiệu hóa.
+              When display is turned off, the "Introduction" section will not appear on the website and all input fields will be disabled.
             </span>
           </div>
       </div>
@@ -400,6 +391,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"
+                    allow="xr-spatial-tracking; gyroscope; accelerometer"
                   />
                 </div>
               ) : (

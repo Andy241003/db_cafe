@@ -24,6 +24,7 @@ import VRHotelOffers from './pages/vr-hotel/Offers';
 import VRHotelPolicies from './pages/vr-hotel/Policies';
 import VRHotelRooms from './pages/vr-hotel/Rooms';
 import VRHotelRules from './pages/vr-hotel/Rules';
+import VRHotelServices from './pages/vr-hotel/Services';
 import VRHotelSettings from './pages/vr-hotel/Settings';
 import VRHotelLayout from './pages/vr-hotel/VRHotelLayout';
 
@@ -144,6 +145,7 @@ function App() {
                       <Route element={<VRHotelLayout />}>
                         <Route path="" element={<VRHotelDashboard />} />
                         <Route path="introduction" element={<VRHotelIntroduction />} />
+                        <Route path="services" element={<VRHotelServices />} />
                         <Route path="rooms" element={<VRHotelRooms />} />
                         <Route path="dining" element={<VRHotelDining />} />
                         <Route path="offers" element={<VRHotelOffers />} />

@@ -141,6 +141,7 @@ const VRHotelSidebar: React.FC = () => {
       links: [
         { path: '/vr-hotel', icon: faHome, label: 'Dashboard', visible: true },
         { path: '/vr-hotel/introduction', icon: faInfoCircle, label: 'Introduction', visible: true },
+        { path: '/vr-hotel/services', icon: faShieldAlt, label: 'Services', visible: true },
         { path: '/vr-hotel/rooms', icon: faBed, label: 'Rooms', visible: true },
         { path: '/vr-hotel/dining', icon: faUtensils, label: 'Dining', visible: true },
         { path: '/vr-hotel/offers', icon: faTicket, label: 'Offers', visible: true },
