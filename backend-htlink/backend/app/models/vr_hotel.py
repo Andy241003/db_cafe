@@ -26,10 +26,8 @@ class RoomStatus(str, PythonEnum):
 # Valid values: 'active', 'inactive', 'closed'
 
 
-class FacilityStatus(str, PythonEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    MAINTENANCE = "maintenance"
+# FacilityStatus enum removed - now using VARCHAR(20) to avoid SQLAlchemy enum caching issues
+# Valid values: 'active', 'inactive', 'maintenance'
 
 
 class OfferDiscountType(str, PythonEnum):
@@ -243,8 +241,10 @@ class VRFacility(SQLModel, table=True):
     code: str = Field(max_length=50)
     facility_type: Optional[str] = Field(default=None, max_length=50)  # pool, gym, spa, meeting_room
     operating_hours: Optional[str] = Field(default=None, max_length=255)
+    vr_link: Optional[str] = Field(default=None, max_length=500)
     
-    status: FacilityStatus = Field(default=FacilityStatus.ACTIVE)
+    # Changed from ENUM to VARCHAR(20) to avoid SQLAlchemy enum caching issues
+    status: str = Field(default="active", max_length=20)  # active, inactive, maintenance
     attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     display_order: int = Field(default=0)
     
@@ -266,6 +266,52 @@ class VRFacilityMedia(SQLModel, table=True):
     __tablename__ = "vr_facility_media"
     
     facility_id: int = Field(foreign_key="vr_facilities.id", primary_key=True)
+    media_id: int = Field(foreign_key="media_files.id", primary_key=True)
+    
+    is_vr360: bool = Field(default=False)
+    is_primary: bool = Field(default=False)
+    sort_order: int = Field(default=100)
+
+
+# ==========================================
+# VR Services
+# ==========================================
+
+class VRService(SQLModel, table=True):
+    __tablename__ = "vr_services"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    property_id: int = Field(foreign_key="properties.id", index=True)
+    
+    code: str = Field(max_length=50)
+    service_type: Optional[str] = Field(default=None, max_length=50)
+    availability: Optional[str] = Field(default=None, max_length=255)
+    price_info: Optional[str] = Field(default=None, max_length=255)
+    vr_link: Optional[str] = Field(default=None, max_length=500)
+    
+    status: str = Field(default="active", max_length=20)
+    attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    display_order: int = Field(default=0)
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class VRServiceTranslation(SQLModel, table=True):
+    __tablename__ = "vr_service_translations"
+    
+    service_id: int = Field(foreign_key="vr_services.id", primary_key=True)
+    locale: str = Field(foreign_key="locales.code", primary_key=True, max_length=10)
+    
+    name: str = Field(max_length=255)
+    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class VRServiceMedia(SQLModel, table=True):
+    __tablename__ = "vr_service_media"
+    
+    service_id: int = Field(foreign_key="vr_services.id", primary_key=True)
     media_id: int = Field(foreign_key="media_files.id", primary_key=True)
     
     is_vr360: bool = Field(default=False)
@@ -346,6 +392,32 @@ class VRHotelIntroduction(SQLModel, table=True):
     Stores all introduction content in a single JSON field for simplicity
     """
     __tablename__ = "vr_hotel_introductions"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    property_id: int = Field(foreign_key="properties.id", index=True)
+    
+    # Display toggle
+    is_displaying: bool = Field(default=True)
+    
+    # VR360 settings
+    vr360_link: Optional[str] = Field(default=None, max_length=500)
+    vr_title: Optional[str] = Field(default=None, max_length=255)
+    
+    # Multi-language content stored as JSON
+    # Format: {"vi": {"title": "", "shortDescription": "", "detailedContent": ""}, "en": {...}}
+    content_json: Dict[str, Any] = Field(sa_column=Column(JSON))
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class VRHotelPolicies(SQLModel, table=True):
+    """
+    VR Hotel Policies & Rules page content with multi-language support
+    Stores all policies content in a single JSON field for simplicity
+    """
+    __tablename__ = "vr_hotel_policies"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)

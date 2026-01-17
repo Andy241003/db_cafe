@@ -334,6 +334,41 @@ export const vrHotelIntroductionApi = {
 };
 
 // ==========================================
+// Policies & Rules API
+// ==========================================
+
+export interface PoliciesContent {
+  title: string;
+  shortDescription: string;
+  detailedContent: string;
+}
+
+export interface PoliciesData {
+  isDisplaying: boolean;
+  content: Record<string, PoliciesContent>; // {locale: content}
+  vr360Link?: string;
+  vrTitle?: string;
+}
+
+export const vrHotelPoliciesApi = {
+  /**
+   * Get VR Hotel policies content
+   */
+  getPolicies: async (): Promise<PoliciesData> => {
+    const response = await vrHotelClient.get('/vr-hotel/policies');
+    return response.data;
+  },
+
+  /**
+   * Update VR Hotel policies content
+   */
+  updatePolicies: async (data: Partial<PoliciesData>): Promise<PoliciesData> => {
+    const response = await vrHotelClient.put('/vr-hotel/policies', data);
+    return response.data;
+  }
+};
+
+// ==========================================
 // Export everything
 // ==========================================
 
@@ -553,13 +588,188 @@ export const vrHotelDiningApi = {
 };
 
 // ==========================================
-// Export everything
+// Facilities API
 // ==========================================
+
+export interface FacilityTranslation {
+  locale: string;
+  name: string;
+  description?: string;
+}
+
+export interface Facility {
+  id: number;
+  tenant_id: number;
+  property_id: number;
+  code: string;
+  facility_type?: string;
+  operating_hours?: string;
+  vr_link?: string;
+  status: string;
+  display_order: number;
+  translations: Record<string, { name: string; description: string }>;
+  media?: Array<{ media_id: number; is_vr360: boolean; is_primary: boolean; sort_order: number }>;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface FacilityCreate {
+  code: string;
+  facility_type?: string;
+  operating_hours?: string;
+  vr_link?: string;
+  display_order?: number;
+  translations: FacilityTranslation[];
+  media: Array<{ media_id: number; is_vr360: boolean; is_primary: boolean; sort_order: number }>;
+}
+
+export interface FacilityUpdate extends FacilityCreate {}
+
+export const vrHotelFacilityApi = {
+  getFacilities: async (params?: { facility_type?: string; skip?: number; limit?: number }): Promise<Facility[]> => {
+    const propertyId = localStorage.getItem('current_property_id');
+    const response = await vrHotelClient.get('/vr-hotel/facilities', {
+      params,
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  getFacility: async (facilityId: number): Promise<Facility> => {
+    const propertyId = localStorage.getItem('current_property_id');
+    const response = await vrHotelClient.get(`/vr-hotel/facilities/${facilityId}`, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  createFacility: async (data: FacilityCreate): Promise<Facility> => {
+    const propertyId = localStorage.getItem('current_property_id');
+    const response = await vrHotelClient.post('/vr-hotel/facilities', data, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  updateFacility: async (facilityId: number, data: FacilityUpdate): Promise<Facility> => {
+    const propertyId = localStorage.getItem('current_property_id');
+    const response = await vrHotelClient.put(`/vr-hotel/facilities/${facilityId}`, data, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  deleteFacility: async (facilityId: number): Promise<void> => {
+    const propertyId = localStorage.getItem('current_property_id');
+    await vrHotelClient.delete(`/vr-hotel/facilities/${facilityId}`, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+  }
+};
+
+// ==========================================
+// Services API
+// ==========================================
+
+export interface ServiceTranslation {
+  locale: string;
+  name: string;
+  description?: string;
+  locale_name?: string;
+}
+
+export interface ServiceMediaInfo {
+  media_id: number;
+  file_path: string;
+  thumbnail_path?: string;
+  is_vr360?: boolean;
+  is_primary?: boolean;
+}
+
+export interface Service {
+  id: number;
+  code: string;
+  service_type?: string;
+  availability?: string;
+  price_info?: string;
+  vr_link?: string;
+  status: string;
+  translations: { [key: string]: ServiceTranslation };
+  media: ServiceMediaInfo[];
+  display_order: number;
+}
+
+export interface ServiceCreate {
+  code: string;
+  service_type?: string;
+  availability?: string;
+  price_info?: string;
+  vr_link?: string;
+  status?: string;
+  translations: ServiceTranslation[];
+  media_ids?: number[];
+  primary_media_id?: number;
+  vr360_media_ids?: number[];
+  display_order?: number;
+}
+
+export interface ServiceUpdate {
+  code?: string;
+  service_type?: string;
+  availability?: string;
+  price_info?: string;
+  vr_link?: string;
+  status?: string;
+  translations?: ServiceTranslation[];
+  media_ids?: number[];
+  primary_media_id?: number;
+  vr360_media_ids?: number[];
+  display_order?: number;
+}
+
+export const vrHotelServiceApi = {
+  getServices: async (propertyId: number): Promise<Service[]> => {
+    const response = await vrHotelClient.get('/vr-hotel/services', {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  getService: async (propertyId: number, serviceId: number): Promise<Service> => {
+    const response = await vrHotelClient.get(`/vr-hotel/services/${serviceId}`, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  createService: async (propertyId: number, serviceData: ServiceCreate): Promise<Service> => {
+    const response = await vrHotelClient.post('/vr-hotel/services', serviceData, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  updateService: async (propertyId: number, serviceId: number, serviceData: ServiceUpdate): Promise<Service> => {
+    const response = await vrHotelClient.put(`/vr-hotel/services/${serviceId}`, serviceData, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+    return response.data;
+  },
+
+  deleteService: async (propertyId: number, serviceId: number): Promise<void> => {
+    await vrHotelClient.delete(`/vr-hotel/services/${serviceId}`, {
+      headers: { 'X-Property-Id': propertyId }
+    });
+  }
+};
 
 export default {
   settings: vrHotelSettingsApi,
   languages: vrLanguagesApi,
   introduction: vrHotelIntroductionApi,
+  policies: vrHotelPoliciesApi,
   rooms: vrHotelRoomsApi,
-  dining: vrHotelDiningApi
+  dining: vrHotelDiningApi,
+  facilities: vrHotelFacilityApi,
+  services: vrHotelServiceApi
 };

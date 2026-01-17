@@ -465,7 +465,7 @@ from app.models.property_posts import (
 # Import VR Hotel models
 from app.models.vr_hotel import (
     # Enums
-    RoomStatus, FacilityStatus, OfferDiscountType, OfferStatus, VRContentType,
+    RoomStatus, OfferDiscountType, OfferStatus, VRContentType,
     # Settings models
     VRHotelSettings, VRHotelContact, VRHotelSEO,
     # Room models
@@ -497,7 +497,7 @@ __all__ = [
     "PropertyPost", "PropertyPostTranslation",
     "PropertyPostCreate", "PropertyPostUpdate", "PropertyPostRead", "PropertyPostTranslationRead",
     # VR Hotel models
-    "RoomStatus", "FacilityStatus", "OfferDiscountType", "OfferStatus", "VRContentType",
+    "RoomStatus", "OfferDiscountType", "OfferStatus", "VRContentType",
     "VRHotelSettings", "VRHotelContact", "VRHotelSEO",
     "VRRoom", "VRRoomTranslation", "VRRoomMedia",
     "VRDining", "VRDiningTranslation", "VRDiningMedia",

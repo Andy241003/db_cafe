@@ -1,30 +1,101 @@
 import {
-    faEye,
-    faInfoCircle,
-    faPlay,
-    faPlus,
-    faSave,
-    faVrCardboard
+  faEdit,
+  faEye,
+  faFlag,
+  faImages,
+  faInfoCircle,
+  faPlay,
+  faPlus,
+  faSave,
+  faTimes,
+  faTrash,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { mediaApi } from '../../services/mediaApi';
 import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
-import { vrHotelSettingsApi } from '../../services/vrHotelApi';
+import { vrHotelFacilityApi, vrHotelSettingsApi } from '../../services/vrHotelApi';
+
+interface FacilityTranslation {
+  locale: string;
+  name: string;
+  description?: string;
+}
+
+interface Facility {
+  id: number;
+  tenant_id: number;
+  property_id: number;
+  code: string;
+  facility_type?: string;
+  operating_hours?: string;
+  vr_link?: string;
+  status: string;
+  display_order: number;
+  translations: Record<string, { name: string; description: string }>;
+  media?: Array<{ media_id: number; is_vr360: boolean; is_primary: boolean; sort_order: number }>;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface FacilityCreate {
+  code: string;
+  facility_type?: string;
+  operating_hours?: string;
+  vr_link?: string;
+  display_order?: number;
+  translations: FacilityTranslation[];
+  media: Array<{ media_id: number; is_vr360: boolean; is_primary: boolean; sort_order: number }>;
+}
+
+interface FacilityUpdate extends FacilityCreate {}
 
 const VRHotelFacilities: React.FC = () => {
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [isDisplaying, setIsDisplaying] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [currentLang, setCurrentLang] = useState<string>('vi');
+  const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [availableLocales, setAvailableLocales] = useState<PropertyLocale[]>([]);
   const [facilitiesVR360Link, setFacilitiesVR360Link] = useState('');
   const [facilitiesVRTitle, setFacilitiesVRTitle] = useState('');
   const [isSavingVR, setIsSavingVR] = useState(false);
+  
+  const [formData, setFormData] = useState<{
+    code: string;
+    facility_type: string;
+    operating_hours: string;
+    vr_link: string;
+    translations: Record<string, { name: string; description: string }>;
+    images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
+  }>({
+    code: '',
+    facility_type: 'pool',
+    operating_hours: '',
+    vr_link: '',
+    translations: {},
+    images: []
+  });
+
+  const facilityTypes = [
+    { value: 'pool', label: 'Swimming Pool' },
+    { value: 'gym', label: 'Gym / Fitness Center' },
+    { value: 'spa', label: 'Spa' },
+    { value: 'meeting_room', label: 'Meeting Room' },
+    { value: 'business_center', label: 'Business Center' },
+    { value: 'parking', label: 'Parking' },
+    { value: 'other', label: 'Other' }
+  ];
 
   useEffect(() => {
-    loadLocales();
+    loadLocalesAndFacilities();
   }, []);
 
-  const loadLocales = async () => {
+  const loadLocalesAndFacilities = async () => {
     setIsLoading(true);
     try {
       const propertyId = localStorage.getItem('current_property_id');
@@ -33,22 +104,295 @@ const VRHotelFacilities: React.FC = () => {
         return;
       }
 
+      // Load available locales
       const locales = await propertyLocalesApi.getLocales(parseInt(propertyId));
       const activeLocales = locales.filter(l => l.is_active);
       setAvailableLocales(activeLocales);
       
-      // Load VR page settings from database
+      const defaultLocale = activeLocales.find(l => l.is_default);
+      if (defaultLocale) {
+        setCurrentLang(defaultLocale.locale_code);
+      } else if (activeLocales.length > 0) {
+        setCurrentLang(activeLocales[0].locale_code);
+      }
+
+      // Load facilities
+      await loadFacilities();
+      
+      // Load VR settings
       const vrSettings = await vrHotelSettingsApi.getPageSettings('facilities');
       if (vrSettings) {
         setFacilitiesVR360Link(vrSettings.vr360_link || '');
         setFacilitiesVRTitle(vrSettings.vr_title || '');
       }
     } catch (error) {
-      console.error('Error loading locales:', error);
+      console.error('Error loading data:', error);
       toast.error('Failed to load data');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadFacilities = async () => {
+    try {
+      const data = await vrHotelFacilityApi.getFacilities();
+      setFacilities(data);
+    } catch (error) {
+      console.error('Failed to load facilities:', error);
+      toast.error('Failed to load facilities');
+    }
+  };
+
+  const addFacility = () => {
+    setEditingFacility(null);
+    const initialTranslations: Record<string, { name: string; description: string }> = {};
+    availableLocales.forEach(locale => {
+      initialTranslations[locale.locale_code] = { name: '', description: '' };
+    });
+    setFormData({
+      code: '',
+      facility_type: 'pool',
+      operating_hours: '',
+      vr_link: '',
+      translations: initialTranslations,
+      images: []
+    });
+    setCurrentLang(availableLocales[0]?.locale_code || 'vi');
+    setShowModal(true);
+  };
+
+  const editFacility = async (facility: Facility) => {
+    setEditingFacility(facility);
+    
+    const translations: Record<string, { name: string; description: string }> = {};
+    availableLocales.forEach(locale => {
+      const existingTrans = facility.translations[locale.locale_code];
+      translations[locale.locale_code] = {
+        name: existingTrans?.name || '',
+        description: existingTrans?.description || ''
+      };
+    });
+    
+    const images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }> = [];
+    
+    if (facility.media && facility.media.length > 0) {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const token = localStorage.getItem('access_token');
+        const tenantCode = localStorage.getItem('tenant_code');
+        
+        const imagePromises = facility.media.map(async (m) => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/media/${m.media_id}/download`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-Tenant-Code': tenantCode || ''
+              }
+            });
+            
+            if (!response.ok) return null;
+            
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            return {
+              url,
+              isPrimary: m.is_primary || false,
+              media_id: m.media_id
+            };
+          } catch (err) {
+            console.error(`Error loading image ${m.media_id}:`, err);
+            return null;
+          }
+        });
+        
+        const loadedImages = await Promise.all(imagePromises);
+        images.push(...loadedImages.filter(img => img !== null));
+        
+      } catch (error) {
+        console.error('Failed to load facility images:', error);
+        toast.error('Failed to load facility images');
+      }
+    }
+    
+    setFormData({
+      code: facility.code,
+      facility_type: facility.facility_type || 'pool',
+      operating_hours: facility.operating_hours || '',
+      vr_link: facility.vr_link || '',
+      translations,
+      images
+    });
+    setShowModal(true);
+  };
+
+  const deleteFacility = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this facility?')) {
+      try {
+        await vrHotelFacilityApi.deleteFacility(id);
+        toast.success('Facility deleted successfully!');
+        loadFacilities();
+      } catch (error) {
+        console.error('Failed to delete facility:', error);
+        toast.error('Failed to delete facility');
+      }
+    }
+  };
+
+  const closeModal = () => {
+    if (window.confirm('Are you sure you want to close? Unsaved changes will be lost.')) {
+      setShowModal(false);
+      setEditingFacility(null);
+    }
+  };
+
+  const saveFacility = async () => {
+    const missingNames = availableLocales.filter(
+      locale => !formData.translations[locale.locale_code]?.name?.trim()
+    );
+    
+    if (missingNames.length > 0) {
+      toast.error(`Please enter facility name for: ${missingNames.map(l => l.locale_name || l.locale_code).join(', ')}`);
+      return;
+    }
+
+    if (!formData.code.trim()) {
+      toast.error('Please enter facility code');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      
+      // Upload new images
+      const mediaIds: number[] = [];
+      const newImagesToUpload = (formData.images || []).filter(img => img.file);
+      
+      if (newImagesToUpload.length > 0) {
+        toast.loading('Uploading images...', { id: 'upload' });
+        try {
+          const uploadResults = await mediaApi.uploadFiles(
+            newImagesToUpload.map(img => img.file!),
+            'image'
+          );
+          mediaIds.push(...uploadResults.map(r => r.id));
+          toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error('Failed to upload images', { id: 'upload' });
+          setIsSaving(false);
+          return;
+        }
+      }
+      
+      mediaIds.push(...(formData.images || []).filter(img => img.media_id).map(img => img.media_id!));
+      
+      const media = mediaIds.map((media_id, index) => ({
+        media_id,
+        is_vr360: false,
+        is_primary: index === (formData.images || []).findIndex(img => img.isPrimary),
+        sort_order: index * 10
+      }));
+      
+      const translations: FacilityTranslation[] = Object.entries(formData.translations).map(
+        ([locale, trans]) => ({
+          locale,
+          name: trans.name,
+          description: trans.description || undefined
+        })
+      );
+
+      if (editingFacility) {
+        const updateData: FacilityUpdate = {
+          code: formData.code,
+          facility_type: formData.facility_type,
+          operating_hours: formData.operating_hours || undefined,
+          vr_link: formData.vr_link || undefined,
+          translations,
+          media
+        };
+        await vrHotelFacilityApi.updateFacility(editingFacility.id, updateData);
+        toast.success('Facility updated successfully!');
+      } else {
+        const createData: FacilityCreate = {
+          code: formData.code,
+          facility_type: formData.facility_type,
+          operating_hours: formData.operating_hours || undefined,
+          vr_link: formData.vr_link || undefined,
+          translations,
+          media
+        };
+        await vrHotelFacilityApi.createFacility(createData);
+        toast.success('New facility added successfully!');
+      }
+      
+      setShowModal(false);
+      setEditingFacility(null);
+      await loadFacilities();
+    } catch (error: any) {
+      console.error('Failed to save facility:', error);
+      const message = error?.response?.data?.detail || 'Failed to save facility';
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const handleTranslationChange = (locale: string, field: 'name' | 'description', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      translations: {
+        ...prev.translations,
+        [locale]: {
+          ...prev.translations[locale],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages = Array.from(files).map(file => ({
+      file,
+      url: URL.createObjectURL(file),
+      isPrimary: (formData.images || []).length === 0
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...(prev.images || []), ...newImages]
+    }));
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => {
+      const newImages = (prev.images || []).filter((_, i) => i !== index);
+      if (newImages.length > 0 && !newImages.some(img => img.isPrimary)) {
+        newImages[0].isPrimary = true;
+      }
+      return { ...prev, images: newImages };
+    });
+  };
+
+  const setPrimaryImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: (prev.images || []).map((img, i) => ({
+        ...img,
+        isPrimary: i === index
+      }))
+    }));
+  };
+
+  const getFacilityName = (facility: Facility, locale: string = 'vi') => {
+    return facility.translations[locale]?.name || facility.code;
   };
 
   const toggleSection = () => {
@@ -202,6 +546,7 @@ const VRHotelFacilities: React.FC = () => {
         <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-800">Facilities Management</h2>
           <button 
+            onClick={addFacility}
             disabled={!isDisplaying}
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
           >
@@ -210,11 +555,272 @@ const VRHotelFacilities: React.FC = () => {
           </button>
         </div>
         
-        <div className="text-center py-12 text-slate-500">
-          <p className="mb-4">Facilities management features coming soon.</p>
-          <p className="text-sm">Available languages: {availableLocales.map(l => l.locale_name || l.locale_code).join(', ')}</p>
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="text-center py-12 text-slate-500">
+              <p>Loading...</p>
+            </div>
+          ) : facilities.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <p>No facilities yet. Click "Add New Facility" to add your first facility.</p>
+            </div>
+          ) : (
+            facilities.map(facility => (
+              <div key={facility.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      {getFacilityName(facility, 'vi')} {facility.translations.en && `/ ${getFacilityName(facility, 'en')}`}
+                    </h3>
+                    {facility.vr_link && (
+                      <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
+                    )}
+                  </div>
+                  <div className="flex gap-6 text-sm text-slate-600">
+                    {facility.facility_type && (
+                      <span>Type: {facility.facility_type}</span>
+                    )}
+                    {facility.operating_hours && (
+                      <span>Hours: {facility.operating_hours}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => editFacility(facility)}
+                    disabled={!isDisplaying}
+                    className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <FontAwesomeIcon icon={faEdit} />
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => deleteFacility(facility.id)}
+                    disabled={!isDisplaying}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
+
+      {/* Facility Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-200 p-6 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h3 className="text-xl font-bold text-slate-800">{editingFacility ? 'Edit Facility' : 'Add New Facility'}</h3>
+              <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 text-2xl">
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+            <div className="p-6">
+              {/* Language Tabs */}
+              <div className="flex gap-2 mb-6 border-b border-slate-200">
+                {availableLocales.map(locale => (
+                  <button
+                    key={locale.locale_code}
+                    onClick={() => setCurrentLang(locale.locale_code)}
+                    className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
+                      currentLang === locale.locale_code
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={faFlag} />
+                    {locale.locale_name || locale.locale_code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              {/* Translation Content */}
+              {availableLocales.map(locale => (
+                currentLang === locale.locale_code && (
+                  <div key={locale.locale_code} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Facility Name ({locale.locale_name || locale.locale_code}) *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.translations[locale.locale_code]?.name || ''}
+                        onChange={(e) => handleTranslationChange(locale.locale_code, 'name', e.target.value)}
+                        disabled={!isDisplaying}
+                        placeholder="e.g., Swimming Pool"
+                        className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Description ({locale.locale_name || locale.locale_code})
+                      </label>
+                      <textarea
+                        value={formData.translations[locale.locale_code]?.description || ''}
+                        onChange={(e) => handleTranslationChange(locale.locale_code, 'description', e.target.value)}
+                        disabled={!isDisplaying}
+                        rows={3}
+                        placeholder="Enter a brief description..."
+                        className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                )
+              ))}
+
+              {/* Facility Details */}
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Facility Code *</label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => handleInputChange('code', e.target.value)}
+                    disabled={!isDisplaying}
+                    placeholder="e.g., POOL-01"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Facility Type</label>
+                  <select
+                    value={formData.facility_type}
+                    onChange={(e) => handleInputChange('facility_type', e.target.value)}
+                    disabled={!isDisplaying}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  >
+                    {facilityTypes.map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Operating Hours</label>
+                  <input
+                    type="text"
+                    value={formData.operating_hours}
+                    onChange={(e) => handleInputChange('operating_hours', e.target.value)}
+                    disabled={!isDisplaying}
+                    placeholder="e.g., 6:00 AM - 10:00 PM"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+
+                {/* VR Link */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                    <FontAwesomeIcon icon={faVrCardboard} />
+                    VR360 Tour Link
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.vr_link}
+                    onChange={(e) => handleInputChange('vr_link', e.target.value)}
+                    disabled={!isDisplaying}
+                    placeholder="https://example.com/vr360-tour"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  />
+                  {formData.vr_link && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(formData.vr_link, '_blank')}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                      Preview VR360
+                    </button>
+                  )}
+                </div>
+
+                {/* Images */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                    <FontAwesomeIcon icon={faImages} />
+                    Facility Images
+                  </label>
+                  <div 
+                    onClick={() => !isSaving && isDisplaying && document.getElementById('facilityImagesInput')?.click()}
+                    className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faImages} className="text-5xl text-slate-400 mb-3" />
+                    <p className="text-slate-600 mb-1">Click to select or drag and drop images here</p>
+                    <p className="text-slate-400 text-sm">PNG, JPG, WEBP (max 5MB per image)</p>
+                    <input
+                      id="facilityImagesInput"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={!isDisplaying || isSaving}
+                      className="hidden"
+                    />
+                  </div>
+                  
+                  {formData.images && formData.images.length > 0 && (
+                    <div className="mt-4 grid grid-cols-4 gap-3">
+                      {formData.images.map((img, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={img.url} 
+                            alt={`Facility ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-md border-2 border-slate-200"
+                          />
+                          {img.isPrimary && (
+                            <div className="absolute top-1 left-1 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                              Primary
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center gap-2">
+                            {!img.isPrimary && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setPrimaryImage(index); }}
+                                disabled={!isDisplaying}
+                                className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                              >
+                                Set Primary
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                              disabled={!isDisplaying}
+                              className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
+              <button 
+                onClick={closeModal}
+                disabled={isSaving}
+                className="px-6 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveFacility}
+                disabled={isSaving || !isDisplaying}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <FontAwesomeIcon icon={faSave} />
+                {isSaving ? 'Saving...' : (editingFacility ? 'Update' : 'Add Facility')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
