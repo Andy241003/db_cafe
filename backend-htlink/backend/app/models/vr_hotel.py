@@ -344,6 +344,7 @@ class VROffer(SQLModel, table=True):
     
     applicable_room_types: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
     status: OfferStatus = Field(default=OfferStatus.ACTIVE)
+    vr_link: Optional[str] = Field(default=None, max_length=500)  # VR360 link for this offer
     attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     display_order: int = Field(default=0)
     
