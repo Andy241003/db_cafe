@@ -115,22 +115,22 @@ const VRHotelRooms: React.FC = () => {
       setRooms(data);
     } catch (error) {
       console.error('Failed to load rooms:', error);
-      toast.error('Không thể tải danh sách phòng');
+      toast.error('Failed to load room list');
     }
   };
 
   const saveVRSettings = async () => {
-    const loadingToast = toast.loading('Đang lưu cài đặt VR360...');
+    const loadingToast = toast.loading('Saving VR360 settings...');
     setIsSavingVR(true);
     try {
       await vrHotelSettingsApi.updatePageSettings('rooms', {
         vr360_link: roomsVR360Link,
         vr_title: roomsVRTitle
       });
-      toast.success('Đã lưu cài đặt VR360', { id: loadingToast, duration: 2000 });
+      toast.success('VR360 settings saved', { id: loadingToast, duration: 2000 });
     } catch (error: any) {
       console.error('Failed to save VR settings:', error);
-      const errorMsg = error?.response?.data?.detail || 'Lỗi lưu cài đặt VR360';
+      const errorMsg = error?.response?.data?.detail || 'Error saving VR360 settings';
       toast.error(errorMsg, { id: loadingToast, duration: 3000 });
     } finally {
       setIsSavingVR(false);
@@ -139,7 +139,7 @@ const VRHotelRooms: React.FC = () => {
 
   const toggleSection = () => {
     setIsDisplaying(!isDisplaying);
-    toast.success('Đã cập nhật trạng thái hiển thị!');
+    toast.success('Display status updated!');
   };
 
   const addRoom = () => {
@@ -238,20 +238,20 @@ const VRHotelRooms: React.FC = () => {
   };
 
   const deleteRoom = async (id: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa phòng này?')) {
+    if (window.confirm('Are you sure you want to delete this room?')) {
       try {
         await vrHotelRoomsApi.deleteRoom(id);
-        toast.success('Đã xóa phòng thành công!');
+        toast.success('Room deleted successfully!');
         loadRooms();
       } catch (error) {
         console.error('Failed to delete room:', error);
-        toast.error('Không thể xóa phòng');
+        toast.error('Failed to delete room');
       }
     }
   };
 
   const closeModal = () => {
-    if (window.confirm('Bạn có chắc muốn đóng? Các thay đổi chưa lưu sẽ bị mất.')) {
+    if (window.confirm('Are you sure you want to close? Unsaved changes will be lost.')) {
       setShowModal(false);
       setEditingRoom(null);
     }
@@ -264,12 +264,12 @@ const VRHotelRooms: React.FC = () => {
     );
     
     if (missingNames.length > 0) {
-      toast.error(`Vui lòng nhập tên phòng cho: ${missingNames.map(l => l.locale_name || l.locale_code).join(', ')}`);
+      toast.error(`Please enter room name for: ${missingNames.map(l => l.locale_name || l.locale_code).join(', ')}`);
       return;
     }
 
     if (!formData.room_code.trim()) {
-      toast.error('Vui lòng nhập mã phòng');
+      toast.error('Please enter room code');
       return;
     }
 
@@ -281,17 +281,17 @@ const VRHotelRooms: React.FC = () => {
       const newImagesToUpload = (formData.images || []).filter(img => img.file);
       
       if (newImagesToUpload.length > 0) {
-        toast.loading('Đang tải ảnh lên...', { id: 'upload' });
+        toast.loading('Uploading images...', { id: 'upload' });
         try {
           const uploadResults = await mediaApi.uploadFiles(
             newImagesToUpload.map(img => img.file!),
             'image'
           );
           mediaIds.push(...uploadResults.map(r => r.id));
-          toast.success(`Đã tải lên ${uploadResults.length} ảnh`, { id: 'upload' });
+          toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
-          toast.error('Không thể tải ảnh lên', { id: 'upload' });
+          toast.error('Failed to upload images', { id: 'upload' });
           setIsSaving(false);
           return;
         }
@@ -331,7 +331,7 @@ const VRHotelRooms: React.FC = () => {
           media
         };
         await vrHotelRoomsApi.updateRoom(editingRoom.id, updateData);
-        toast.success('Đã cập nhật phòng thành công!');
+        toast.success('Room updated successfully!');
       } else {
         // Create new room
         const createData: RoomCreate = {
@@ -346,7 +346,7 @@ const VRHotelRooms: React.FC = () => {
           media
         };
         await vrHotelRoomsApi.createRoom(createData);
-        toast.success('Đã thêm phòng mới thành công!');
+        toast.success('Room added successfully!');
       }
       
       setShowModal(false);
@@ -354,7 +354,7 @@ const VRHotelRooms: React.FC = () => {
       await loadRooms();
     } catch (error: any) {
       console.error('Failed to save room:', error);
-      const message = error?.response?.data?.detail || 'Không thể lưu phòng';
+      const message = error?.response?.data?.detail || 'Failed to save room';
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -380,13 +380,13 @@ const VRHotelRooms: React.FC = () => {
 
   const addAmenity = () => {
     if (!newAmenity.trim()) {
-      toast.error('Vui lòng nhập tên tiện nghi');
+      toast.error('Please enter amenity name');
       return;
     }
     
     const currentAmenities = formData.amenities_json || [];
     if (currentAmenities.includes(newAmenity.trim())) {
-      toast.error('Tiện nghi này đã tồn tại');
+      toast.error('This amenity already exists');
       return;
     }
     
@@ -447,7 +447,7 @@ const VRHotelRooms: React.FC = () => {
     if (formData.vr_link) {
       window.open(formData.vr_link, '_blank', 'width=1200,height=800');
     } else {
-      toast.error('Vui lòng nhập link VR360 trước khi xem trước.');
+      toast.error('Please enter VR360 link before preview.');
     }
   };
 
@@ -455,14 +455,14 @@ const VRHotelRooms: React.FC = () => {
     if (roomsVR360Link) {
       window.open(roomsVR360Link, '_blank', 'fullscreen=yes');
     } else {
-      toast.error('Vui lòng nhập link VR360 trước.');
+      toast.error('Please enter VR360 link.');
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-600">Đang tải dữ liệu...</div>
+        <div className="text-slate-600">Loading data...</div>
       </div>
     );
   }
@@ -514,7 +514,7 @@ const VRHotelRooms: React.FC = () => {
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-              <span>Nhập đường dẫn đến ảnh panorama 360° cho trang danh sách phòng (khuyến nghị: equirectangular JPG, tối thiểu 4096x2048px)</span>
+              <span>Enter the URL to a 360° panorama image for the rooms listing page (recommended: equirectangular JPG, minimum 4096x2048px)</span>
             </p>
           </div>
           
@@ -537,7 +537,7 @@ const VRHotelRooms: React.FC = () => {
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <FontAwesomeIcon icon={faSave} />
-              {isSavingVR ? 'Đang lưu...' : 'Lưu'}
+              {isSavingVR ? 'Saving...' : 'Save'}
             </button>
           </div>
 
@@ -545,7 +545,7 @@ const VRHotelRooms: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-                <h3 className="text-sm font-medium text-slate-700">Xem trước VR360</h3>
+                <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
               </div>
               <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
@@ -565,7 +565,7 @@ const VRHotelRooms: React.FC = () => {
                   className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
                 >
                   <FontAwesomeIcon icon={faPlay} />
-                  Xem toàn màn hình
+                  View Fullscreen
                 </button>
               </div>
             </div>
@@ -589,11 +589,11 @@ const VRHotelRooms: React.FC = () => {
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-12 text-slate-500">
-              <p>Đang tải...</p>
+              <p>Loading...</p>
             </div>
           ) : rooms.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              <p>Chưa có phòng nào. Nhấn "Add New Room" để thêm phòng mới.</p>
+              <p>No rooms yet. Click "Add New Room" to add a room.</p>
             </div>
           ) : (
             rooms.map(room => {
@@ -623,7 +623,7 @@ const VRHotelRooms: React.FC = () => {
                       </span>
                       <span className="flex items-center gap-2">
                         <FontAwesomeIcon icon={faUsers} className="text-slate-400" />
-                        {room.capacity} khách
+                        {room.capacity} guests
                       </span>
                     </div>
                   </div>
@@ -634,7 +634,7 @@ const VRHotelRooms: React.FC = () => {
                       className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faEdit} />
-                      Sửa
+                      Edit
                     </button>
                     <button 
                       onClick={() => deleteRoom(room.id)}
@@ -642,7 +642,7 @@ const VRHotelRooms: React.FC = () => {
                       className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Xóa
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -657,7 +657,7 @@ const VRHotelRooms: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="border-b border-slate-200 p-6 flex items-center justify-between sticky top-0 bg-white">
-              <h3 className="text-xl font-bold text-slate-800">{editingRoom ? 'Chỉnh sửa phòng' : 'Thêm phòng mới'}</h3>
+              <h3 className="text-xl font-bold text-slate-800">{editingRoom ? 'Edit Room' : 'Add New Room'}</h3>
               <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 text-2xl">
                 <FontAwesomeIcon icon={faTimes} />
               </button>
@@ -687,20 +687,20 @@ const VRHotelRooms: React.FC = () => {
                   <div key={locale.locale_code} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Tên phòng ({locale.locale_name || locale.locale_code}) *
+                        Room Name ({locale.locale_name || locale.locale_code}) *
                       </label>
                       <input
                         type="text"
                         value={formData.translations[locale.locale_code]?.name || ''}
                         onChange={(e) => handleTranslationChange(locale.locale_code, 'name', e.target.value)}
                         disabled={!isDisplaying}
-                        placeholder={`VD: Phòng Deluxe Hướng Biển`}
+                        placeholder={`Example: Deluxe Room with Sea View`}
                         className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Mô tả ({locale.locale_name || locale.locale_code})
+                        Description ({locale.locale_name || locale.locale_code})
                       </label>
                       <textarea
                         value={formData.translations[locale.locale_code]?.description || ''}
@@ -717,19 +717,19 @@ const VRHotelRooms: React.FC = () => {
               {/* Room Details */}
               <div className="mt-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Mã phòng *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Room Code *</label>
                   <input
                     type="text"
                     value={formData.room_code}
                     onChange={(e) => handleInputChange('room_code', e.target.value)}
                     disabled={!isDisplaying}
-                    placeholder="VD: D101"
+                    placeholder="Example: D101"
                     className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Loại phòng</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Room Type</label>
                   <select
                     value={formData.room_type}
                     onChange={(e) => handleInputChange('room_type', e.target.value)}
@@ -744,7 +744,7 @@ const VRHotelRooms: React.FC = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Giá/đêm (VNĐ)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Price Per Night (VND)</label>
                     <input
                       type="number"
                       value={formData.price_per_night}
@@ -755,7 +755,7 @@ const VRHotelRooms: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Diện tích (m²)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Size (m²)</label>
                     <input
                       type="number"
                       value={formData.size_sqm}
@@ -766,7 +766,7 @@ const VRHotelRooms: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Số khách tối đa</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Max Guests</label>
                     <input
                       type="number"
                       value={formData.capacity}
@@ -781,7 +781,7 @@ const VRHotelRooms: React.FC = () => {
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                     <FontAwesomeIcon icon={faVrCardboard} className="text-purple-600" />
-                    Link VR360 Panorama
+                    VR360 Panorama Link
                   </label>
                   <input
                     type="url"
@@ -793,7 +793,7 @@ const VRHotelRooms: React.FC = () => {
                   />
                   <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
                     <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-                    <span>Nhập URL ảnh panorama 360° của phòng</span>
+                    <span>Enter the URL to the room's 360° panorama image</span>
                   </p>
                   {formData.vr_link && (
                     <button
@@ -803,14 +803,14 @@ const VRHotelRooms: React.FC = () => {
                       className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faVrCardboard} />
-                      Xem trước VR360
+                      Preview VR360
                     </button>
                   )}
                 </div>
 
                 {/* Amenities */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Tiện nghi phòng</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Room Amenities</label>
                   
                   {/* Add new amenity input */}
                   <div className="flex gap-2 mb-3">
@@ -820,7 +820,7 @@ const VRHotelRooms: React.FC = () => {
                       onChange={(e) => setNewAmenity(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && addAmenity()}
                       disabled={!isDisplaying}
-                      placeholder="Nhập tiện nghi mới (VD: Bồn tắm, Máy sấy tóc...)"
+                      placeholder="Enter amenity (Example: Bathtub, Hair dryer...)"
                       className="flex-1 px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                     <button
@@ -830,7 +830,7 @@ const VRHotelRooms: React.FC = () => {
                       className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faPlus} />
-                      Thêm
+                      Add
                     </button>
                   </div>
                   
@@ -856,7 +856,7 @@ const VRHotelRooms: React.FC = () => {
                   </div>
                   
                   {(formData.amenities_json || []).length === 0 && (
-                    <p className="text-sm text-slate-400 italic">Chưa có tiện nghi nào. Nhập và thêm tiện nghi ở trên.</p>
+                    <p className="text-sm text-slate-400 italic">No amenities yet. Enter and add amenity above.</p>
                   )}
                 </div>
 
@@ -864,15 +864,15 @@ const VRHotelRooms: React.FC = () => {
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                     <FontAwesomeIcon icon={faImages} />
-                    Hình ảnh phòng
+                    Room Images
                   </label>
                   <div 
                     onClick={() => !isSaving && isDisplaying && document.getElementById('roomImagesInput')?.click()}
                     className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
                   >
                     <FontAwesomeIcon icon={faImages} className="text-5xl text-slate-400 mb-3" />
-                    <p className="text-slate-600 mb-1">Nhấn để chọn hoặc kéo thả ảnh vào đây</p>
-                    <p className="text-slate-400 text-sm">PNG, JPG, WEBP (tối đa 5MB mỗi ảnh)</p>
+                    <p className="text-slate-600 mb-1">Click to select or drag and drop images here</p>
+                    <p className="text-slate-400 text-sm">PNG, JPG, WEBP (max 5MB per image)</p>
                     <input
                       id="roomImagesInput"
                       type="file"
@@ -895,7 +895,7 @@ const VRHotelRooms: React.FC = () => {
                           />
                           {img.isPrimary && (
                             <div className="absolute top-1 left-1 bg-green-600 text-white text-xs px-2 py-1 rounded">
-                              Ảnh chính
+                              Primary
                             </div>
                           )}
                           <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center gap-2">
@@ -905,7 +905,7 @@ const VRHotelRooms: React.FC = () => {
                                 disabled={!isDisplaying}
                                 className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                               >
-                                Đặt chính
+                                Set Primary
                               </button>
                             )}
                             <button
@@ -913,7 +913,7 @@ const VRHotelRooms: React.FC = () => {
                               disabled={!isDisplaying}
                               className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                             >
-                              Xóa
+                              Delete
                             </button>
                           </div>
                         </div>
@@ -929,7 +929,7 @@ const VRHotelRooms: React.FC = () => {
                 disabled={isSaving}
                 className="px-6 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Hủy
+                Cancel
               </button>
               <button 
                 onClick={saveRoom}
@@ -937,7 +937,7 @@ const VRHotelRooms: React.FC = () => {
                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <FontAwesomeIcon icon={faSave} />
-                {isSaving ? 'Đang lưu...' : (editingRoom ? 'Cập nhật' : 'Thêm phòng')}
+                {isSaving ? 'Saving...' : (editingRoom ? 'Update' : 'Add Room')}
               </button>
             </div>
           </div>

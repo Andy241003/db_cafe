@@ -95,7 +95,7 @@ const VRHotelContact: React.FC = () => {
       setOriginalData(data);
     } catch (error) {
       console.error('Error loading contact data:', error);
-      toast.error('Không thể tải dữ liệu liên hệ');
+      toast.error('Failed to load contact data');
     } finally {
       setIsLoading(false);
     }
@@ -106,10 +106,10 @@ const VRHotelContact: React.FC = () => {
     try {
       await vrHotelApi.contact.updateContact(formData);
       setOriginalData(formData);
-      toast.success('Đã lưu thông tin liên hệ thành công!');
+      toast.success('Contact information saved successfully!');
     } catch (error) {
       console.error('Error saving contact:', error);
-      toast.error('Không thể lưu thông tin liên hệ');
+      toast.error('Failed to save contact information');
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +117,7 @@ const VRHotelContact: React.FC = () => {
 
   const handleReset = () => {
     setFormData(originalData);
-    toast.success('Đã khôi phục dữ liệu gốc');
+    toast.success('Data restored to original state');
   };
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
@@ -125,7 +125,7 @@ const VRHotelContact: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Đang tải...</div>
+        <div className="text-gray-500">Loading...</div>
       </div>
     );
   }
@@ -164,18 +164,18 @@ const VRHotelContact: React.FC = () => {
         <div className="space-y-6">
           {/* Basic Contact */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Thông tin liên hệ</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Điện thoại
+                  Phone
                 </label>
                 <input
                   type="text"
                   value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+84 123 456 789"
+                  placeholder="+1 (555) 123-4567"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -188,7 +188,7 @@ const VRHotelContact: React.FC = () => {
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="contact@hotel.com"
+                  placeholder="reservations@hotel.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -201,7 +201,7 @@ const VRHotelContact: React.FC = () => {
                   type="url"
                   value={formData.website || ''}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://hotel.com"
+                  placeholder="https://www.hotel.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -210,7 +210,7 @@ const VRHotelContact: React.FC = () => {
 
           {/* Social Media */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Mạng xã hội</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Social Media</h2>
             
             <div className="space-y-4">
               <div>
@@ -224,7 +224,7 @@ const VRHotelContact: React.FC = () => {
                     ...formData,
                     socialMedia: { ...formData.socialMedia, facebook: e.target.value }
                   })}
-                  placeholder="https://facebook.com/hotel"
+                  placeholder="https://www.facebook.com/yourhotel"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -240,7 +240,7 @@ const VRHotelContact: React.FC = () => {
                     ...formData,
                     socialMedia: { ...formData.socialMedia, instagram: e.target.value }
                   })}
-                  placeholder="https://instagram.com/hotel"
+                  placeholder="https://www.instagram.com/yourhotel"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -256,7 +256,7 @@ const VRHotelContact: React.FC = () => {
                     ...formData,
                     socialMedia: { ...formData.socialMedia, twitter: e.target.value }
                   })}
-                  placeholder="https://twitter.com/hotel"
+                  placeholder="https://twitter.com/yourhotel"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -272,7 +272,7 @@ const VRHotelContact: React.FC = () => {
                     ...formData,
                     socialMedia: { ...formData.socialMedia, youtube: e.target.value }
                   })}
-                  placeholder="https://youtube.com/@hotel"
+                  placeholder="https://www.youtube.com/@yourhotel"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -304,7 +304,7 @@ const VRHotelContact: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Địa chỉ ({activeLanguage?.toUpperCase() || activeLanguage})
+                  Address ({activeLanguage?.toUpperCase() || activeLanguage})
                   </label>
                   <textarea
                     value={formData.address?.[activeLanguage] || ''}
@@ -313,14 +313,14 @@ const VRHotelContact: React.FC = () => {
                       address: { ...formData.address, [activeLanguage]: e.target.value }
                     })}
                     rows={3}
-                    placeholder="123 Đường ABC, Quận XYZ, Thành phố..."
+                    placeholder="123 Main Street, New York, NY 10001"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Giờ làm việc ({activeLanguage?.toUpperCase() || activeLanguage})
+                  Working Hours ({activeLanguage?.toUpperCase() || activeLanguage})
                   </label>
                   <textarea
                     value={formData.workingHours?.[activeLanguage] || ''}
@@ -329,7 +329,7 @@ const VRHotelContact: React.FC = () => {
                       workingHours: { ...formData.workingHours, [activeLanguage]: e.target.value }
                     })}
                     rows={4}
-                    placeholder="Thứ 2 - Thứ 6: 08:00 - 22:00&#10;Thứ 7 - CN: 09:00 - 23:00"
+                    placeholder="Monday - Friday: 08:00 - 22:00&#10;Saturday - Sunday: 09:00 - 23:00"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -349,20 +349,20 @@ const VRHotelContact: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Link VR360 Panorama
+                  VR360 Panorama Link
                 </label>
                 <input
                   type="url"
                   value={formData.vr360Link || ''}
                   onChange={(e) => setFormData({ ...formData, vr360Link: e.target.value })}
-                  placeholder="https://example.com/your-panorama.jpg"
+                  placeholder="https://example.com/panorama-360.jpg"
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="mt-2 text-sm text-gray-500 flex items-start gap-2">
                   <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 512 512">
                     <path d="M256 512a256 256 0 1 0 0-512 256 256 0 1 0 0 512zM224 160a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm-8 64l48 0c13.3 0 24 10.7 24 24l0 88 8 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-80 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l24 0 0-64-24 0c-13.3 0-24-10.7-24-24s10.7-24 24-24z"/>
                   </svg>
-                  <span>Nhập đường dẫn đến ảnh panorama 360° (khuyến nghị: equirectangular JPG, tối thiểu 4096x2048px)</span>
+                  <span>Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)</span>
                 </p>
               </div>
 
@@ -374,7 +374,7 @@ const VRHotelContact: React.FC = () => {
                   type="text"
                   value={formData.vrTitle || ''}
                   onChange={(e) => setFormData({ ...formData, vrTitle: e.target.value })}
-                  placeholder="Enter VR tour title"
+                    placeholder="e.g., Grand Lobby, Master Suite, Pool Area"
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -385,7 +385,7 @@ const VRHotelContact: React.FC = () => {
                     <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 576 512">
                       <path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6-46.8 43.5-78.1 95.4-93 131.1-3.3 7.9-3.3 16.7 0 24.6 14.9 35.7 46.2 87.7 93 131.1 47.1 43.7 111.8 80.6 192.6 80.6s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1 3.3-7.9 3.3-16.7 0-24.6-14.9-35.7-46.2-87.7-93-131.1-47.1-43.7-111.8-80.6-192.6-80.6zM144 256a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-64c0 35.3-28.7 64-64 64-11.5 0-22.3-3-31.7-8.4-1 10.9-.1 22.1 2.9 33.2 13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-12.2-45.7-55.5-74.8-101.1-70.8 5.3 9.3 8.4 20.1 8.4 31.7z"/>
                     </svg>
-                    <h3 className="text-sm font-medium text-gray-700">Xem trước VR360</h3>
+                    <h3 className="text-sm font-medium text-gray-700">VR360 Preview</h3>
                   </div>
                   <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-50">
                     <div className="relative w-full" style={{ height: '400px' }}>
@@ -407,7 +407,7 @@ const VRHotelContact: React.FC = () => {
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 448 512">
                         <path d="M91.2 36.9c-12.4-6.8-27.4-6.5-39.6 .7S32 57.9 32 72l0 368c0 14.1 7.5 27.2 19.6 34.4s27.2 7.5 39.6 .7l336-184c12.8-7 20.8-20.5 20.8-35.1s-8-28.1-20.8-35.1l-336-184z"/>
                       </svg>
-                      Xem toàn màn hình
+                      View Fullscreen
                     </button>
                   </div>
                 </div>
@@ -418,7 +418,7 @@ const VRHotelContact: React.FC = () => {
           {/* VR360 Description - Multi-language */}
           {locales.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Mô tả VR360</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">VR360 Description</h2>
               
               <div className="flex border-b border-gray-200 mb-4">
                 {locales.map((locale, index) => (
@@ -438,7 +438,7 @@ const VRHotelContact: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mô tả chi tiết ({activeLanguage?.toUpperCase() || activeLanguage})
+                  Detailed Description ({activeLanguage?.toUpperCase() || activeLanguage})
                 </label>
                 <textarea
                   value={formData.content?.[activeLanguage]?.description || ''}
@@ -453,11 +453,11 @@ const VRHotelContact: React.FC = () => {
                     }
                   })}
                   rows={8}
-                  placeholder="Nhập mô tả chi tiết về khu vực VR360..."
+                  placeholder="Enter a detailed description of this VR360 area..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Mô tả chi tiết về khu vực, tiện nghi, và trải nghiệm VR360
+                  Detailed description of the area, amenities, and VR360 experience
                 </p>
               </div>
             </div>
@@ -472,14 +472,14 @@ const VRHotelContact: React.FC = () => {
           disabled={!hasChanges || isSaving}
           className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Khôi phục
+          Restore
         </button>
         <button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>

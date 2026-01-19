@@ -71,7 +71,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
       },
     },
     vr360Link: 'https://example.com/panorama/hotel-lobby.jpg',
-    vrTitle: 'Sảnh khách sạn',
+    vrTitle: 'Hotel Lobby',
   });
 
   const [originalData, setOriginalData] = useState<IntroductionData>(formData);
@@ -296,14 +296,14 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
           <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  {activeLanguage === 'vi' ? 'Tiêu đề' : activeLanguage === 'en' ? 'Title' : 'Title'}
+                  Title
                 </label>
                 <input
                   type="text"
                   value={currentContent.title}
                   onChange={(e) => handleInputChange(activeLanguage, 'title', e.target.value)}
                   disabled={!formData.isDisplaying}
-                  placeholder={activeLanguage === 'vi' ? 'Nhập tiêu đề giới thiệu' : 'Enter introduction title'}
+                  placeholder="Enter title"
                   className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                 />
               </div>
@@ -316,7 +316,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
                   value={currentContent.shortDescription}
                   onChange={(e) => handleInputChange(activeLanguage, 'shortDescription', e.target.value)}
                   disabled={!formData.isDisplaying}
-                  placeholder={activeLanguage === 'vi' ? 'Nhập mô tả ngắn về khách sạn' : 'Enter short description about hotel'}
+                  placeholder="Enter short description about hotel"
                   rows={3}
                   className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                 />
@@ -330,7 +330,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
                   value={currentContent.detailedContent}
                   onChange={(e) => handleInputChange(activeLanguage, 'detailedContent', e.target.value)}
                   disabled={!formData.isDisplaying}
-                  placeholder={activeLanguage === 'vi' ? 'Nhập nội dung chi tiết về khách sạn' : 'Enter detailed content about hotel'}
+                  placeholder="Enter detailed content about hotel"
                   rows={12}
                   className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed font-mono text-sm"
                 />
@@ -359,7 +359,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
                 <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-                <span>Nhập đường dẫn đến ảnh panorama 360° (khuyến nghị: equirectangular JPG, tối thiểu 4096x2048px)</span>
+                <span>Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)</span>
               </p>
             </div>
 
@@ -381,7 +381,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
           <div>
             <div className="flex items-center gap-2 mb-3">
               <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-              <h3 className="text-sm font-medium text-slate-700">Xem trước VR360</h3>
+              <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
             </div>
             <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
               {formData.vr360Link ? (
@@ -398,7 +398,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
                 <div className="p-8 text-center">
                   <FontAwesomeIcon icon={faVrCardboard} className="text-slate-400 text-5xl mb-3" />
                   <p className="text-slate-600 font-medium mb-1">VR360 Preview</p>
-                  <p className="text-slate-500 text-sm">Nhập link VR360 để xem trước</p>
+                  <p className="text-slate-500 text-sm">Enter VR360 link to preview</p>
                 </div>
               )}
             </div>
@@ -409,7 +409,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
                 className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
               >
                 <FontAwesomeIcon icon={faPlay} />
-                Xem toàn màn hình
+                View Fullscreen
               </button>
             </div>
           </div>
@@ -424,7 +424,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <FontAwesomeIcon icon={faSave} />
-          {isLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+          {isLoading ? 'Saving...' : 'Save Changes'}
         </button>
         <button
           onClick={handleReset}
@@ -432,7 +432,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
           className="px-6 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <FontAwesomeIcon icon={faUndo} />
-          Hủy bỏ
+          Cancel
         </button>
       </div>
     </div>
