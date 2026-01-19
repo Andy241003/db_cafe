@@ -1,19 +1,16 @@
 import {
-    faCheckCircle,
-    faEdit,
-    faEye,
-    faFlag,
-    faImages,
-    faInfoCircle,
-    faPlay,
-    faPlus,
-    faRulerCombined,
-    faSave,
-    faTag,
-    faTimes,
-    faTrash,
-    faUsers,
-    faVrCardboard
+  faCheckCircle,
+  faEdit,
+  faEye,
+  faFlag,
+  faImages,
+  faInfoCircle,
+  faPlay,
+  faPlus,
+  faSave,
+  faTimes,
+  faTrash,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -573,10 +570,10 @@ const VRHotelRooms: React.FC = () => {
         </div>
       </div>
 
-      {/* Rooms List */}
+      {/* Rooms Management */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">Room List</h2>
+          <h2 className="text-xl font-bold text-slate-800">Rooms Management</h2>
           <button 
             onClick={addRoom} 
             disabled={!isDisplaying}
@@ -606,25 +603,19 @@ const VRHotelRooms: React.FC = () => {
                         {getRoomName(room, 'vi')} {room.translations.en && `/ ${getRoomName(room, 'en')}`}
                       </h3>
                       {hasVR && (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
-                          <FontAwesomeIcon icon={faVrCardboard} />
-                          VR360
-                        </span>
+                        <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
                       )}
                     </div>
                     <div className="flex gap-6 text-sm text-slate-600">
-                      <span className="flex items-center gap-2">
-                        <FontAwesomeIcon icon={faTag} className="text-slate-400" />
-                        {formatPrice(room.price_per_night || 0)} ₫
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <FontAwesomeIcon icon={faRulerCombined} className="text-slate-400" />
-                        {room.size_sqm}m²
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <FontAwesomeIcon icon={faUsers} className="text-slate-400" />
-                        {room.capacity} guests
-                      </span>
+                      {room.room_type && (
+                        <span>Type: {room.room_type}</span>
+                      )}
+                      {room.capacity && (
+                        <span>Capacity: {room.capacity} guests</span>
+                      )}
+                      {room.size_sqm && (
+                        <span>Size: {room.size_sqm}m²</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-3">
@@ -656,7 +647,7 @@ const VRHotelRooms: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-slate-200 p-6 flex items-center justify-between sticky top-0 bg-white">
+            <div className="border-b border-slate-200 p-6 flex items-center justify-between sticky top-0 bg-white z-10">
               <h3 className="text-xl font-bold text-slate-800">{editingRoom ? 'Edit Room' : 'Add New Room'}</h3>
               <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 text-2xl">
                 <FontAwesomeIcon icon={faTimes} />
@@ -780,7 +771,7 @@ const VRHotelRooms: React.FC = () => {
                 {/* VR360 Link */}
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    <FontAwesomeIcon icon={faVrCardboard} className="text-purple-600" />
+                    <FontAwesomeIcon icon={faVrCardboard}/>
                     VR360 Panorama Link
                   </label>
                   <input
@@ -800,9 +791,9 @@ const VRHotelRooms: React.FC = () => {
                       onClick={handlePreviewVR}
                       disabled={!isDisplaying}
                       type="button"
-                      className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 disabled:text-blue-300 disabled:cursor-not-allowed"
                     >
-                      <FontAwesomeIcon icon={faVrCardboard} />
+                      <FontAwesomeIcon icon={faEye} />
                       Preview VR360
                     </button>
                   )}
@@ -923,7 +914,7 @@ const VRHotelRooms: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4">
+            <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
               <button 
                 onClick={closeModal}
                 disabled={isSaving}
