@@ -13,6 +13,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { vrHotelSettingsApi } from '../../services/vrHotelApi';
 import type { Offer, OfferCreate, OfferTranslation, OfferUpdate } from '../../services/vrHotelOffersApi';
 import vrHotelOffersApi from '../../services/vrHotelOffersApi';
@@ -31,11 +32,6 @@ interface FormOfferData {
   translations: Record<string, { title: string; description: string; terms_conditions: string }>;
 }
 
-interface Locale {
-  locale_code: string;
-  locale_name: string;
-}
-
 const VRHotelOffers: React.FC = () => {
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [offersVR360Link, setOffersVR360Link] = useState('');
@@ -49,11 +45,7 @@ const VRHotelOffers: React.FC = () => {
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [currentLang, setCurrentLang] = useState('vi');
-  const [availableLocales, setAvailableLocales] = useState<Locale[]>([
-    { locale_code: 'vi', locale_name: 'Tiếng Việt' },
-    { locale_code: 'en', locale_name: 'English' },
-    { locale_code: 'zh', locale_name: '中文' }
-  ]);
+  const [availableLocales, setAvailableLocales] = useState<PropertyLocale[]>([]);
 
   const discountTypes = [
     { value: 'PERCENTAGE', label: 'Percentage (%)' },
@@ -89,29 +81,39 @@ const VRHotelOffers: React.FC = () => {
       ...prev,
       translations: initialTranslations
     }));
-  }, []);
+  }, [availableLocales]);
 
-  // Load offers and VR settings on mount
+  // Load offers, locales and VR settings on mount
   useEffect(() => {
-    loadOffers();
-    loadVRSettings();
+    loadLocalesAndOffers();
   }, []);
 
-  const loadOffers = async () => {
+  const loadLocalesAndOffers = async () => {
     setIsLoading(true);
     try {
-      const data = await vrHotelOffersApi.getOffers();
-      setOffers(data);
-    } catch (error) {
-      console.error('Error loading offers:', error);
-      toast.error('Failed to load offers');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const propertyId = localStorage.getItem('current_property_id');
+      if (!propertyId) {
+        toast.error('No property selected');
+        return;
+      }
 
-  const loadVRSettings = async () => {
-    try {
+      // Load available locales for this property
+      const locales = await propertyLocalesApi.getLocales(parseInt(propertyId));
+      const activeLocales = locales.filter(l => l.is_active);
+      setAvailableLocales(activeLocales);
+      
+      // Set default active language
+      const defaultLocale = activeLocales.find(l => l.is_default);
+      if (defaultLocale) {
+        setCurrentLang(defaultLocale.locale_code);
+      } else if (activeLocales.length > 0) {
+        setCurrentLang(activeLocales[0].locale_code);
+      }
+
+      // Load offers from API
+      await loadOffers();
+      
+      // Load VR page settings from database
       const vrSettings = await vrHotelSettingsApi.getPageSettings('offers');
       if (vrSettings) {
         setOffersVR360Link(vrSettings.vr360_link || '');
@@ -119,26 +121,20 @@ const VRHotelOffers: React.FC = () => {
         setIsDisplaying(vrSettings.is_displaying !== false);
       }
     } catch (error) {
-      console.error('Error loading VR settings:', error);
+      console.error('Error loading locales and offers:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const toggleSection = async () => {
-    const newDisplayingState = !isDisplaying;
-    setIsDisplaying(newDisplayingState);
-    
+  const loadOffers = async () => {
     try {
-      await vrHotelSettingsApi.updatePageSettings('offers', {
-        vr360_link: offersVR360Link,
-        vr_title: offersVRTitle,
-        is_displaying: newDisplayingState
-      });
-      toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
-    } catch (error: any) {
-      console.error('Failed to save display status:', error);
-      const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
-      toast.error(errorMsg);
-      setIsDisplaying(!newDisplayingState);
+      const data = await vrHotelOffersApi.getOffers();
+      setOffers(data);
+    } catch (error) {
+      console.error('Error loading offers:', error);
+      toast.error('Failed to load offers');
     }
   };
 
@@ -158,6 +154,25 @@ const VRHotelOffers: React.FC = () => {
       toast.error(errorMsg, { id: loadingToast, duration: 3000 });
     } finally {
       setIsSavingVR(false);
+    }
+  };
+
+  const toggleSection = async () => {
+    const newDisplayingState = !isDisplaying;
+    setIsDisplaying(newDisplayingState);
+    
+    try {
+      await vrHotelSettingsApi.updatePageSettings('offers', {
+        vr360_link: offersVR360Link,
+        vr_title: offersVRTitle,
+        is_displaying: newDisplayingState
+      });
+      toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+    } catch (error: any) {
+      console.error('Failed to save display status:', error);
+      const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+      toast.error(errorMsg);
+      setIsDisplaying(!newDisplayingState);
     }
   };
 
@@ -585,7 +600,7 @@ const VRHotelOffers: React.FC = () => {
                   <div key={locale.locale_code} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Offer Title ({locale.locale_code}) *
+                        Offer Title ({locale.locale_name || locale.locale_code}) *
                       </label>
                       <input
                         type="text"
@@ -598,7 +613,7 @@ const VRHotelOffers: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Description ({locale.locale_code})
+                        Description ({locale.locale_name || locale.locale_code})
                       </label>
                       <textarea
                         value={formData.translations[locale.locale_code]?.description || ''}
@@ -611,7 +626,7 @@ const VRHotelOffers: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Terms & Conditions ({locale.locale_code})
+                        Terms & Conditions ({locale.locale_name || locale.locale_code})
                       </label>
                       <textarea
                         value={formData.translations[locale.locale_code]?.terms_conditions || ''}

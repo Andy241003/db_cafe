@@ -40,8 +40,7 @@ const VRHotelRooms: React.FC = () => {
     size_sqm: number;
     price_per_night: number;
     vr_link: string;
-    amenities_json: string[];
-    translations: Record<string, { name: string; description: string }>;
+    translations: Record<string, { name: string; description: string; amenities: string[] }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
     room_code: '',
@@ -50,7 +49,6 @@ const VRHotelRooms: React.FC = () => {
     size_sqm: 0,
     price_per_night: 0,
     vr_link: '',
-    amenities_json: ['WiFi miễn phí', 'TV màn hình phẳng', 'Điều hòa', 'Minibar', 'Két sắt', 'Ban công'],
     translations: {},
     images: []
   });
@@ -157,9 +155,9 @@ const VRHotelRooms: React.FC = () => {
 
   const addRoom = () => {
     setEditingRoom(null);
-    const initialTranslations: Record<string, { name: string; description: string }> = {};
+    const initialTranslations: Record<string, { name: string; description: string; amenities: string[] }> = {};
     availableLocales.forEach(locale => {
-      initialTranslations[locale.locale_code] = { name: '', description: '' };
+      initialTranslations[locale.locale_code] = { name: '', description: '', amenities: [] };
     });
     setFormData({
       room_code: '',
@@ -168,7 +166,6 @@ const VRHotelRooms: React.FC = () => {
       size_sqm: 0,
       price_per_night: 0,
       vr_link: '',
-      amenities_json: ['WiFi miễn phí', 'TV màn hình phẳng', 'Điều hòa', 'Minibar', 'Két sắt', 'Ban công'],
       translations: initialTranslations,
       images: []
     });
@@ -180,12 +177,18 @@ const VRHotelRooms: React.FC = () => {
     setEditingRoom(room);
     
     // Convert room translations to form format, merge with available locales
-    const translations: Record<string, { name: string; description: string }> = {};
+    const translations: Record<string, { name: string; description: string; amenities: string[] }> = {};
     availableLocales.forEach(locale => {
       const existingTrans = room.translations[locale.locale_code];
+      // Parse amenities_text if it exists (comma-separated string)
+      const amenitiesList = existingTrans?.amenities_text 
+        ? existingTrans.amenities_text.split(',').map(a => a.trim()).filter(a => a)
+        : room.amenities_json || [];
+      
       translations[locale.locale_code] = {
         name: existingTrans?.name || '',
-        description: existingTrans?.description || ''
+        description: existingTrans?.description || '',
+        amenities: amenitiesList
       };
     });
     
@@ -243,7 +246,6 @@ const VRHotelRooms: React.FC = () => {
       size_sqm: room.size_sqm || 0,
       price_per_night: room.price_per_night || 0,
       vr_link: room.vr_link || '',
-      amenities_json: room.amenities_json || [],
       translations,
       images
     });
@@ -289,8 +291,11 @@ const VRHotelRooms: React.FC = () => {
     try {
       setIsSaving(true);
       
+      // Find which image is primary in formData
+      const primaryIndex = (formData.images || []).findIndex(img => img.isPrimary);
+      
       // Upload new images first
-      const mediaIds: number[] = [];
+      const uploadedMediaIds: number[] = [];
       const newImagesToUpload = (formData.images || []).filter(img => img.file);
       
       if (newImagesToUpload.length > 0) {
@@ -304,7 +309,7 @@ const VRHotelRooms: React.FC = () => {
             editingRoom?.id,
             'rooms'
           );
-          mediaIds.push(...uploadResults.map(r => r.id));
+          uploadedMediaIds.push(...uploadResults.map(r => r.id));
           toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
@@ -314,23 +319,35 @@ const VRHotelRooms: React.FC = () => {
         }
       }
       
-      // Add existing media_ids
-      mediaIds.push(...(formData.images || []).filter(img => img.media_id).map(img => img.media_id!));
+      // Build media array in the same order as formData.images
+      const media = (formData.images || []).map((img, index) => {
+        let media_id: number;
+        if (img.file) {
+          // New uploaded image - get from uploadedMediaIds in order
+          const uploadIndex = (formData.images || []).slice(0, index).filter(i => i.file).length;
+          media_id = uploadedMediaIds[uploadIndex];
+        } else {
+          // Existing image
+          media_id = img.media_id!;
+        }
+        
+        return {
+          media_id,
+          is_vr360: false,
+          is_primary: index === primaryIndex,
+          sort_order: index * 10
+        };
+      });
       
-      // Create media array with primary flag
-      const media = mediaIds.map((media_id, index) => ({
-        media_id,
-        is_vr360: false,
-        is_primary: index === (formData.images || []).findIndex(img => img.isPrimary),
-        sort_order: index * 10
-      }));
-      
-      // Convert translations to API format
+      // Convert translations to API format with amenities
       const translations: RoomTranslation[] = Object.entries(formData.translations).map(
         ([locale, trans]) => ({
           locale,
           name: trans.name,
-          description: trans.description || undefined
+          description: trans.description || undefined,
+          amenities_text: trans.amenities && trans.amenities.length > 0 
+            ? trans.amenities.join(', ') 
+            : undefined
         })
       );
 
@@ -343,7 +360,6 @@ const VRHotelRooms: React.FC = () => {
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link || undefined,
-          amenities_json: formData.amenities_json,
           translations,
           media
         };
@@ -358,7 +374,6 @@ const VRHotelRooms: React.FC = () => {
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link || undefined,
-          amenities_json: formData.amenities_json,
           translations,
           media
         };
@@ -401,19 +416,37 @@ const VRHotelRooms: React.FC = () => {
       return;
     }
     
-    const currentAmenities = formData.amenities_json || [];
+    const currentAmenities = formData.translations[currentLang]?.amenities || [];
     if (currentAmenities.includes(newAmenity.trim())) {
       toast.error('This amenity already exists');
       return;
     }
     
-    handleInputChange('amenities_json', [...currentAmenities, newAmenity.trim()]);
+    setFormData(prev => ({
+      ...prev,
+      translations: {
+        ...prev.translations,
+        [currentLang]: {
+          ...prev.translations[currentLang],
+          amenities: [...currentAmenities, newAmenity.trim()]
+        }
+      }
+    }));
     setNewAmenity('');
   };
 
   const removeAmenity = (amenity: string) => {
-    const currentAmenities = formData.amenities_json || [];
-    handleInputChange('amenities_json', currentAmenities.filter(a => a !== amenity));
+    const currentAmenities = formData.translations[currentLang]?.amenities || [];
+    setFormData(prev => ({
+      ...prev,
+      translations: {
+        ...prev.translations,
+        [currentLang]: {
+          ...prev.translations[currentLang],
+          amenities: currentAmenities.filter(a => a !== amenity)
+        }
+      }
+    }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -821,7 +854,9 @@ const VRHotelRooms: React.FC = () => {
 
                 {/* Amenities */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Room Amenities</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Room Amenities ({availableLocales.find(l => l.locale_code === currentLang)?.locale_name || currentLang})
+                  </label>
                   
                   {/* Add new amenity input */}
                   <div className="flex gap-2 mb-3">
@@ -845,9 +880,9 @@ const VRHotelRooms: React.FC = () => {
                     </button>
                   </div>
                   
-                  {/* List of amenities */}
+                  {/* List of amenities for current language */}
                   <div className="flex flex-wrap gap-2">
-                    {(formData.amenities_json || []).map((amenity, index) => (
+                    {(formData.translations[currentLang]?.amenities || []).map((amenity, index) => (
                       <div 
                         key={index}
                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm"
@@ -866,7 +901,7 @@ const VRHotelRooms: React.FC = () => {
                     ))}
                   </div>
                   
-                  {(formData.amenities_json || []).length === 0 && (
+                  {(formData.translations[currentLang]?.amenities || []).length === 0 && (
                     <p className="text-sm text-slate-400 italic">No amenities yet. Enter and add amenity above.</p>
                   )}
                 </div>

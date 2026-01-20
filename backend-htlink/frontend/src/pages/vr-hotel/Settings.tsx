@@ -9,6 +9,7 @@ import { getApiBaseUrl } from '../../utils/api';
 const VRHotelSettings: React.FC = () => {
   const [settings, setSettings] = useState({
     primaryColor: '#3b82f6',
+    bookingUrl: '',
     metaTitleVi: '',
     metaDescriptionVi: '',
     keywordsVi: '',
@@ -68,6 +69,7 @@ const VRHotelSettings: React.FC = () => {
       // Map API response to local state
       setSettings({
         primaryColor: data.primary_color || '#3b82f6',
+        bookingUrl: data.booking_url || '',
         metaTitleVi: data.seo?.vi?.meta_title || '',
         metaDescriptionVi: data.seo?.vi?.meta_description || '',
         keywordsVi: data.seo?.vi?.meta_keywords || '',
@@ -217,6 +219,7 @@ const VRHotelSettings: React.FC = () => {
       // Map local state to API format (only VR-specific fields)
       const updateData: Partial<VRHotelSettings> = {
         primary_color: settings.primaryColor,
+        booking_url: settings.bookingUrl || undefined,
         logo_media_id: logoMediaId,
         favicon_media_id: faviconMediaId,
         seo: {
@@ -406,6 +409,22 @@ const VRHotelSettings: React.FC = () => {
                 This color will be used for buttons, links, highlights
               </span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-3">
+              Booking URL
+            </label>
+            <input
+              type="url"
+              value={settings.bookingUrl}
+              onChange={(e) => handleInputChange('bookingUrl', e.target.value)}
+              placeholder="https://booking.example.com"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-sm text-slate-500 mt-2">
+              URL to your booking/reservation system
+            </p>
           </div>
         </div>
       </div>

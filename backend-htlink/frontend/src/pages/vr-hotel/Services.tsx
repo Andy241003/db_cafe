@@ -247,8 +247,11 @@ const VRHotelServices: React.FC = () => {
     try {
       setIsSaving(true);
       
+      // Find which image is primary in formData
+      const primaryIndex = (formData.images || []).findIndex(img => img.isPrimary);
+      
       // Upload new images
-      const mediaIds: number[] = [];
+      const uploadedMediaIds: number[] = [];
       const newImagesToUpload = (formData.images || []).filter(img => img.file);
       
       if (newImagesToUpload.length > 0) {
@@ -262,7 +265,7 @@ const VRHotelServices: React.FC = () => {
             editingService?.id,
             'services'
           );
-          mediaIds.push(...uploadResults.map(r => r.id));
+          uploadedMediaIds.push(...uploadResults.map(r => r.id));
           toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
@@ -272,10 +275,19 @@ const VRHotelServices: React.FC = () => {
         }
       }
       
-      mediaIds.push(...(formData.images || []).filter(img => img.media_id).map(img => img.media_id!));
+      // Build mediaIds array in the same order as formData.images
+      const mediaIds = (formData.images || []).map((img, index) => {
+        if (img.file) {
+          // New uploaded image - get from uploadedMediaIds in order
+          const uploadIndex = (formData.images || []).slice(0, index).filter(i => i.file).length;
+          return uploadedMediaIds[uploadIndex];
+        } else {
+          // Existing image
+          return img.media_id!;
+        }
+      });
       
-      const primaryMediaIndex = (formData.images || []).findIndex(img => img.isPrimary);
-      const primary_media_id = primaryMediaIndex >= 0 && mediaIds[primaryMediaIndex] ? mediaIds[primaryMediaIndex] : undefined;
+      const primary_media_id = primaryIndex >= 0 && mediaIds[primaryIndex] ? mediaIds[primaryIndex] : undefined;
       
       const translations: ServiceTranslation[] = Object.entries(formData.translations).map(
         ([locale, trans]) => ({

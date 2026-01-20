@@ -16,6 +16,7 @@ import SharedSettingsLayout from './layouts/SharedSettingsLayout';
 import Media from './pages/Media';
 
 // VR Hotel imports
+import VRHotelActivities from './pages/vr-hotel/Activities';
 import VRHotelContact from './pages/vr-hotel/Contact';
 import VRHotelDashboard from './pages/vr-hotel/Dashboard';
 import VRHotelDining from './pages/vr-hotel/Dining';
@@ -156,6 +157,7 @@ function App() {
                         <Route path="rules" element={<VRHotelRules />} />
                         <Route path="contact" element={<VRHotelContact />} />
                         <Route path="settings" element={<VRHotelSettings />} />
+                        <Route path="activities" element={<VRHotelActivities />} />
                       </Route>
                     </Routes>
                   </ProtectedRoute>

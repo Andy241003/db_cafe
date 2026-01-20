@@ -265,8 +265,11 @@ const VRHotelFacilities: React.FC = () => {
     try {
       setIsSaving(true);
       
+      // Find which image is primary in formData
+      const primaryIndex = (formData.images || []).findIndex(img => img.isPrimary);
+      
       // Upload new images
-      const mediaIds: number[] = [];
+      const uploadedMediaIds: number[] = [];
       const newImagesToUpload = (formData.images || []).filter(img => img.file);
       
       if (newImagesToUpload.length > 0) {
@@ -280,7 +283,7 @@ const VRHotelFacilities: React.FC = () => {
             editingFacility?.id,
             'facilities'
           );
-          mediaIds.push(...uploadResults.map(r => r.id));
+          uploadedMediaIds.push(...uploadResults.map(r => r.id));
           toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
@@ -290,14 +293,25 @@ const VRHotelFacilities: React.FC = () => {
         }
       }
       
-      mediaIds.push(...(formData.images || []).filter(img => img.media_id).map(img => img.media_id!));
-      
-      const media = mediaIds.map((media_id, index) => ({
-        media_id,
-        is_vr360: false,
-        is_primary: index === (formData.images || []).findIndex(img => img.isPrimary),
-        sort_order: index * 10
-      }));
+      // Build media array in the same order as formData.images
+      const media = (formData.images || []).map((img, index) => {
+        let media_id: number;
+        if (img.file) {
+          // New uploaded image - get from uploadedMediaIds in order
+          const uploadIndex = (formData.images || []).slice(0, index).filter(i => i.file).length;
+          media_id = uploadedMediaIds[uploadIndex];
+        } else {
+          // Existing image
+          media_id = img.media_id!;
+        }
+        
+        return {
+          media_id,
+          is_vr360: false,
+          is_primary: index === primaryIndex,
+          sort_order: index * 10
+        };
+      });
       
       const translations: FacilityTranslation[] = Object.entries(formData.translations).map(
         ([locale, trans]) => ({

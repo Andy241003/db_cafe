@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Hotel, Users, Calendar, Eye, AlertCircle, Loader } from 'lucide-react';
-import { analyticsAPI, type ActivityItem } from '../../services/api';
+import { AlertCircle, ArrowUp, Bed, Check, Eye, Flame, Lightbulb, Loader, Plus, Tag, Zap } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { analyticsAPI, type ActivityItem } from '../../services/api';
+import { vrHotelDiningApi, vrHotelFacilityApi, vrHotelRoomsApi } from '../../services/vrHotelApi';
+import vrHotelOffersApi from '../../services/vrHotelOffersApi';
 
 interface VRDashboardStats {
   totalRooms: number;
-  occupiedRooms: number;
-  pendingBookings: number;
+  totalFacilities: number;
+  totalOffers: number;
+  totalDining: number;
   avgViewsPerDay: number;
 }
 
@@ -16,8 +19,9 @@ const VRHotelDashboard: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [stats, setStats] = useState<VRDashboardStats>({
     totalRooms: 0,
-    occupiedRooms: 0,
-    pendingBookings: 0,
+    totalFacilities: 0,
+    totalOffers: 0,
+    totalDining: 0,
     avgViewsPerDay: 0
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -27,22 +31,31 @@ const VRHotelDashboard: React.FC = () => {
       try {
         setLoading(true);
 
-        // Load stats from analytics
+        // Fetch all real data in parallel
         try {
-          const dashboardStats = await analyticsAPI.getDashboardStats(30);
+          const [rooms, facilities, offers, dinings, dashboardStats] = await Promise.all([
+            vrHotelRoomsApi.getRooms().catch(() => []),
+            vrHotelFacilityApi.getFacilities().catch(() => []),
+            vrHotelOffersApi.getOffers().catch(() => []),
+            vrHotelDiningApi.getDinings().catch(() => []),
+            analyticsAPI.getDashboardStats(30).catch(() => null)
+          ]);
+
           setStats({
-            totalRooms: 12, // TODO: Get from API
-            occupiedRooms: 8, // TODO: Get from API
-            pendingBookings: 3, // TODO: Get from API
-            avgViewsPerDay: dashboardStats.total_page_views
+            totalRooms: rooms.length,
+            totalFacilities: facilities.length,
+            totalOffers: offers.length,
+            totalDining: dinings.length,
+            avgViewsPerDay: dashboardStats?.total_page_views || 0
           });
         } catch (statsError) {
-          console.warn('Analytics stats not available:', statsError);
+          console.warn('Error loading stats:', statsError);
           setStats({
-            totalRooms: 12,
-            occupiedRooms: 8,
-            pendingBookings: 3,
-            avgViewsPerDay: 1250
+            totalRooms: 0,
+            totalFacilities: 0,
+            totalOffers: 0,
+            totalDining: 0,
+            avgViewsPerDay: 0
           });
         }
 
@@ -66,18 +79,13 @@ const VRHotelDashboard: React.FC = () => {
     loadDashboardData();
   }, []);
 
-  const occupancyRate = Math.round((stats.occupiedRooms / stats.totalRooms) * 100);
-
   // Show loading state
   if (loading && !stats.totalRooms) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Loader className="w-12 h-12 animate-spin text-blue-500 mx-auto" />
-            <p className="mt-4 text-lg font-semibold text-slate-700">Loading VR Hotel dashboard...</p>
-            <p className="text-sm text-slate-500 mt-1">Please wait</p>
-          </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Loader className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-lg font-semibold text-gray-700">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -87,16 +95,11 @@ const VRHotelDashboard: React.FC = () => {
   if (error && !stats.totalRooms) {
     return (
       <div className="p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
-          <AlertCircle className="w-5 h-5" />
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600" />
           <div>
-            <strong>Error loading dashboard:</strong> {error}
-            <button 
-              onClick={() => window.location.reload()} 
-              className="ml-4 px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
-            >
-              Retry
-            </button>
+            <strong className="text-red-700">Error:</strong>
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         </div>
       </div>
@@ -104,111 +107,111 @@ const VRHotelDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">VR Hotel Dashboard</h1>
-          <p className="mt-2 text-gray-600">Welcome to your immersive hotel management system</p>
+    <div className="space-y-8 p-6">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-4xl font-bold mb-2">Welcome back! 👋</h2>
+            <p className="text-blue-100 text-lg">Manage your VR360 hotel content</p>
+          </div>
+          
+          {/* Quick Action Buttons */}
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => navigate('/vr-hotel/rooms')}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+            >
+              <Plus size={18} />
+              Add New Room
+            </button>
+            <button
+              onClick={() => navigate('/vr-hotel/offers')}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+            >
+              <Tag size={18} />
+              Create Offer
+            </button>
+            <a
+              href="https://hotellink.trip360.vn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+            >
+              <Eye size={18} />
+              View Website
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Dashboard Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Rooms Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Rooms</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalRooms}</p>
+        <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Total Rooms</h3>
+            <div className="p-3 rounded-lg" style={{ background: '#3b82f6' }}>
+              <Bed size={20} className="text-white" />
             </div>
-            <div className="flex-shrink-0 p-3 bg-blue-100 rounded-lg">
-              <Hotel size={32} className="text-blue-600" />
-            </div>
+          </div>
+          <div className="text-4xl font-bold text-gray-900 mb-3">{stats.totalRooms}</div>
+          <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+            <ArrowUp size={16} />
+            <span>Active rooms</span>
           </div>
         </div>
 
-        {/* Occupancy Rate Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Occupancy Rate</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{occupancyRate}%</p>
-              <p className="text-xs text-gray-500 mt-2">{stats.occupiedRooms} of {stats.totalRooms} occupied</p>
+        {/* Facilities Card */}
+        <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Facilities</h3>
+            <div className="p-3 rounded-lg bg-gradient-to-br from-pink-400 to-red-500">
+              <Zap size={20} className="text-white" />
             </div>
-            <div className="flex-shrink-0 p-3 bg-green-100 rounded-lg">
-              <Users size={32} className="text-green-600" />
-            </div>
+          </div>
+          <div className="text-4xl font-bold text-gray-900 mb-3">{stats.totalFacilities}</div>
+          <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+            <Check size={16} />
+            <span>Active</span>
           </div>
         </div>
 
-        {/* Pending Bookings Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Pending Bookings</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pendingBookings}</p>
+        {/* Offers Card */}
+        <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Offers</h3>
+            <div className="p-3 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500">
+              <Tag size={20} className="text-white" />
             </div>
-            <div className="flex-shrink-0 p-3 bg-yellow-100 rounded-lg">
-              <Calendar size={32} className="text-yellow-600" />
-            </div>
+          </div>
+          <div className="text-4xl font-bold text-gray-900 mb-3">{stats.totalOffers}</div>
+          <div className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
+            <Flame size={16} />
+            <span>{stats.totalOffers > 0 ? 'Available' : 'No offers'}</span>
           </div>
         </div>
 
-        {/* Average Views Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Avg Views/Day</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.avgViewsPerDay.toLocaleString()}</p>
+        {/* Dining/VR360 Tours Card */}
+        <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Dining</h3>
+            <div className="p-3 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500">
+              <Lightbulb size={20} className="text-white" />
             </div>
-            <div className="flex-shrink-0 p-3 bg-purple-100 rounded-lg">
-              <Eye size={32} className="text-purple-600" />
-            </div>
+          </div>
+          <div className="text-4xl font-bold text-gray-900 mb-3">{stats.totalDining}</div>
+          <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+            <ArrowUp size={16} />
+            <span>{stats.totalDining > 0 ? 'Active' : 'No dining'}</span>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg hover:shadow-md transition-shadow">
-            <div className="flex-shrink-0 p-2 bg-blue-200 rounded">
-              <Hotel size={20} className="text-blue-600" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-gray-900">Manage Rooms</p>
-              <p className="text-xs text-gray-600">Add or edit room details</p>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg hover:shadow-md transition-shadow">
-            <div className="flex-shrink-0 p-2 bg-purple-200 rounded">
-              <Users size={20} className="text-purple-600" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-gray-900">View Bookings</p>
-              <p className="text-xs text-gray-600">Check pending reservations</p>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg hover:shadow-md transition-shadow">
-            <div className="flex-shrink-0 p-2 bg-green-200 rounded">
-              <Eye size={20} className="text-green-600" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-gray-900">View Analytics</p>
-              <p className="text-xs text-gray-600">Check performance metrics</p>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Recent Activity Section */}
+      <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">Recent Activity</h2>
+          <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
           <button
             onClick={() => navigate('/vr-hotel/activities')}
             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -218,39 +221,35 @@ const VRHotelDashboard: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader className="w-5 h-5 animate-spin text-blue-600 mr-2" />
-            <span className="text-slate-600">Loading activities...</span>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+              <p className="text-gray-600">Loading activities...</p>
+            </div>
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-red-600" />
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
             <span className="text-sm text-red-700">{error}</span>
           </div>
         ) : activities.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-slate-500">No recent activities found</p>
+          <div className="text-center py-12">
+            <p className="text-gray-500">No recent activities</p>
           </div>
         ) : (
           <div className="space-y-3">
             {activities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-4 p-3 border-l-4 rounded hover:bg-slate-50 transition-colors" style={{ borderColor: activity.iconBg }}>
+              <div key={activity.id} className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors border-l-4" style={{ borderColor: activity.iconBg }}>
                 <div
                   className="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0"
-                  style={{
-                    background: activity.iconBg,
-                    color: activity.iconColor || '#fff',
-                  }}
+                  style={{ background: activity.iconBg, color: activity.iconColor || '#fff' }}
                 >
                   <i className={activity.icon}></i>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{activity.text}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {activity.user_name}
-                    </span>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900 text-sm">{activity.text}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                    <span>{activity.user_name}</span>
                     <span>•</span>
                     <span>{activity.time}</span>
                   </div>
