@@ -76,7 +76,11 @@ class MediaApiService {
   async uploadFile(
     file: File, 
     kind: 'image' | 'video' | 'file' = 'image',
-    altText?: string
+    altText?: string,
+    source?: string,
+    entityType?: string,
+    entityId?: number,
+    folder?: string
   ): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -88,8 +92,15 @@ class MediaApiService {
     // Use kind directly since backend now expects lowercase
     const backendKind = kind;
 
+    // Build query params
+    let queryParams = `kind=${backendKind}`;
+    if (source) queryParams += `&source=${source}`;
+    if (entityType) queryParams += `&entity_type=${entityType}`;
+    if (entityId) queryParams += `&entity_id=${entityId}`;
+    if (folder) queryParams += `&folder=${folder}`;
+
     // Kind goes in query params, not form data - BACK TO ORIGINAL
-    const response = await mediaApiClient.post(`/media/upload?kind=${backendKind}`, formData, {
+    const response = await mediaApiClient.post(`/media/upload?${queryParams}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -110,9 +121,13 @@ class MediaApiService {
    */
   async uploadFiles(
     files: File[], 
-    kind: 'image' | 'video' | 'file' = 'image'
+    kind: 'image' | 'video' | 'file' = 'image',
+    source?: string,
+    entityType?: string,
+    entityId?: number,
+    folder?: string
   ): Promise<UploadResponse[]> {
-    const uploadPromises = files.map(file => this.uploadFile(file, kind));
+    const uploadPromises = files.map(file => this.uploadFile(file, kind, undefined, source, entityType, entityId, folder));
     return Promise.all(uploadPromises);
   }
 
@@ -122,11 +137,15 @@ class MediaApiService {
   async getMediaFiles(
     kind?: 'image' | 'video' | 'file',
     skip = 0,
-    limit = 100
+    limit = 100,
+    source?: string
   ): Promise<MediaFile[]> {
     const params: any = { skip, limit };
     if (kind) {
       params.kind = kind;
+    }
+    if (source) {
+      params.source = source;
     }
 
     const response = await mediaApiClient.get('/media/', { params });

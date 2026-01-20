@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { faInfoCircle, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React, { useEffect, useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { usePropertySettings } from '../../hooks/usePropertySettings';
 import type { UIPost } from '../../services/api';
 import { localesApi, type Locale } from '../../services/localesApi';
-import { usePropertySettings } from '../../hooks/usePropertySettings';
 import { getApiBaseUrl } from '../../utils/api';
 
 interface EditPostModalProps {
@@ -51,7 +51,8 @@ const EditPostModal: React.FC<EditPostModalProps> = ({ isOpen, onClose, post, on
         const token = localStorage.getItem('access_token') || '';
         const apiBaseUrl = getApiBaseUrl();
         
-        const response = await fetch(`${apiBaseUrl}/media/upload`, {
+        // Upload with source=travel for Post editor images
+        const response = await fetch(`${apiBaseUrl}/media/upload?kind=image&source=travel&entity_type=post&folder=posts`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

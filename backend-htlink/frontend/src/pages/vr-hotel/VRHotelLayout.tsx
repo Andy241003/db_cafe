@@ -29,6 +29,8 @@ const VRHotelLayout: React.FC = () => {
         return { title: 'Offers', breadcrumb: 'VR Hotel / Offers' };
       case '/facilities':
         return { title: 'Facilities', breadcrumb: 'VR Hotel / Facilities' };
+      case '/media':
+        return { title: 'Media Library', breadcrumb: 'VR Hotel / Media Library' };
       case '/policies':
         return { title: 'Policies', breadcrumb: 'VR Hotel / Policies' };
       case '/rules':

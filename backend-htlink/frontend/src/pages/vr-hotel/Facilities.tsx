@@ -1,15 +1,15 @@
 import {
-  faEdit,
-  faEye,
-  faFlag,
-  faImages,
-  faInfoCircle,
-  faPlay,
-  faPlus,
-  faSave,
-  faTimes,
-  faTrash,
-  faVrCardboard
+    faEdit,
+    faEye,
+    faFlag,
+    faImages,
+    faInfoCircle,
+    faPlay,
+    faPlus,
+    faSave,
+    faTimes,
+    faTrash,
+    faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -273,7 +273,11 @@ const VRHotelFacilities: React.FC = () => {
         try {
           const uploadResults = await mediaApi.uploadFiles(
             newImagesToUpload.map(img => img.file!),
-            'image'
+            'image',
+            'vr_hotel',
+            'facility',
+            editingFacility?.id,
+            'facilities'
           );
           mediaIds.push(...uploadResults.map(r => r.id));
           toast.success(`Uploaded ${uploadResults.length} images`, { id: 'upload' });

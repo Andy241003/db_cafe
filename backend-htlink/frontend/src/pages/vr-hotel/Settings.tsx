@@ -116,8 +116,8 @@ const VRHotelSettings: React.FC = () => {
     try {
       setUploadingLogo(true);
       
-      // Upload to media API
-      const uploadedFile = await mediaApi.uploadFile(file, 'image');
+      // Upload to media API with VR Hotel source
+      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'settings', undefined, 'settings');
       
       setLogoMediaId(uploadedFile.id);
       const API_BASE_URL = getApiBaseUrl();
@@ -156,8 +156,8 @@ const VRHotelSettings: React.FC = () => {
     try {
       setUploadingFavicon(true);
       
-      // Upload to media API
-      const uploadedFile = await mediaApi.uploadFile(file, 'image');
+      // Upload to media API with VR Hotel source
+      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'settings', undefined, 'settings');
       
       setFaviconMediaId(uploadedFile.id);
       const API_BASE_URL = getApiBaseUrl();

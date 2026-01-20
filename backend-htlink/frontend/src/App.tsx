@@ -13,6 +13,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 
 // Shared imports
 import SharedSettingsLayout from './layouts/SharedSettingsLayout';
+import Media from './pages/Media';
 
 // VR Hotel imports
 import VRHotelContact from './pages/vr-hotel/Contact';
@@ -150,6 +151,7 @@ function App() {
                         <Route path="dining" element={<VRHotelDining />} />
                         <Route path="offers" element={<VRHotelOffers />} />
                         <Route path="facilities" element={<VRHotelFacilities />} />
+                        <Route path="media" element={<Media defaultSource="vr_hotel" />} />
                         <Route path="policies" element={<VRHotelPolicies />} />
                         <Route path="rules" element={<VRHotelRules />} />
                         <Route path="contact" element={<VRHotelContact />} />

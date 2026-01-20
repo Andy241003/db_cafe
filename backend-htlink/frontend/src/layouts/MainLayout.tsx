@@ -64,7 +64,7 @@ const MainLayout: React.FC = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/categories/*" element={<Categories />} />
             <Route path="/features/*" element={<Features />} />
-            <Route path="/media" element={<Media />} />
+            <Route path="/media" element={<Media defaultSource="travel" />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/activities" element={<Activities />} />
           </Routes>

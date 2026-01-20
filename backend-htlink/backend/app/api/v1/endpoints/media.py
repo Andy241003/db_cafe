@@ -29,10 +29,15 @@ async def upload_media_file(
     file: Optional[UploadFile] = File(None),
     kind: Optional[str] = None,
     alt_text: Optional[str] = None,
+    source: Optional[str] = "general",  # New: travel, vr_hotel, general
+    entity_type: Optional[str] = None,  # New: post, room, service, facility, offer
+    entity_id: Optional[int] = None,    # New: ID of related entity
+    folder: Optional[str] = None,        # New: posts, rooms, services, facilities
 ) -> Any:
     print(" UPLOAD REACHED!", flush=True, file=sys.stderr)
     print(f"User: {current_user.email}, Role: {current_user.role}", flush=True, file=sys.stderr)
     print(f"File: {file.filename if file else 'None'}, Kind: {kind}", flush=True, file=sys.stderr)
+    print(f"🎯 Source: {source}, Entity Type: {entity_type}, Entity ID: {entity_id}, Folder: {folder}", flush=True, file=sys.stderr)
     
     # Validate kind parameter
     valid_kinds = ["image", "video", "file", "icon"]
@@ -103,7 +108,12 @@ async def upload_media_file(
             file_key=file_key,
             original_filename=file.filename,  # Save original filename from upload
             size_bytes=len(content),
-            alt_text=alt_text
+            alt_text=alt_text,
+            # Source tracking
+            source=source or "general",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            folder=folder
         )
         session.add(media_file)
         session.commit()
@@ -150,14 +160,29 @@ def read_media_files(
     tenant_id: CurrentTenantId,
     skip: int = 0,
     limit: int = 100,
+    source: Optional[str] = None,  # Filter by source: travel, vr_hotel, general
+    folder: Optional[str] = None,  # Filter by folder: posts, rooms, services, facilities
+    entity_type: Optional[str] = None,  # Filter by entity type
 ) -> Any:
-    """Get media files for current tenant"""
-    media_files = media_file.get_by_tenant(
-        db=session, tenant_id=tenant_id, skip=skip, limit=limit
-    )
+    """Get media files for current tenant with optional filtering"""
+    from sqlmodel import select
+    
+    # Build query with filters
+    query = select(MediaFile).where(MediaFile.tenant_id == tenant_id)
+    
+    if source:
+        query = query.where(MediaFile.source == source)
+    if folder:
+        query = query.where(MediaFile.folder == folder)
+    if entity_type:
+        query = query.where(MediaFile.entity_type == entity_type)
+    
+    query = query.offset(skip).limit(limit)
+    media_files = session.exec(query).all()
+    
     # Debug: Log first file to check if original_filename is loaded
     if media_files:
-        print(f"🔍 DEBUG First media file: id={media_files[0].id}, original_filename={media_files[0].original_filename}, file_key={media_files[0].file_key}")
+        print(f"🔍 DEBUG First media file: id={media_files[0].id}, original_filename={media_files[0].original_filename}, file_key={media_files[0].file_key}, source={media_files[0].source}, folder={media_files[0].folder}")
     return media_files
 
 

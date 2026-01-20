@@ -1,32 +1,29 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { 
-  Upload, 
-  Search, 
-  Grid, 
-  List, 
-  Eye, 
-  Download, 
-  Trash2, 
-  FolderPlus, 
-  X, 
-  Play, 
-  FileText, 
-  Image,
-  Video,
-  File,
-  Wifi,
-  Car,
-  Utensils,
-  Waves,
-  Sparkles,
-  Check,
-  CheckSquare,
-  Loader2,
-  AlertCircle
+import { message, Popconfirm } from 'antd';
+import {
+    AlertCircle,
+    Car,
+    Check,
+    CheckSquare,
+    Download,
+    Eye,
+    File,
+    FileText,
+    Grid,
+    Image,
+    List,
+    Loader2,
+    Play,
+    Search,
+    Sparkles,
+    Trash2,
+    Upload,
+    Utensils,
+    Video,
+    Waves,
+    Wifi,
+    X
 } from 'lucide-react';
-import { Upload as AntUpload, Button, message, Popconfirm, Space, Table, Modal } from 'antd';
-import { UploadOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { mediaApi, type MediaFile as ApiMediaFile } from '../services/mediaApi';
 import { getApiBaseUrl } from '../utils/api';
 
@@ -60,7 +57,11 @@ interface IconFile {
   preview: string;
 }
 
-export default function MediaLibrary() {
+interface MediaLibraryProps {
+  defaultSource?: 'travel' | 'vr_hotel' | '';
+}
+
+export default function MediaLibrary({ defaultSource = '' }: MediaLibraryProps) {
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export default function MediaLibrary() {
   const [searchQuery, setSearchQuery] = useState('');
   const [folderFilter, setFolderFilter] = useState('');
   const [sizeFilter, setSizeFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState(defaultSource); // Initialize with defaultSource
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [currentMediaFile, setCurrentMediaFile] = useState<MediaFile | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,7 +159,8 @@ export default function MediaLibrary() {
     try {
       setLoading(true);
       setError(null);
-      const apiFiles = await mediaApi.getMediaFiles();
+      // Pass sourceFilter to API to get filtered results from backend
+      const apiFiles = await mediaApi.getMediaFiles(undefined, 0, 100, sourceFilter);
       const convertedFiles = apiFiles.map(convertApiMediaFile);
       setMedia(convertedFiles);
     } catch (err: any) {
@@ -192,10 +195,10 @@ export default function MediaLibrary() {
     }
   };
 
-  // Load data on component mount
+  // Load data on component mount and when sourceFilter changes
   useEffect(() => {
     loadMediaFiles();
-  }, []);
+  }, [sourceFilter]);
 
   // Update stats when media changes
   useEffect(() => {
@@ -291,7 +294,8 @@ export default function MediaLibrary() {
         else if (file.type.startsWith('video/')) kind = 'video';
         // All other files use 'file' kind
 
-        return await mediaApi.uploadFile(file, kind);
+        // Pass source from current filter context
+        return await mediaApi.uploadFile(file, kind, undefined, sourceFilter);
       });
 
       const uploadResults = await Promise.all(uploadPromises);

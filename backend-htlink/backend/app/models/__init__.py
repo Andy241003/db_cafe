@@ -39,6 +39,12 @@ class MediaKind(str, PythonEnum):
     ICON = "icon"
 
 
+class MediaSource(str, PythonEnum):
+    TRAVEL = "travel"  # Posts, events from Travel module
+    VR_HOTEL = "vr_hotel"  # Rooms, services, facilities, offers from VR Hotel
+    GENERAL = "general"  # General media library uploads
+
+
 # Plan model
 class Plan(SQLModel, table=True):
     __tablename__ = "plans"
@@ -300,6 +306,13 @@ class MediaFile(SQLModel, table=True):
     height: Optional[int] = None
     size_bytes: Optional[int] = None
     alt_text: Optional[str] = Field(max_length=300)
+    
+    # Source tracking fields
+    source: Optional[str] = Field(default="general", sa_column=Column(String(20)))
+    entity_type: Optional[str] = Field(default=None, sa_column=Column(String(50)))
+    entity_id: Optional[int] = Field(default=None)
+    folder: Optional[str] = Field(default=None, sa_column=Column(String(100)))
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
