@@ -187,10 +187,9 @@ Other Rules:
     setFormData(prev => ({ ...prev, isDisplaying: newDisplayingState }));
     
     try {
-      await vrHotelSettingsApi.updatePageSettings('policies', {
-        vr360_link: formData.vr360Link,
-        vr_title: formData.vrTitle,
-        is_displaying: newDisplayingState
+      await vrHotelPoliciesApi.updatePolicies({
+        ...formData,
+        isDisplaying: newDisplayingState
       });
       toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
     } catch (error: any) {

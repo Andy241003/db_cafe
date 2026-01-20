@@ -169,10 +169,9 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
     setFormData(prev => ({ ...prev, isDisplaying: newDisplayingState }));
     
     try {
-      await vrHotelSettingsApi.updatePageSettings('introduction', {
-        vr360_link: formData.vr360Link,
-        vr_title: formData.vrTitle,
-        is_displaying: newDisplayingState
+      await vrHotelIntroductionApi.updateIntroduction({
+        ...formData,
+        isDisplaying: newDisplayingState
       });
       toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
     } catch (error: any) {

@@ -150,9 +150,7 @@ const VRHotelContact: React.FC = () => {
                 setFormData({ ...formData, isDisplaying: newDisplayingState });
                 
                 try {
-                  await vrHotelSettingsApi.updatePageSettings('contact', {
-                    is_displaying: newDisplayingState
-                  });
+                  await vrHotelApi.contact.updateContact({ ...formData, isDisplaying: newDisplayingState });
                   toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
                 } catch (error: any) {
                   console.error('Failed to save display status:', error);
