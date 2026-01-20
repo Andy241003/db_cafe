@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Hotel, Users, Calendar, Eye } from 'lucide-react';
+import { Hotel, Users, Calendar, Eye, AlertCircle, Loader } from 'lucide-react';
+import { analyticsAPI, type ActivityItem } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
-interface DashboardStats {
+interface VRDashboardStats {
   totalRooms: number;
   occupiedRooms: number;
   pendingBookings: number;
@@ -9,14 +11,97 @@ interface DashboardStats {
 }
 
 const VRHotelDashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalRooms: 12,
-    occupiedRooms: 8,
-    pendingBookings: 3,
-    avgViewsPerDay: 1250
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+  const [stats, setStats] = useState<VRDashboardStats>({
+    totalRooms: 0,
+    occupiedRooms: 0,
+    pendingBookings: 0,
+    avgViewsPerDay: 0
   });
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+
+        // Load stats from analytics
+        try {
+          const dashboardStats = await analyticsAPI.getDashboardStats(30);
+          setStats({
+            totalRooms: 12, // TODO: Get from API
+            occupiedRooms: 8, // TODO: Get from API
+            pendingBookings: 3, // TODO: Get from API
+            avgViewsPerDay: dashboardStats.total_page_views
+          });
+        } catch (statsError) {
+          console.warn('Analytics stats not available:', statsError);
+          setStats({
+            totalRooms: 12,
+            occupiedRooms: 8,
+            pendingBookings: 3,
+            avgViewsPerDay: 1250
+          });
+        }
+
+        // Load recent activities
+        try {
+          const recentActivities = await analyticsAPI.getRecentActivities(5);
+          setActivities(recentActivities);
+        } catch (activitiesError) {
+          console.warn('Recent activities not available:', activitiesError);
+          setActivities([]);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to load dashboard:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   const occupancyRate = Math.round((stats.occupiedRooms / stats.totalRooms) * 100);
+
+  // Show loading state
+  if (loading && !stats.totalRooms) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader className="w-12 h-12 animate-spin text-blue-500 mx-auto" />
+            <p className="mt-4 text-lg font-semibold text-slate-700">Loading VR Hotel dashboard...</p>
+            <p className="text-sm text-slate-500 mt-1">Please wait</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && !stats.totalRooms) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5" />
+          <div>
+            <strong>Error loading dashboard:</strong> {error}
+            <button 
+              onClick={() => window.location.reload()} 
+              className="ml-4 px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -122,32 +207,58 @@ const VRHotelDashboard: React.FC = () => {
 
       {/* Recent Activity */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 border-l-4 border-blue-500 bg-blue-50 rounded">
-            <div>
-              <p className="font-medium text-gray-900">New booking received</p>
-              <p className="text-xs text-gray-600">Room 202 - Check-in: Jan 15, 2026</p>
-            </div>
-            <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">2 hours ago</span>
-          </div>
-
-          <div className="flex items-center justify-between p-3 border-l-4 border-green-500 bg-green-50 rounded">
-            <div>
-              <p className="font-medium text-gray-900">Room 101 check-in completed</p>
-              <p className="text-xs text-gray-600">Guest: John Doe</p>
-            </div>
-            <span className="text-xs font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">4 hours ago</span>
-          </div>
-
-          <div className="flex items-center justify-between p-3 border-l-4 border-yellow-500 bg-yellow-50 rounded">
-            <div>
-              <p className="font-medium text-gray-900">Virtual tour viewed</p>
-              <p className="text-xs text-gray-600">Deluxe Suite - 45 views today</p>
-            </div>
-            <span className="text-xs font-semibold text-yellow-600 bg-yellow-100 px-3 py-1 rounded-full">Just now</span>
-          </div>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-900">Recent Activity</h2>
+          <button
+            onClick={() => navigate('/vr-hotel/activities')}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            View all
+          </button>
         </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader className="w-5 h-5 animate-spin text-blue-600 mr-2" />
+            <span className="text-slate-600">Loading activities...</span>
+          </div>
+        ) : error ? (
+          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <span className="text-sm text-red-700">{error}</span>
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-slate-500">No recent activities found</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activities.map((activity) => (
+              <div key={activity.id} className="flex items-start gap-4 p-3 border-l-4 rounded hover:bg-slate-50 transition-colors" style={{ borderColor: activity.iconBg }}>
+                <div
+                  className="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0"
+                  style={{
+                    background: activity.iconBg,
+                    color: activity.iconColor || '#fff',
+                  }}
+                >
+                  <i className={activity.icon}></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{activity.text}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      {activity.user_name}
+                    </span>
+                    <span>•</span>
+                    <span>{activity.time}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
