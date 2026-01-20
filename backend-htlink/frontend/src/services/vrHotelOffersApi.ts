@@ -70,7 +70,7 @@ export interface Offer {
   valid_to?: string; // ISO date
   min_nights: number;
   applicable_room_types?: string[];
-  status: 'active' | 'inactive' | 'expired';
+  status: 'active' | 'inactive' | 'expired' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
   vr_link?: string;
   display_order: number;
   translations: Record<string, OfferTranslation>;

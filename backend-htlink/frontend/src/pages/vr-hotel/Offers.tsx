@@ -25,7 +25,7 @@ interface FormOfferData {
   valid_to: string;
   min_nights: number;
   applicable_room_types: string[];
-  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  status: 'active' | 'inactive' | 'expired';
   vr_link: string;
   display_order: number;
   translations: Record<string, { title: string; description: string; terms_conditions: string }>;
@@ -69,7 +69,7 @@ const VRHotelOffers: React.FC = () => {
     valid_to: '',
     min_nights: 1,
     applicable_room_types: [],
-    status: 'ACTIVE',
+    status: 'active',
     vr_link: '',
     display_order: 0,
     translations: {}
@@ -171,7 +171,7 @@ const VRHotelOffers: React.FC = () => {
       valid_to: '',
       min_nights: 1,
       applicable_room_types: [],
-      status: 'ACTIVE',
+      status: 'active',
       vr_link: '',
       display_order: 0,
       translations: initialTranslations
@@ -500,10 +500,10 @@ const VRHotelOffers: React.FC = () => {
                         <span>Valid: {offer.valid_from} → {offer.valid_to}</span>
                       )}
                       <span>Status: <span className={`font-medium ${
-                        offer.status === 'ACTIVE' ? 'text-green-600' :
-                        offer.status === 'INACTIVE' ? 'text-yellow-600' :
+                        offer.status === 'active' || offer.status === 'ACTIVE' ? 'text-green-600' :
+                        offer.status === 'inactive' || offer.status === 'INACTIVE' ? 'text-yellow-600' :
                         'text-red-600'
-                      }`}>{offer.status}</span></span>
+                      }`}>{offer.status?.toUpperCase()}</span></span>
                     </div>
                     {offer.translations['vi']?.description && (
                       <p className="text-sm text-slate-600 mt-2">{offer.translations['vi']?.description}</p>
@@ -696,9 +696,9 @@ const VRHotelOffers: React.FC = () => {
                       disabled={!isDisplaying}
                       className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                     >
-                      <option value="ACTIVE">Active</option>
-                      <option value="INACTIVE">Inactive</option>
-                      <option value="EXPIRED">Expired</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="expired">Expired</option>
                     </select>
                   </div>
                 </div>
