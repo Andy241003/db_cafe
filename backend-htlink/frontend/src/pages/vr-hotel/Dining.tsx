@@ -123,6 +123,7 @@ const VRHotelDining: React.FC = () => {
       if (vrSettings) {
         setDiningVR360Link(vrSettings.vr360_link || '');
         setDiningVRTitle(vrSettings.vr_title || '');
+        setIsDisplaying(vrSettings.is_displaying !== false);
       }
     } catch (error) {
       console.error('Error loading locales and dinings:', error);
@@ -148,7 +149,8 @@ const VRHotelDining: React.FC = () => {
     try {
       await vrHotelSettingsApi.updatePageSettings('dining', {
         vr360_link: diningVR360Link,
-        vr_title: diningVRTitle
+        vr_title: diningVRTitle,
+        is_displaying: isDisplaying
       });
       toast.success('VR360 settings saved successfully!', { id: loadingToast, duration: 2000 });
     } catch (error: any) {
@@ -160,9 +162,23 @@ const VRHotelDining: React.FC = () => {
     }
   };
 
-  const toggleSection = () => {
-    setIsDisplaying(!isDisplaying);
-    toast.success('Display status updated!');
+  const toggleSection = async () => {
+    const newDisplayingState = !isDisplaying;
+    setIsDisplaying(newDisplayingState);
+    
+    try {
+      await vrHotelSettingsApi.updatePageSettings('dining', {
+        vr360_link: diningVR360Link,
+        vr_title: diningVRTitle,
+        is_displaying: newDisplayingState
+      });
+      toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+    } catch (error: any) {
+      console.error('Failed to save display status:', error);
+      const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+      toast.error(errorMsg);
+      setIsDisplaying(!newDisplayingState);
+    }
   };
 
   const addDining = () => {

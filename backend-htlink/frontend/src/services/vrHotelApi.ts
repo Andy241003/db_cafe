@@ -104,6 +104,7 @@ export interface VRHotelSettingsUpdate extends Partial<VRHotelSettings> {}
 export interface VRPageSettings {
   vr360_link?: string;
   vr_title?: string;
+  is_displaying?: boolean;
 }
 
 // ==========================================

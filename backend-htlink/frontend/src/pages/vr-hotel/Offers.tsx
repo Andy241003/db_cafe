@@ -116,15 +116,30 @@ const VRHotelOffers: React.FC = () => {
       if (vrSettings) {
         setOffersVR360Link(vrSettings.vr360_link || '');
         setOffersVRTitle(vrSettings.vr_title || '');
+        setIsDisplaying(vrSettings.is_displaying !== false);
       }
     } catch (error) {
       console.error('Error loading VR settings:', error);
     }
   };
 
-  const toggleSection = () => {
-    setIsDisplaying(!isDisplaying);
-    toast.success('Display status updated!');
+  const toggleSection = async () => {
+    const newDisplayingState = !isDisplaying;
+    setIsDisplaying(newDisplayingState);
+    
+    try {
+      await vrHotelSettingsApi.updatePageSettings('offers', {
+        vr360_link: offersVR360Link,
+        vr_title: offersVRTitle,
+        is_displaying: newDisplayingState
+      });
+      toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+    } catch (error: any) {
+      console.error('Failed to save display status:', error);
+      const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+      toast.error(errorMsg);
+      setIsDisplaying(!newDisplayingState);
+    }
   };
 
   const saveVRSettings = async () => {
@@ -133,7 +148,8 @@ const VRHotelOffers: React.FC = () => {
     try {
       await vrHotelSettingsApi.updatePageSettings('offers', {
         vr360_link: offersVR360Link,
-        vr_title: offersVRTitle
+        vr_title: offersVRTitle,
+        is_displaying: isDisplaying
       });
       toast.success('VR360 settings saved', { id: loadingToast, duration: 2000 });
     } catch (error: any) {

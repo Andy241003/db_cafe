@@ -145,7 +145,22 @@ const VRHotelContact: React.FC = () => {
                 type="checkbox"
                 className="sr-only peer"
                 checked={formData.isDisplaying}
-                onChange={(e) => setFormData({ ...formData, isDisplaying: e.target.checked })}
+              onChange={async (e) => {
+                const newDisplayingState = e.target.checked;
+                setFormData({ ...formData, isDisplaying: newDisplayingState });
+                
+                try {
+                  await vrHotelSettingsApi.updatePageSettings('contact', {
+                    is_displaying: newDisplayingState
+                  });
+                  toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+                } catch (error: any) {
+                  console.error('Failed to save display status:', error);
+                  const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+                  toast.error(errorMsg);
+                  setFormData({ ...formData, isDisplaying: !newDisplayingState });
+                }
+              }}
               />
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>

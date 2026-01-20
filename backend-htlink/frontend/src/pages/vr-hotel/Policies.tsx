@@ -182,9 +182,23 @@ Other Rules:
     }
   };
 
-  const handleToggleDisplay = () => {
-    setFormData(prev => ({ ...prev, isDisplaying: !prev.isDisplaying }));
-    toast.success('Display status updated!');
+  const handleToggleDisplay = async () => {
+    const newDisplayingState = !formData.isDisplaying;
+    setFormData(prev => ({ ...prev, isDisplaying: newDisplayingState }));
+    
+    try {
+      await vrHotelSettingsApi.updatePageSettings('policies', {
+        vr360_link: formData.vr360Link,
+        vr_title: formData.vrTitle,
+        is_displaying: newDisplayingState
+      });
+      toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+    } catch (error: any) {
+      console.error('Failed to save display status:', error);
+      const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+      toast.error(errorMsg);
+      setFormData(prev => ({ ...prev, isDisplaying: !newDisplayingState }));
+    }
   };
 
   const handleInputChange = (
