@@ -4,10 +4,9 @@ import {
   faMapPin,
   faPhone,
   faPlay,
-  faSave,
   faShareNodes,
   faUndo,
-  faVrCardboard,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -491,9 +490,11 @@ const VRHotelContact: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
-          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          <FontAwesomeIcon icon={faSave} />
+          <svg data-prefix="fas" data-icon="floppy-disk" className="svg-inline--fa fa-floppy-disk w-4 h-4" role="img" viewBox="0 0 448 512" aria-hidden="true">
+            <path fill="currentColor" d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-242.7c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32L64 32zm32 96c0-17.7 14.3-32 32-32l160 0c17.7 0 32 14.3 32 32l0 64c0 17.7-14.3 32-32 32l-160 0c-17.7 0-32-14.3-32-32l0-64zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"></path>
+          </svg>
           {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
