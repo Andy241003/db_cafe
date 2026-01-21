@@ -1,38 +1,38 @@
-import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
+import {
+  faCircleInfo,
+  faEye,
+  faMapPin,
+  faPhone,
+  faPlay,
+  faSave,
+  faShareNodes,
+  faUndo,
+  faVrCardboard,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
-import vrHotelApi from '../../services/vrHotelApi';
+import toast from 'react-hot-toast';
+import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
+import { vrHotelContactApi, type ContactData } from '../../services/vrHotelApi';
 
-interface ContactData {
-  isDisplaying: boolean;
-  phone?: string;
-  email?: string;
-  website?: string;
-  address?: Record<string, string>;
-  socialMedia?: Record<string, string>;
-  mapCoordinates?: string;
-  workingHours?: Record<string, string>;
-  vr360Link?: string;
-  vrTitle?: string;
-  content?: Record<string, any>;
-}
-
-interface Locale {
-  id: number;
-  locale_code: string;
-  is_default: boolean;
-  is_active: boolean;
-  tenant_id?: number;
-  property_id?: number;
+interface ContactContent {
+  description?: string;
 }
 
 const VRHotelContact: React.FC = () => {
+  const [availableLocales, setAvailableLocales] = useState<PropertyLocale[]>([]);
+  const [currentLang, setCurrentLang] = useState<string>('vi');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState<ContactData>({
     isDisplaying: true,
     phone: '',
     email: '',
     website: '',
+    mapCoordinates: '',
+    vr360Link: '',
+    vrTitle: '',
     address: {},
     socialMedia: {
       facebook: '',
@@ -40,52 +40,78 @@ const VRHotelContact: React.FC = () => {
       twitter: '',
       youtube: ''
     },
-    mapCoordinates: '',
     workingHours: {},
-    vr360Link: '',
-    vrTitle: '',
     content: {}
   });
 
   const [originalData, setOriginalData] = useState<ContactData>(formData);
-  const [activeLanguage, setActiveLanguage] = useState<string>('vi');
-  const [locales, setLocales] = useState<Locale[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+
+  const socialMediaPlatforms = [
+    { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/...' },
+    { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+    { key: 'twitter', label: 'Twitter/X', placeholder: 'https://twitter.com/...' },
+    { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/...' }
+  ];
 
   useEffect(() => {
-    loadData();
+    loadLocalesAndContact();
   }, []);
 
-  const loadData = async () => {
+  const loadLocalesAndContact = async () => {
     setIsLoading(true);
     try {
-      const localesResponse = await vrHotelApi.languages.getLanguages();
-      const activeLocales = localesResponse.filter((l: Locale) => l.is_active);
-      setLocales(activeLocales);
-
-      if (activeLocales.length > 0) {
-        const defaultLocale = activeLocales.find((l: Locale) => l.is_default);
-        setActiveLanguage(defaultLocale ? defaultLocale.locale_code : activeLocales[0].locale_code);
+      const propertyId = localStorage.getItem('current_property_id');
+      if (!propertyId) {
+        toast.error('No property selected');
+        return;
       }
 
-      const response = await vrHotelApi.contact.getContact();
+      // Load available locales
+      const locales = await propertyLocalesApi.getLocales(parseInt(propertyId));
+      const activeLocales = locales.filter(l => l.is_active);
+      setAvailableLocales(activeLocales);
+
+      const defaultLocale = activeLocales.find(l => l.is_default);
+      if (defaultLocale) {
+        setCurrentLang(defaultLocale.locale_code);
+      } else if (activeLocales.length > 0) {
+        setCurrentLang(activeLocales[0].locale_code);
+      }
+
+      // Load contact data
+      const response = await vrHotelContactApi.getContact();
       
-      const address = { ...response.address };
-      const workingHours = { ...response.workingHours };
-      const content = { ...response.content };
+      // Initialize content for all locales
+      const content: Record<string, ContactContent> = response.content || {};
+      const address: Record<string, string> = response.address || {};
+      const workingHours: Record<string, string> = response.workingHours || {};
       
-      activeLocales.forEach((locale: Locale) => {
-        const localeKey = locale.locale_code;
-        if (!address[localeKey]) address[localeKey] = '';
-        if (!workingHours[localeKey]) workingHours[localeKey] = '';
-        if (!content[localeKey]) {
-          content[localeKey] = { description: '' };
+      activeLocales.forEach(locale => {
+        if (!content[locale.locale_code]) {
+          content[locale.locale_code] = { description: '' };
+        }
+        if (!address[locale.locale_code]) {
+          address[locale.locale_code] = '';
+        }
+        if (!workingHours[locale.locale_code]) {
+          workingHours[locale.locale_code] = '';
         }
       });
 
-      const data = {
-        ...response,
+      const data: ContactData = {
+        isDisplaying: response.isDisplaying ?? true,
+        phone: response.phone || '',
+        email: response.email || '',
+        website: response.website || '',
+        mapCoordinates: response.mapCoordinates || '',
+        vr360Link: response.vr360Link || '',
+        vrTitle: response.vrTitle || '',
+        socialMedia: response.socialMedia || {
+          facebook: '',
+          instagram: '',
+          twitter: '',
+          youtube: ''
+        },
         address,
         workingHours,
         content
@@ -102,14 +128,20 @@ const VRHotelContact: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (!formData.phone && !formData.email && !formData.website) {
+      toast.error('Please enter at least one contact method');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await vrHotelApi.contact.updateContact(formData);
+      await vrHotelContactApi.updateContact(formData);
+
       setOriginalData(formData);
       toast.success('Contact information saved successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving contact:', error);
-      toast.error('Failed to save contact information');
+      toast.error(error.response?.data?.detail || 'Failed to save contact information');
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +149,54 @@ const VRHotelContact: React.FC = () => {
 
   const handleReset = () => {
     setFormData(originalData);
-    toast.success('Data restored to original state');
+    toast.success('Changes discarded');
+  };
+
+  const handleInputChange = (field: keyof ContactData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSocialMediaChange = (platform: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      socialMedia: {
+        ...prev.socialMedia,
+        [platform]: value
+      }
+    }));
+  };
+
+  const handleAddressChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [currentLang]: value
+      }
+    }));
+  };
+
+  const handleWorkingHoursChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      workingHours: {
+        ...prev.workingHours,
+        [currentLang]: value
+      }
+    }));
+  };
+
+  const handleContentChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      content: {
+        ...prev.content,
+        [currentLang]: { description: value }
+      }
+    }));
   };
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
@@ -125,7 +204,7 @@ const VRHotelContact: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-slate-600">Loading contact information...</div>
       </div>
     );
   }
@@ -145,20 +224,22 @@ const VRHotelContact: React.FC = () => {
                 type="checkbox"
                 className="sr-only peer"
                 checked={formData.isDisplaying}
-              onChange={async (e) => {
-                const newDisplayingState = e.target.checked;
-                setFormData({ ...formData, isDisplaying: newDisplayingState });
-                
-                try {
-                  await vrHotelApi.contact.updateContact({ ...formData, isDisplaying: newDisplayingState });
-                  toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
-                } catch (error: any) {
-                  console.error('Failed to save display status:', error);
-                  const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
-                  toast.error(errorMsg);
-                  setFormData({ ...formData, isDisplaying: !newDisplayingState });
-                }
-              }}
+                onChange={async (e) => {
+                  const newDisplayingState = e.target.checked;
+                  const updatedData = { ...formData, isDisplaying: newDisplayingState };
+                  setFormData(updatedData);
+                  
+                  try {
+                    await vrHotelContactApi.updateContact(updatedData);
+                    setOriginalData(updatedData);
+                    toast.success(`Display status ${newDisplayingState ? 'enabled' : 'disabled'}!`);
+                  } catch (error: any) {
+                    console.error('Failed to save display status:', error);
+                    const errorMsg = error?.response?.data?.detail || 'Failed to save display status';
+                    toast.error(errorMsg);
+                    setFormData({ ...formData, isDisplaying: !newDisplayingState });
+                  }
+                }}
               />
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
@@ -167,331 +248,252 @@ const VRHotelContact: React.FC = () => {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
           <FontAwesomeIcon icon={faCircleInfo} className="text-blue-600 text-xl mt-0.5" />
           <span className="text-blue-800 text-sm">
-            When display is turned off, the "Contact" section will not appear on the website and all input fields will be disabled.
+            When display is turned off, the "Contact" section will not appear on the website. You can still edit and save contact information.
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          {/* Basic Contact */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="text"
-                  value={formData.phone || ''}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+1 (555) 123-4567"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+      {/* Contact Information */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <FontAwesomeIcon icon={faPhone} />
+          Contact Information
+        </h2>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="reservations@hotel.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Website
-                </label>
-                <input
-                  type="url"
-                  value={formData.website || ''}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://www.hotel.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Phone
+            </label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="+84 123 456 789"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
-          {/* Social Media */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Social Media</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Facebook
-                </label>
-                <input
-                  type="url"
-                  value={formData.socialMedia?.facebook || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    socialMedia: { ...formData.socialMedia, facebook: e.target.value }
-                  })}
-                  placeholder="https://www.facebook.com/yourhotel"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Email
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="info@hotel.com"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Instagram
-                </label>
-                <input
-                  type="url"
-                  value={formData.socialMedia?.instagram || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    socialMedia: { ...formData.socialMedia, instagram: e.target.value }
-                  })}
-                  placeholder="https://www.instagram.com/yourhotel"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Website
+            </label>
+            <input
+              type="url"
+              value={formData.website}
+              onChange={(e) => handleInputChange('website', e.target.value)}
+              placeholder="https://www.hotel.com"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Twitter/X
-                </label>
-                <input
-                  type="url"
-                  value={formData.socialMedia?.twitter || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    socialMedia: { ...formData.socialMedia, twitter: e.target.value }
-                  })}
-                  placeholder="https://twitter.com/yourhotel"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  YouTube
-                </label>
-                <input
-                  type="url"
-                  value={formData.socialMedia?.youtube || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    socialMedia: { ...formData.socialMedia, youtube: e.target.value }
-                  })}
-                  placeholder="https://www.youtube.com/@yourhotel"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
+          <div className="md:col-span-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <FontAwesomeIcon icon={faMapPin} className="text-slate-500" />
+              Map Coordinates
+            </label>
+            <input
+              type="text"
+              value={formData.mapCoordinates}
+              onChange={(e) => handleInputChange('mapCoordinates', e.target.value)}
+              placeholder="e.g., 10.7769,106.7009"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">Format: latitude,longitude</p>
           </div>
         </div>
+      </div>
 
-        {/* Right Column */}
+      {/* Social Media */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <FontAwesomeIcon icon={faShareNodes} />
+          Social Media
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {socialMediaPlatforms.map(platform => (
+            <div key={platform.key}>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                {platform.label}
+              </label>
+              <input
+                type="url"
+                value={(formData.socialMedia as any)?.[platform.key] || ''}
+                onChange={(e) => handleSocialMediaChange(platform.key, e.target.value)}
+                placeholder={platform.placeholder}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* VR360 Settings */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center gap-3">
+          <FontAwesomeIcon icon={faVrCardboard} className="text-purple-600 text-xl" />
+          <h2 className="text-xl font-bold text-slate-800">VR360 Settings</h2>
+        </div>
+
         <div className="space-y-6">
-          {/* Multi-language Content */}
-          {locales.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex border-b border-gray-200 mb-4">
-                {locales.map((locale, index) => (
-                  <button
-                    key={`address-tab-${locale.locale_code}-${index}`}
-                    onClick={() => setActiveLanguage(locale.locale_code)}
-                    className={`px-4 py-2 font-medium text-sm ${
-                      activeLanguage === locale.locale_code
-                        ? 'border-b-2 border-blue-500 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {locale.locale_code?.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address ({activeLanguage?.toUpperCase() || activeLanguage})
-                  </label>
-                  <textarea
-                    value={formData.address?.[activeLanguage] || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      address: { ...formData.address, [activeLanguage]: e.target.value }
-                    })}
-                    rows={3}
-                    placeholder="123 Main Street, New York, NY 10001"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Working Hours ({activeLanguage?.toUpperCase() || activeLanguage})
-                  </label>
-                  <textarea
-                    value={formData.workingHours?.[activeLanguage] || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      workingHours: { ...formData.workingHours, [activeLanguage]: e.target.value }
-                    })}
-                    rows={4}
-                    placeholder="Monday - Friday: 08:00 - 22:00&#10;Saturday - Sunday: 09:00 - 23:00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VR360 Settings */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="border-b border-gray-200 pb-4 mb-6 flex items-center gap-3">
-              <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 576 512">
-                <path d="M512 96L64 96C28.7 96 0 124.7 0 160L0 352c0 35.3 28.7 64 64 64l117.5 0c17 0 33.3-6.7 45.3-18.7l33.9-33.9c7.2-7.2 17.1-11.3 27.3-11.3s20.1 4.1 27.3 11.3l33.9 33.9c12 12 28.3 18.7 45.3 18.7L512 416c35.3 0 64-28.7 64-64l0-192c0-35.3-28.7-64-64-64zM80 240a64 64 0 1 1 128 0 64 64 0 1 1 -128 0zm352-64a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/>
-              </svg>
-              <h2 className="text-xl font-bold text-gray-800">VR360 Settings</h2>
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  VR360 Panorama Link
-                </label>
-                <input
-                  type="url"
-                  value={formData.vr360Link || ''}
-                  onChange={(e) => setFormData({ ...formData, vr360Link: e.target.value })}
-                  placeholder="https://example.com/panorama-360.jpg"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="mt-2 text-sm text-gray-500 flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 512 512">
-                    <path d="M256 512a256 256 0 1 0 0-512 256 256 0 1 0 0 512zM224 160a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm-8 64l48 0c13.3 0 24 10.7 24 24l0 88 8 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-80 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l24 0 0-64-24 0c-13.3 0-24-10.7-24-24s10.7-24 24-24z"/>
-                  </svg>
-                  <span>Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)</span>
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  VR Tour Title
-                </label>
-                <input
-                  type="text"
-                  value={formData.vrTitle || ''}
-                  onChange={(e) => setFormData({ ...formData, vrTitle: e.target.value })}
-                    placeholder="e.g., Grand Lobby, Master Suite, Pool Area"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {formData.vr360Link && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 576 512">
-                      <path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6-46.8 43.5-78.1 95.4-93 131.1-3.3 7.9-3.3 16.7 0 24.6 14.9 35.7 46.2 87.7 93 131.1 47.1 43.7 111.8 80.6 192.6 80.6s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1 3.3-7.9 3.3-16.7 0-24.6-14.9-35.7-46.2-87.7-93-131.1-47.1-43.7-111.8-80.6-192.6-80.6zM144 256a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-64c0 35.3-28.7 64-64 64-11.5 0-22.3-3-31.7-8.4-1 10.9-.1 22.1 2.9 33.2 13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-12.2-45.7-55.5-74.8-101.1-70.8 5.3 9.3 8.4 20.1 8.4 31.7z"/>
-                    </svg>
-                    <h3 className="text-sm font-medium text-gray-700">VR360 Preview</h3>
-                  </div>
-                  <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-50">
-                    <div className="relative w-full" style={{ height: '400px' }}>
-                      <iframe
-                        src={formData.vr360Link}
-                        className="absolute top-0 left-0 w-full h-full"
-                        allowFullScreen
-                        title="VR360 Preview"
-                        allow="xr-spatial-tracking; gyroscope; accelerometer"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4 text-center">
-                    <button
-                      type="button"
-                      onClick={() => window.open(formData.vr360Link, '_blank')}
-                      className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors inline-flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 448 512">
-                        <path d="M91.2 36.9c-12.4-6.8-27.4-6.5-39.6 .7S32 57.9 32 72l0 368c0 14.1 7.5 27.2 19.6 34.4s27.2 7.5 39.6 .7l336-184c12.8-7 20.8-20.5 20.8-35.1s-8-28.1-20.8-35.1l-336-184z"/>
-                      </svg>
-                      View Fullscreen
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Link VR360 Panorama
+            </label>
+            <input
+              type="url"
+              value={formData.vr360Link}
+              onChange={(e) => handleInputChange('vr360Link', e.target.value)}
+              placeholder="https://example.com/your-panorama.jpg"
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
+              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
+              <span>
+                Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)
+              </span>
+            </p>
           </div>
 
-          {/* VR360 Description - Multi-language */}
-          {locales.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">VR360 Description</h2>
-              
-              <div className="flex border-b border-gray-200 mb-4">
-                {locales.map((locale, index) => (
-                  <button
-                    key={`vr360-desc-tab-${locale.locale_code}-${index}`}
-                    onClick={() => setActiveLanguage(locale.locale_code)}
-                    className={`px-4 py-2 font-medium text-sm ${
-                      activeLanguage === locale.locale_code
-                        ? 'border-b-2 border-blue-500 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {locale.locale_code?.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              VR Tour Title
+            </label>
+            <input
+              type="text"
+              value={formData.vrTitle}
+              onChange={(e) => handleInputChange('vrTitle', e.target.value)}
+              placeholder="Enter VR tour title"
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Detailed Description ({activeLanguage?.toUpperCase() || activeLanguage})
-                </label>
-                <textarea
-                  value={formData.content?.[activeLanguage]?.description || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    content: {
-                      ...formData.content,
-                      [activeLanguage]: {
-                        ...formData.content?.[activeLanguage],
-                        description: e.target.value
-                      }
-                    }
-                  })}
-                  rows={8}
-                  placeholder="Enter a detailed description of this VR360 area..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  Detailed description of the area, amenities, and VR360 experience
-                </p>
+          {formData.vr360Link && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
+                <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
+              </div>
+              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
+                <div className="relative w-full" style={{ height: '500px' }}>
+                  <iframe
+                    src={formData.vr360Link}
+                    className="absolute top-0 left-0 w-full h-full"
+                    allowFullScreen
+                    title="VR360 Preview"
+                    allow="xr-spatial-tracking; gyroscope; accelerometer"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => window.open(formData.vr360Link, '_blank')}
+                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors flex items-center gap-2 mx-auto"
+                >
+                  <FontAwesomeIcon icon={faPlay} />
+                  View Fullscreen
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Multi-Language Content */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold text-slate-800 mb-6">Location Details</h2>
+
+        {/* Language Tabs */}
+        <div className="border-b border-slate-200 mb-6 flex gap-2">
+          {availableLocales.map(locale => (
+            <button
+              key={locale.locale_code}
+              onClick={() => setCurrentLang(locale.locale_code)}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                currentLang === locale.locale_code
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {locale.locale_name} ({locale.locale_code.toUpperCase()})
+            </button>
+          ))}
+        </div>
+
+        {/* Content for Current Language */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Address
+            </label>
+            <textarea
+              value={formData.address?.[currentLang] || ''}
+              onChange={(e) => handleAddressChange(e.target.value)}
+              placeholder="Enter address in this language..."
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Working Hours
+            </label>
+            <textarea
+              value={formData.workingHours?.[currentLang] || ''}
+              onChange={(e) => handleWorkingHoursChange(e.target.value)}
+              placeholder="e.g., Mon-Fri: 9AM - 6PM&#10;Sat-Sun: 10AM - 5PM"
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.content?.[currentLang]?.description || ''}
+              onChange={(e) => handleContentChange(e.target.value)}
+              placeholder="Enter location description in this language..."
+              rows={4}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 pt-4 border-t">
+      <div className="bg-white rounded-lg shadow p-6 flex justify-end gap-3">
         <button
           onClick={handleReset}
-          disabled={!hasChanges || isSaving}
-          className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!hasChanges}
+          className="px-6 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Restore
+          <FontAwesomeIcon icon={faUndo} />
+          Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
+          <FontAwesomeIcon icon={faSave} />
           {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
