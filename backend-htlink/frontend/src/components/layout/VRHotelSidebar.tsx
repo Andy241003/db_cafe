@@ -22,6 +22,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions, useServiceAccess } from '../../hooks/usePermissions';
 import { propertiesApi } from '../../services/propertiesApi';
@@ -184,9 +185,9 @@ const VRHotelSidebar: React.FC = () => {
         </button>
       </div>
 
-      {/* Property Selection Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsModalOpen(false)}>
+      {/* Property Selection Modal - Using Portal */}
+      {isModalOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" onClick={() => setIsModalOpen(false)}>
           <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-700">
@@ -232,7 +233,8 @@ const VRHotelSidebar: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Dashboard Switcher */}

@@ -383,12 +383,12 @@ const VRHotelContact: React.FC = () => {
           </div>
 
           {formData.vr360Link && (
-            <div>
+            <div className="relative z-0">
               <div className="flex items-center gap-2 mb-3">
                 <FontAwesomeIcon icon={faEye} className="text-slate-600" />
                 <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
               </div>
-              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
+              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50 pointer-events-none relative z-0">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
                     src={formData.vr360Link}
