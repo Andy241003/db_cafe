@@ -272,6 +272,7 @@ def create_room(
         capacity=room_in.capacity,
         size_sqm=room_in.size_sqm,
         price_per_night=room_in.price_per_night,
+        vr_link=room_in.vr_link,
         status=room_in.status,
         amenities_json=room_in.amenities_json,
         attributes_json=room_in.attributes_json,

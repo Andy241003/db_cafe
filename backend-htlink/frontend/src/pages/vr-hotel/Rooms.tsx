@@ -359,7 +359,7 @@ const VRHotelRooms: React.FC = () => {
           capacity: formData.capacity,
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           translations,
           media
         };
@@ -373,7 +373,7 @@ const VRHotelRooms: React.FC = () => {
           capacity: formData.capacity,
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           translations,
           media
         };
@@ -831,9 +831,8 @@ const VRHotelRooms: React.FC = () => {
                     type="url"
                     value={formData.vr_link}
                     onChange={(e) => handleInputChange('vr_link', e.target.value)}
-                    disabled={!isDisplaying}
                     placeholder="https://example.com/room-vr.jpg"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
                     <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
@@ -842,9 +841,8 @@ const VRHotelRooms: React.FC = () => {
                   {formData.vr_link && (
                     <button
                       onClick={handlePreviewVR}
-                      disabled={!isDisplaying}
                       type="button"
-                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 disabled:text-blue-300 disabled:cursor-not-allowed"
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
                     >
                       <FontAwesomeIcon icon={faEye} />
                       Preview VR360
