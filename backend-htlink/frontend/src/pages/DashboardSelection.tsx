@@ -400,7 +400,8 @@ const DashboardSelection: React.FC = () => {
                   </div>
                   <div className="bg-amber-400 p-4 rounded-xl shadow-lg">
                     <div className="text-amber-900 font-semibold text-lg flex items-center justify-center gap-2">
-                      <ArrowRight size={20} /> Liên hệ ngay để được tư vấn
+                      {/* <ArrowRight size={20} />  */}
+                      Liên hệ ngay để được tư vấn
                     </div>
                   </div>
                 </div>
