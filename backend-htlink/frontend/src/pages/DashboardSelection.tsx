@@ -350,14 +350,14 @@ const DashboardSelection: React.FC = () => {
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-3 text-gray-700">
                       <Building2 size={18} className="text-blue-500 flex-shrink-0" />
-                      <div><strong>Công ty:</strong> LINK Service, Trade & Tourism J.S.C.</div>
+                      <div><strong>Công ty:</strong>Công ty Link – Kết nối Thương mại và Du lịch</div>
                     </div>
                     <div className="flex items-center gap-3">
                       <Mail size={18} className="text-blue-500 flex-shrink-0" />
                       <div>
                         <strong>Email:</strong>{' '}
                         <a href="mailto:lienhe@vtlink.vn" className="text-blue-600 font-semibold hover:underline">
-                          lienhe@vtlink.vn
+                          hotro@vtlink.vn
                         </a>
                       </div>
                     </div>

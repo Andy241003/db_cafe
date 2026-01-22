@@ -229,57 +229,6 @@ const UserModal: React.FC<UserModalProps> = ({
             </div>
           </div>
 
-          {/* Service Access */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-3">
-              Service Access
-            </label>
-            <div className="space-y-3">
-              <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                <input
-                  type="radio"
-                  name="service_access"
-                  value="0"
-                  checked={formData.service_access === 0}
-                  onChange={(e) => handleChange('service_access', parseInt(e.target.value))}
-                  className="mr-3"
-                />
-                <div>
-                  <div className="font-medium text-slate-900">Travel Link Only</div>
-                  <div className="text-xs text-slate-500">Posts, Events, Content Management</div>
-                </div>
-              </label>
-              <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                <input
-                  type="radio"
-                  name="service_access"
-                  value="1"
-                  checked={formData.service_access === 1}
-                  onChange={(e) => handleChange('service_access', parseInt(e.target.value))}
-                  className="mr-3"
-                />
-                <div>
-                  <div className="font-medium text-slate-900">VR Hotel Only</div>
-                  <div className="text-xs text-slate-500">Rooms, Dining, Facilities Management</div>
-                </div>
-              </label>
-              <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                <input
-                  type="radio"
-                  name="service_access"
-                  value="2"
-                  checked={formData.service_access === 2}
-                  onChange={(e) => handleChange('service_access', parseInt(e.target.value))}
-                  className="mr-3"
-                />
-                <div>
-                  <div className="font-medium text-slate-900">Both Services</div>
-                  <div className="text-xs text-slate-500">Full access to Travel Link + VR Hotel</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
           {/* Actions */}
           <div className="flex justify-end space-x-3 border-t border-slate-200 pt-5 mt-6">
             <button
