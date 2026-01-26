@@ -204,6 +204,7 @@ class VRDining(SQLModel, table=True):
     capacity: Optional[int] = Field(default=None)
     operating_hours: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     vr_link: Optional[str] = Field(default=None, max_length=500)
+    booking_url: Optional[str] = Field(default=None, max_length=500)
     
     # Changed from ENUM to VARCHAR(20) to avoid SQLAlchemy enum caching issues
     status: str = Field(default="active", max_length=20)  # active, inactive, closed
@@ -297,6 +298,7 @@ class VRService(SQLModel, table=True):
     availability: Optional[str] = Field(default=None, max_length=255)
     price_info: Optional[str] = Field(default=None, max_length=255)
     vr_link: Optional[str] = Field(default=None, max_length=500)
+    booking_url: Optional[str] = Field(default=None, max_length=500)
     
     status: str = Field(default="active", max_length=20)
     attributes_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))

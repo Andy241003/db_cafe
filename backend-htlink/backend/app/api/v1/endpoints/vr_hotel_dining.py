@@ -33,6 +33,7 @@ class DiningCreate(BaseModel):
     code: str
     dining_type: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     display_order: int = 0
     translations: List[DiningTranslation] = []
     media: List[DiningMediaInfo] = []
@@ -41,6 +42,7 @@ class DiningUpdate(BaseModel):
     code: Optional[str] = None
     dining_type: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     display_order: Optional[int] = None
     translations: Optional[List[DiningTranslation]] = None
     media: Optional[List[DiningMediaInfo]] = None
@@ -52,6 +54,7 @@ class DiningResponse(BaseModel):
     code: str
     dining_type: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: str
     display_order: int
     translations: Dict[str, DiningTranslation] = {}
@@ -110,6 +113,7 @@ def get_dining_with_translations(session: Session, dining_id: int) -> Optional[D
         code=dining.code,
         dining_type=dining.dining_type,
         vr_link=dining.vr_link,
+        booking_url=dining.booking_url,
         status=dining.status or "active",  # status is now a string, not enum
         display_order=dining.display_order,
         translations=translations_dict,
@@ -232,6 +236,7 @@ def create_dining(
         code=dining_in.code,
         dining_type=dining_in.dining_type,
         vr_link=dining_in.vr_link,
+        booking_url=dining_in.booking_url,
         display_order=dining_in.display_order
     )
     
@@ -319,9 +324,8 @@ def update_dining(
     if dining.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    # Update fields
-    if dining_in.code is not None:
-        # Check for duplicate code
+    # Check for duplicate code if changing
+    if dining_in.code is not None and dining_in.code != dining.code:
         existing = session.exec(
             select(VRDining).where(
                 and_(
@@ -335,19 +339,17 @@ def update_dining(
         
         if existing:
             raise HTTPException(status_code=400, detail="Dining code already exists")
-        
-        dining.code = dining_in.code
     
-    if dining_in.dining_type is not None:
-        dining.dining_type = dining_in.dining_type
-    
-    if dining_in.vr_link is not None:
-        dining.vr_link = dining_in.vr_link
-    
-    if dining_in.display_order is not None:
-        dining.display_order = dining_in.display_order
+    # Update basic fields using model_dump
+    update_data = dining_in.model_dump(exclude_unset=True, exclude={"translations", "media"})
+    for field, value in update_data.items():
+        # Convert empty strings to None for optional URL fields
+        if field in ['booking_url', 'vr_link'] and value == '':
+            value = None
+        setattr(dining, field, value)
     
     dining.updated_at = datetime.utcnow()
+    session.add(dining)
     
     # Update translations
     if dining_in.translations is not None:

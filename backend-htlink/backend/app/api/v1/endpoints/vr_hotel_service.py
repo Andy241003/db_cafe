@@ -30,6 +30,7 @@ class ServiceCreate(BaseModel):
     availability: Optional[str] = None
     price_info: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: str = "active"
     translations: List[ServiceTranslation]
     media_ids: Optional[List[int]] = []
@@ -44,6 +45,7 @@ class ServiceUpdate(BaseModel):
     availability: Optional[str] = None
     price_info: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: Optional[str] = None
     translations: Optional[List[ServiceTranslation]] = None
     media_ids: Optional[List[int]] = None
@@ -61,6 +63,7 @@ class ServiceResponse(BaseModel):
     availability: Optional[str] = None
     price_info: Optional[str] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: str
     translations: Dict[str, ServiceTranslation]
     media: List[ServiceMediaInfo]
@@ -118,6 +121,7 @@ def get_service_with_translations(service: VRService, session: Session) -> Servi
         availability=service.availability,
         price_info=service.price_info,
         vr_link=service.vr_link,
+        booking_url=service.booking_url,
         status=service.status or "active",
         translations=translations_dict,
         media=media_list,
@@ -202,6 +206,7 @@ def create_service(
         availability=service_data.availability,
         price_info=service_data.price_info,
         vr_link=service_data.vr_link,
+        booking_url=service_data.booking_url,
         status=service_data.status,
         display_order=service_data.display_order
     )
@@ -287,7 +292,8 @@ def update_service(
     if not service or service.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Service not found")
     
-    if service_data.code is not None:
+    # Check for duplicate code if changing
+    if service_data.code is not None and service_data.code != service.code:
         existing = session.exec(
             select(VRService).where(
                 VRService.tenant_id == current_user.tenant_id,
@@ -298,20 +304,17 @@ def update_service(
         ).first()
         if existing:
             raise HTTPException(status_code=400, detail="Service code already exists")
-        service.code = service_data.code
     
-    if service_data.service_type is not None:
-        service.service_type = service_data.service_type
-    if service_data.availability is not None:
-        service.availability = service_data.availability
-    if service_data.price_info is not None:
-        service.price_info = service_data.price_info
-    if service_data.vr_link is not None:
-        service.vr_link = service_data.vr_link
-    if service_data.status is not None:
-        service.status = service_data.status
-    if service_data.display_order is not None:
-        service.display_order = service_data.display_order
+    # Update basic fields using model_dump
+    update_data = service_data.model_dump(exclude_unset=True, exclude={"translations", "media_ids", "primary_media_id", "vr360_media_ids"})
+    for field, value in update_data.items():
+        # Convert empty strings to None for optional URL fields
+        if field in ['booking_url', 'vr_link'] and value == '':
+            value = None
+        setattr(service, field, value)
+    
+    service.updated_at = datetime.utcnow()
+    session.add(service)
     
     if service_data.translations is not None:
         existing_trans = session.exec(

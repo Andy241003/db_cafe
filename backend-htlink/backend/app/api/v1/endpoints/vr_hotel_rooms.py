@@ -338,6 +338,9 @@ def update_room(
     # Update basic fields
     update_data = room_in.model_dump(exclude_unset=True, exclude={"translations", "media"})
     for field, value in update_data.items():
+        # Convert empty strings to None for optional URL fields
+        if field in ['booking_url', 'vr_link'] and value == '':
+            value = None
         setattr(room, field, value)
     
     session.add(room)
