@@ -39,6 +39,7 @@ class RoomCreate(BaseModel):
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: str = "available"
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None
@@ -55,6 +56,7 @@ class RoomUpdate(BaseModel):
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: Optional[str] = None
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None
@@ -74,6 +76,7 @@ class RoomResponse(BaseModel):
     size_sqm: Optional[float] = None
     price_per_night: Optional[float] = None
     vr_link: Optional[str] = None
+    booking_url: Optional[str] = None
     status: str
     amenities_json: Optional[List] = None
     attributes_json: Optional[Dict] = None
@@ -140,6 +143,7 @@ def get_room_with_translations(session: Session, room_id: int) -> Optional[RoomR
         size_sqm=room.size_sqm,
         price_per_night=room.price_per_night,
         vr_link=room.vr_link,
+        booking_url=room.booking_url,
         status=room.status,
         amenities_json=room.amenities_json,
         attributes_json=room.attributes_json,
@@ -273,6 +277,7 @@ def create_room(
         size_sqm=room_in.size_sqm,
         price_per_night=room_in.price_per_night,
         vr_link=room_in.vr_link,
+        booking_url=room_in.booking_url,
         status=room_in.status,
         amenities_json=room_in.amenities_json,
         attributes_json=room_in.attributes_json,

@@ -152,6 +152,9 @@ class VRRoom(SQLModel, table=True):
     # VR360 link for this room
     vr_link: Optional[str] = Field(default=None, max_length=500)
     
+    # Booking URL for this room
+    booking_url: Optional[str] = Field(default=None, max_length=500)
+    
     # Status and attributes
     status: str = Field(default="available", max_length=20)
     amenities_json: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
