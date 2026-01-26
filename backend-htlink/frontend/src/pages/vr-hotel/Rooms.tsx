@@ -5,6 +5,7 @@ import {
     faFlag,
     faImages,
     faInfoCircle,
+    faLink,
     faPlay,
     faPlus,
     faSave,
@@ -18,6 +19,23 @@ import toast from 'react-hot-toast';
 import { mediaApi } from '../../services/mediaApi';
 import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { vrHotelRoomsApi, vrHotelSettingsApi, type Room, type RoomCreate, type RoomTranslation, type RoomUpdate } from '../../services/vrHotelApi';
+
+// Helper function to convert YouTube URL to embed format
+const getEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  
+  // Check if it's a YouTube URL
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(youtubeRegex);
+  
+  if (match && match[1]) {
+    // Convert to embed format
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  
+  // Return original URL if not YouTube (VR360 panorama or other)
+  return url;
+};
 
 const VRHotelRooms: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -40,6 +58,7 @@ const VRHotelRooms: React.FC = () => {
     size_sqm: number;
     price_per_night: number;
     vr_link: string;
+    booking_url: string;
     translations: Record<string, { name: string; description: string; amenities: string[] }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
@@ -49,6 +68,7 @@ const VRHotelRooms: React.FC = () => {
     size_sqm: 0,
     price_per_night: 0,
     vr_link: '',
+    booking_url: '',
     translations: {},
     images: []
   });
@@ -166,6 +186,7 @@ const VRHotelRooms: React.FC = () => {
       size_sqm: 0,
       price_per_night: 0,
       vr_link: '',
+      booking_url: '',
       translations: initialTranslations,
       images: []
     });
@@ -246,6 +267,7 @@ const VRHotelRooms: React.FC = () => {
       size_sqm: room.size_sqm || 0,
       price_per_night: room.price_per_night || 0,
       vr_link: room.vr_link || '',
+      booking_url: room.booking_url || '',
       translations,
       images
     });
@@ -360,6 +382,7 @@ const VRHotelRooms: React.FC = () => {
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link?.trim() || '',
+          booking_url: formData.booking_url?.trim() || '',
           translations,
           media
         };
@@ -374,6 +397,7 @@ const VRHotelRooms: React.FC = () => {
           size_sqm: formData.size_sqm,
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link?.trim() || '',
+          booking_url: formData.booking_url?.trim() || '',
           translations,
           media
         };
@@ -553,10 +577,10 @@ const VRHotelRooms: React.FC = () => {
         </div>
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama / YouTube Video</label>
             <input
               type="url"
-              placeholder="https://example.com/your-panorama.jpg"
+              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
               value={roomsVR360Link}
               onChange={(e) => setRoomsVR360Link(e.target.value)}
@@ -564,7 +588,7 @@ const VRHotelRooms: React.FC = () => {
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-              <span>Enter the URL to a 360° panorama image for the rooms listing page (recommended: equirectangular JPG, minimum 4096x2048px)</span>
+              <span>Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
             </p>
           </div>
           
@@ -600,7 +624,7 @@ const VRHotelRooms: React.FC = () => {
               <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
-                    src={roomsVR360Link}
+                    src={getEmbedUrl(roomsVR360Link)}
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"
@@ -670,6 +694,20 @@ const VRHotelRooms: React.FC = () => {
                         <span>Size: {room.size_sqm}m²</span>
                       )}
                     </div>
+                    {room.booking_url && (
+                      <div className="mt-2 text-sm">
+                        <a 
+                          href={room.booking_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
+                          title={room.booking_url}
+                        >
+                          <FontAwesomeIcon icon={faLink} className="text-xs" />
+                          <span className="truncate max-w-xs">{room.booking_url}</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-3">
                     <button 
@@ -848,6 +886,25 @@ const VRHotelRooms: React.FC = () => {
                       Preview VR360
                     </button>
                   )}
+                </div>
+
+                {/* Booking URL */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                    <FontAwesomeIcon icon={faLink}/>
+                    Booking URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.booking_url}
+                    onChange={(e) => handleInputChange('booking_url', e.target.value)}
+                    placeholder="https://booking.example.com/room-123"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
+                    <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
+                    <span>Enter the direct booking URL for this room</span>
+                  </p>
                 </div>
 
                 {/* Amenities */}

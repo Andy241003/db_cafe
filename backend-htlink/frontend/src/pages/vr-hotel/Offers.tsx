@@ -18,6 +18,20 @@ import { vrHotelSettingsApi } from '../../services/vrHotelApi';
 import type { Offer, OfferCreate, OfferTranslation, OfferUpdate } from '../../services/vrHotelOffersApi';
 import vrHotelOffersApi from '../../services/vrHotelOffersApi';
 
+// Helper function to convert YouTube URLs to embed format
+const getEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(youtubeRegex);
+  
+  if (match && match[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  
+  return url;
+};
+
 interface FormOfferData {
   code: string;
   discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_NIGHT';
@@ -413,7 +427,7 @@ const VRHotelOffers: React.FC = () => {
         </div>
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama / YouTube Video</label>
             <input
               type="url"
               placeholder="https://example.com/your-panorama.jpg"
@@ -460,7 +474,7 @@ const VRHotelOffers: React.FC = () => {
               <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
-                    src={offersVR360Link}
+                    src={getEmbedUrl(offersVR360Link)}
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"

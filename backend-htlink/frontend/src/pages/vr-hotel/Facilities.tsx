@@ -18,6 +18,23 @@ import { mediaApi } from '../../services/mediaApi';
 import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { vrHotelFacilityApi, vrHotelSettingsApi } from '../../services/vrHotelApi';
 
+// Helper function to convert YouTube URL to embed format
+const getEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  
+  // Check if it's a YouTube URL
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(youtubeRegex);
+  
+  if (match && match[1]) {
+    // Convert to embed format
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  
+  // Return original URL if not YouTube (VR360 panorama or other)
+  return url;
+};
+
 interface FacilityTranslation {
   locale: string;
   name: string;
@@ -505,10 +522,10 @@ const VRHotelFacilities: React.FC = () => {
         </div>
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama / YouTube Video</label>
             <input
               type="url"
-              placeholder="https://example.com/your-panorama.jpg"
+              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
               value={facilitiesVR360Link}
               onChange={(e) => setFacilitiesVR360Link(e.target.value)}
@@ -516,7 +533,7 @@ const VRHotelFacilities: React.FC = () => {
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-              <span>Enter the path to the 360° panorama image for the facilities list page (recommended: equirectangular JPG, minimum 4096x2048px)</span>
+              <span>Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
             </p>
           </div>
           
@@ -552,7 +569,7 @@ const VRHotelFacilities: React.FC = () => {
               <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
-                    src={facilitiesVR360Link}
+                    src={getEmbedUrl(facilitiesVR360Link)}
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"

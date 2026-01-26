@@ -13,6 +13,23 @@ import toast from 'react-hot-toast';
 import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { vrHotelIntroductionApi, vrLanguagesApi, type Locale } from '../../services/vrHotelApi';
 
+// Helper function to convert YouTube URL to embed format
+const getEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  
+  // Check if it's a YouTube URL
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(youtubeRegex);
+  
+  if (match && match[1]) {
+    // Convert to embed format
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  
+  // Return original URL if not YouTube (VR360 panorama or other)
+  return url;
+};
+
 interface IntroductionContent {
   title: string;
   shortDescription: string;
@@ -360,19 +377,19 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama
+              Link VR360 Panorama / YouTube Video
             </label>
               <input
                 type="url"
                 value={formData.vr360Link}
                 onChange={(e) => handleVRChange('vr360Link', e.target.value)}
                 disabled={!formData.isDisplaying}
-                placeholder="https://example.com/your-panorama.jpg"
+                placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
                 <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
-                <span>Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)</span>
+                <span>Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
               </p>
             </div>
 
@@ -400,7 +417,7 @@ Notably, we are the first hotel in Vung Tau to implement VR360 technology, allow
               {formData.vr360Link ? (
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
-                    src={formData.vr360Link}
+                    src={getEmbedUrl(formData.vr360Link)}
                     className="absolute top-0 left-0 w-full h-full"
                     allowFullScreen
                     title="VR360 Preview"

@@ -243,13 +243,20 @@ const Users: React.FC = () => {
           return;
         }
         
+        // Find owner user to get service_access (for ADMIN, EDITOR, VIEWER to inherit)
+        // Note: role is already lowercase in User type
+        const ownerUser = users.find(u => u.role?.toLowerCase() === 'owner');
+        const ownerServiceAccess = ownerUser?.service_access ?? 0;
+        
         const createData = {
           email: data.email,
           password: userPassword,
           full_name: data.name,
           role: (data.role?.toUpperCase() || 'VIEWER') as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER',
           is_active: data.status === 'active',
-          tenant_id: parseInt(tenantId)
+          tenant_id: parseInt(tenantId),
+          // ADMIN/EDITOR/VIEWER inherit service_access from OWNER
+          service_access: data.role?.toUpperCase() === 'OWNER' ? data.service_access ?? 0 : ownerServiceAccess
         };
         
         const newApiUser = await usersApi.createUser(createData);

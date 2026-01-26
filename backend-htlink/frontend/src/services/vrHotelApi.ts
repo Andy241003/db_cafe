@@ -438,6 +438,7 @@ export interface Room {
   size_sqm?: number;
   price_per_night?: number;
   vr_link?: string;
+  booking_url?: string;
   status: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
@@ -456,8 +457,7 @@ export interface RoomCreate {
   capacity?: number;
   size_sqm?: number;
   price_per_night?: number;
-  vr_link?: string;
-  status?: string;
+  vr_link?: string;  booking_url?: string;  status?: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
   display_order?: number;
@@ -474,6 +474,7 @@ export interface RoomUpdate {
   size_sqm?: number;
   price_per_night?: number;
   vr_link?: string;
+  booking_url?: string;
   status?: string;
   amenities_json?: string[];
   attributes_json?: Record<string, any>;
@@ -552,6 +553,7 @@ export interface Dining {
   code: string;
   dining_type?: string;
   vr_link?: string;
+  booking_url?: string;
   status: string;
   display_order: number;
   translations: Record<string, DiningTranslation>;
@@ -564,6 +566,7 @@ export interface DiningCreate {
   code: string;
   dining_type?: string;
   vr_link?: string;
+  booking_url?: string;
   display_order?: number;
   translations: DiningTranslation[];
   media: DiningMediaInfo[];
@@ -573,6 +576,7 @@ export interface DiningUpdate {
   code?: string;
   dining_type?: string;
   vr_link?: string;
+  booking_url?: string;
   display_order?: number;
   translations?: DiningTranslation[];
   media?: DiningMediaInfo[];
@@ -729,6 +733,7 @@ export interface Service {
   availability?: string;
   price_info?: string;
   vr_link?: string;
+  booking_url?: string;
   status: string;
   translations: { [key: string]: ServiceTranslation };
   media: ServiceMediaInfo[];
@@ -741,6 +746,7 @@ export interface ServiceCreate {
   availability?: string;
   price_info?: string;
   vr_link?: string;
+  booking_url?: string;
   status?: string;
   translations: ServiceTranslation[];
   media_ids?: number[];
@@ -755,6 +761,7 @@ export interface ServiceUpdate {
   availability?: string;
   price_info?: string;
   vr_link?: string;
+  booking_url?: string;
   status?: string;
   translations?: ServiceTranslation[];
   media_ids?: number[];
