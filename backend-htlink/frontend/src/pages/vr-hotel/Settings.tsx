@@ -219,7 +219,7 @@ const VRHotelSettings: React.FC = () => {
       // Map local state to API format (only VR-specific fields)
       const updateData: Partial<VRHotelSettings> = {
         primary_color: settings.primaryColor,
-        booking_url: settings.bookingUrl || undefined,
+        booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
         logo_media_id: logoMediaId,
         favicon_media_id: faviconMediaId,
         seo: {
