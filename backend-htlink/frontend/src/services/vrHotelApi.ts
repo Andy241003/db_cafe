@@ -836,6 +836,37 @@ export const vrHotelContactApi = {
   }
 };
 
+// ==========================================
+// Export/Import API
+// ==========================================
+
+export const vrHotelExportImportApi = {
+  exportPropertyTemplate: async () => {
+    const response = await vrHotelClient.post('/vr-hotel/export', {}, {
+      responseType: 'blob'
+    });
+    return response;
+  },
+
+  previewImportTemplate: async (formData: FormData) => {
+    const response = await vrHotelClient.post('/vr-hotel/import-preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response;
+  },
+
+  importPropertyTemplate: async (formData: FormData) => {
+    const response = await vrHotelClient.post('/vr-hotel/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response;
+  }
+};
+
 export default {
   settings: vrHotelSettingsApi,
   languages: vrLanguagesApi,
@@ -846,5 +877,8 @@ export default {
   dining: vrHotelDiningApi,
   facilities: vrHotelFacilityApi,
   services: vrHotelServiceApi,
-  contact: vrHotelContactApi
+  contact: vrHotelContactApi,
+  exportPropertyTemplate: vrHotelExportImportApi.exportPropertyTemplate,
+  previewImportTemplate: vrHotelExportImportApi.previewImportTemplate,
+  importPropertyTemplate: vrHotelExportImportApi.importPropertyTemplate
 };

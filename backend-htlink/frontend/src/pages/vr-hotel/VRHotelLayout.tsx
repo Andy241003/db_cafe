@@ -41,6 +41,8 @@ const VRHotelLayout: React.FC = () => {
         return { title: 'Settings', breadcrumb: 'VR Hotel / Settings' };
       case '/activities':
         return { title: 'Activity Log', breadcrumb: 'VR Hotel / Activity Log' };
+      case '/export-import':
+        return { title: 'Export / Import', breadcrumb: 'VR Hotel / Export / Import' };
       default:
         return { title: 'Services', breadcrumb: 'VR Hotel / Services' };
     }

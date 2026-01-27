@@ -4,6 +4,7 @@ import {
     faBookOpen,
     faBuilding,
     faFileContract,
+    faFileExport,
     faGear,
     faHome,
     faHotel,
@@ -158,6 +159,7 @@ const VRHotelSidebar: React.FC = () => {
       section: 'SETTINGS',
       links: [
         { path: '/vr-hotel/settings', icon: faGear, label: 'Settings', visible: true },
+        { path: '/vr-hotel/export-import', icon: faFileExport, label: 'Export / Import', visible: true },
       ],
     },
   ];

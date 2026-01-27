@@ -20,6 +20,7 @@ import VRHotelActivities from './pages/vr-hotel/Activities';
 import VRHotelContact from './pages/vr-hotel/Contact';
 import VRHotelDashboard from './pages/vr-hotel/Dashboard';
 import VRHotelDining from './pages/vr-hotel/Dining';
+import VRHotelExportImport from './pages/vr-hotel/ExportImport';
 import VRHotelFacilities from './pages/vr-hotel/Facilities';
 import VRHotelIntroduction from './pages/vr-hotel/Introduction';
 import VRHotelOffers from './pages/vr-hotel/Offers';
@@ -158,6 +159,7 @@ function App() {
                         <Route path="contact" element={<VRHotelContact />} />
                         <Route path="settings" element={<VRHotelSettings />} />
                         <Route path="activities" element={<VRHotelActivities />} />
+                        <Route path="export-import" element={<VRHotelExportImport />} />
                       </Route>
                     </Routes>
                   </ProtectedRoute>
