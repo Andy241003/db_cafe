@@ -1,11 +1,11 @@
 import {
-    faCheckCircle,
-    faDownload,
-    faExclamationTriangle,
-    faFileExport,
-    faFileImport,
-    faSpinner,
-    faUpload
+  faCheckCircle,
+  faDownload,
+  faExclamationTriangle,
+  faFileExport,
+  faFileImport,
+  faSpinner,
+  faUpload
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useState } from 'react';
@@ -25,7 +25,6 @@ interface ImportPreview {
       total_dining: number;
       total_services: number;
       total_facilities: number;
-      total_images: number;
     };
   };
   summary: {
@@ -34,7 +33,6 @@ interface ImportPreview {
     dining: number;
     services: number;
     facilities: number;
-    images: number;
   };
   source_property: {
     source_property_name: string;
@@ -47,6 +45,7 @@ interface ImportResult {
   status: string;
   message: string;
   summary: {
+    locales: number;
     rooms: number;
     dining: number;
     services: number;
@@ -161,10 +160,10 @@ export default function ExportImport() {
           <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
             <h3 className="font-semibold mb-2">What will be exported:</h3>
             <ul className="list-disc list-inside space-y-1 text-sm">
-              <li>All room types with translations and images</li>
-              <li>All dining venues with translations and images</li>
-              <li>All services with translations and images</li>
-              <li>All facilities with translations and images</li>
+              <li>All room types with translations</li>
+              <li>All dining venues with translations</li>
+              <li>All services with translations</li>
+              <li>All facilities with translations</li>
               <li>Language settings and translations</li>
             </ul>
           </div>
@@ -279,10 +278,6 @@ export default function ExportImport() {
                       <span className="text-gray-600">Facilities:</span>
                       <span className="ml-2 font-semibold">{importPreview.summary.facilities}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Images:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.images}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -347,7 +342,11 @@ export default function ExportImport() {
               
               <div className="bg-white rounded p-3 mb-3">
                 <h4 className="font-semibold mb-2 text-sm">Imported:</h4>
-                <div className="grid grid-cols-4 gap-3 text-sm">
+                <div className="grid grid-cols-5 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Locales:</span>
+                    <span className="ml-2 font-semibold">{importResult.summary.locales}</span>
+                  </div>
                   <div>
                     <span className="text-gray-600">Rooms:</span>
                     <span className="ml-2 font-semibold">{importResult.summary.rooms}</span>

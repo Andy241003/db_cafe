@@ -279,7 +279,31 @@ async def import_property_template(
         with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
             data = json.loads(zip_file.read('data.json'))
         
-        summary = {"rooms": 0, "dining": 0, "services": 0, "facilities": 0}
+        summary = {"locales": 0, "rooms": 0, "dining": 0, "services": 0, "facilities": 0}
+        
+        # Import locales first (required for translations)
+        for locale_data in data.get("locales", []):
+            locale_code = locale_data.get("code")
+            is_default = locale_data.get("is_default", False)
+            
+            # Check if locale already exists for this property
+            existing_locale = db.query(PropertyLocale).filter(
+                PropertyLocale.property_id == property_id,
+                PropertyLocale.locale_code == locale_code
+            ).first()
+            
+            if not existing_locale:
+                new_locale = PropertyLocale(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    locale_code=locale_code,
+                    is_default=is_default,
+                    is_active=True
+                )
+                db.add(new_locale)
+                summary["locales"] += 1
+        
+        db.flush()  # Ensure locales are created before translations
         
         # Import rooms
         for room_data in data.get("rooms", []):
