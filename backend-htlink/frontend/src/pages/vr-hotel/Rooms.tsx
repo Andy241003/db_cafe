@@ -1,17 +1,17 @@
 import {
-    faCheckCircle,
-    faEdit,
-    faEye,
-    faFlag,
-    faImages,
-    faInfoCircle,
-    faLink,
-    faPlay,
-    faPlus,
-    faSave,
-    faTimes,
-    faTrash,
-    faVrCardboard
+  faCheckCircle,
+  faEdit,
+  faEye,
+  faFlag,
+  faImages,
+  faInfoCircle,
+  faLink,
+  faPlay,
+  faPlus,
+  faSave,
+  faTimes,
+  faTrash,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -50,6 +50,7 @@ const VRHotelRooms: React.FC = () => {
   const [roomsVR360Link, setRoomsVR360Link] = useState('');
   const [roomsVRTitle, setRoomsVRTitle] = useState('');
   const [isSavingVR, setIsSavingVR] = useState(false);
+  const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all');
   
   const [formData, setFormData] = useState<{
     room_code: string;
@@ -75,9 +76,11 @@ const VRHotelRooms: React.FC = () => {
 
   const roomTypes = [
     { value: 'standard', label: 'Standard' },
+    { value: 'superior', label: 'Superior' },
     { value: 'deluxe', label: 'Deluxe' },
     { value: 'suite', label: 'Suite' },
-    { value: 'penthouse', label: 'Penthouse' }
+    { value: 'penthouse', label: 'Penthouse' },
+    { value: 'other', label: 'Other' }
   ];
 
   // Load rooms and locales on mount
@@ -660,6 +663,30 @@ const VRHotelRooms: React.FC = () => {
             Add New Room
           </button>
         </div>
+
+        {/* Filter by Room Type */}
+        <div className="mb-6 flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700">Filter by Type:</label>
+          <select
+            value={roomTypeFilter}
+            onChange={(e) => setRoomTypeFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Room Types</option>
+            {roomTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+          {roomTypeFilter !== 'all' && (
+            <button
+              onClick={() => setRoomTypeFilter('all')}
+              className="text-sm text-slate-600 hover:text-slate-900 underline"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-12 text-slate-500">
@@ -670,7 +697,9 @@ const VRHotelRooms: React.FC = () => {
               <p>No rooms yet. Click "Add New Room" to add a room.</p>
             </div>
           ) : (
-            rooms.map(room => {
+            rooms
+              .filter(room => roomTypeFilter === 'all' || room.room_type === roomTypeFilter)
+              .map(room => {
               const hasVR = room.vr_link;
               return (
                 <div key={room.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">

@@ -84,6 +84,7 @@ const VRHotelDining: React.FC = () => {
   const [diningVR360Link, setDiningVR360Link] = useState('');
   const [diningVRTitle, setDiningVRTitle] = useState('');
   const [isSavingVR, setIsSavingVR] = useState(false);
+  const [diningTypeFilter, setDiningTypeFilter] = useState<string>('all');
   
   const [formData, setFormData] = useState<{
     code: string;
@@ -617,6 +618,30 @@ const VRHotelDining: React.FC = () => {
             Add New Dining
           </button>
         </div>
+
+        {/* Filter by Dining Type */}
+        <div className="mb-6 flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700">Filter by Type:</label>
+          <select
+            value={diningTypeFilter}
+            onChange={(e) => setDiningTypeFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Dining Types</option>
+            {diningTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+          {diningTypeFilter !== 'all' && (
+            <button
+              onClick={() => setDiningTypeFilter('all')}
+              className="text-sm text-slate-600 hover:text-slate-900 underline"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-12 text-slate-500">
@@ -628,7 +653,9 @@ const VRHotelDining: React.FC = () => {
               <p>No dining venues yet. Click "Add New Dining" to add your first venue.</p>
             </div>
           ) : (
-            dinings.map(dining => (
+            dinings
+              .filter(dining => diningTypeFilter === 'all' || dining.dining_type === diningTypeFilter)
+              .map(dining => (
               <div key={dining.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">

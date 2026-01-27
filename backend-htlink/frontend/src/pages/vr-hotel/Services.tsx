@@ -54,6 +54,7 @@ const VRHotelServices: React.FC = () => {
   const [servicesVR360Link, setservicesVR360Link] = useState('');
   const [servicesVRTitle, setservicesVRTitle] = useState('');
   const [isSavingVR, setIsSavingVR] = useState(false);
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
   
   const [formData, setFormData] = useState<{
     code: string;
@@ -597,6 +598,29 @@ const VRHotelServices: React.FC = () => {
           </button>
         </div>
         
+        {/* Filter by Service Type */}
+        <div className="mb-6 flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700">Filter by Type:</label>
+          <select
+            value={serviceTypeFilter}
+            onChange={(e) => setServiceTypeFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Service Types</option>
+            {serviceTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+          {serviceTypeFilter !== 'all' && (
+            <button
+              onClick={() => setServiceTypeFilter('all')}
+              className="text-sm text-slate-600 hover:text-slate-900 underline"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+        
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-12 text-slate-500">
@@ -607,7 +631,9 @@ const VRHotelServices: React.FC = () => {
               <p>No services yet. Click "Add New Service" to add your first service.</p>
             </div>
           ) : (
-            services.map(service => (
+            services
+              .filter(service => serviceTypeFilter === 'all' || service.service_type === serviceTypeFilter)
+              .map(service => (
               <div key={service.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
