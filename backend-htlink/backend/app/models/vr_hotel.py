@@ -66,8 +66,10 @@ class VRHotelSettings(SQLModel, table=True):
     # VR-specific branding
     primary_color: str = Field(default="#3b82f6", max_length=20)
     
-    # Booking URL
+    # Contact & Booking
     booking_url: Optional[str] = Field(default=None, max_length=500)
+    messenger_url: Optional[str] = Field(default=None, max_length=500)
+    phone_number: Optional[str] = Field(default=None, max_length=50)  # Zalo OA ID / Phone Number
     
     # VR-specific media
     logo_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")

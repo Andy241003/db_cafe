@@ -10,6 +10,8 @@ const VRHotelSettings: React.FC = () => {
   const [settings, setSettings] = useState({
     primaryColor: '#3b82f6',
     bookingUrl: '',
+    messengerUrl: '',
+    phoneNumber: '',
     metaTitleVi: '',
     metaDescriptionVi: '',
     keywordsVi: '',
@@ -70,6 +72,8 @@ const VRHotelSettings: React.FC = () => {
       setSettings({
         primaryColor: data.primary_color || '#3b82f6',
         bookingUrl: data.booking_url || '',
+        messengerUrl: data.messenger_url || '',
+        phoneNumber: data.phone_number || '',
         metaTitleVi: data.seo?.vi?.meta_title || '',
         metaDescriptionVi: data.seo?.vi?.meta_description || '',
         keywordsVi: data.seo?.vi?.meta_keywords || '',
@@ -220,6 +224,8 @@ const VRHotelSettings: React.FC = () => {
       const updateData: Partial<VRHotelSettings> = {
         primary_color: settings.primaryColor,
         booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
+        messenger_url: settings.messengerUrl.trim() === '' ? null : settings.messengerUrl,
+        phone_number: settings.phoneNumber.trim() === '' ? null : settings.phoneNumber,
         logo_media_id: logoMediaId,
         favicon_media_id: faviconMediaId,
         seo: {
@@ -411,20 +417,59 @@ const VRHotelSettings: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-3">
-              Booking URL
-            </label>
-            <input
-              type="url"
-              value={settings.bookingUrl}
-              onChange={(e) => handleInputChange('bookingUrl', e.target.value)}
-              placeholder="https://booking.example.com"
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-sm text-slate-500 mt-2">
-              URL to your booking/reservation system
-            </p>
+          {/* Contact & Booking Section */}
+          <div className="border-t border-slate-200 pt-6 mt-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Contact & Booking</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Booking URL
+                </label>
+                <input
+                  type="url"
+                  value={settings.bookingUrl}
+                  onChange={(e) => handleInputChange('bookingUrl', e.target.value)}
+                  placeholder="https://booking.example.com"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  URL to your booking/reservation system
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Messenger URL
+                </label>
+                <input
+                  type="url"
+                  value={settings.messengerUrl}
+                  onChange={(e) => handleInputChange('messengerUrl', e.target.value)}
+                  placeholder="https://m.me/yourpage"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  Facebook Messenger link (m.me/yourpage)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Zalo OA ID / Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={settings.phoneNumber}
+                  onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                  placeholder="+84 123 456 789 hoặc Zalo OA ID"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  Số điện thoại hoặc Zalo Official Account ID
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

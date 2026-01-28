@@ -72,6 +72,11 @@ export interface VRHotelSettings {
   // Additional settings
   settings_json?: Record<string, any>;
   
+  // Contact & Booking
+  booking_url?: string;
+  messenger_url?: string;
+  phone_number?: string;
+  
   // Contact information
   address?: string;
   phone?: string;
