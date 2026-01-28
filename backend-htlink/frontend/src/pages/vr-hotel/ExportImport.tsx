@@ -1,11 +1,11 @@
 import {
-  faCheckCircle,
-  faDownload,
-  faExclamationTriangle,
-  faFileExport,
-  faFileImport,
-  faSpinner,
-  faUpload
+    faCheckCircle,
+    faDownload,
+    faExclamationTriangle,
+    faFileExport,
+    faFileImport,
+    faSpinner,
+    faUpload
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useState } from 'react';
@@ -14,29 +14,38 @@ import vrHotelApi from '../../services/vrHotelApi';
 interface ImportPreview {
   status: string;
   metadata: {
-    export: {
-      version: string;
-      date: string;
-      format: string;
-    };
-    property: {
-      name: string;
-      total_rooms: number;
-      total_dining: number;
-      total_services: number;
-      total_facilities: number;
+    version: string;
+    export_date: string;
+    source_property: string;
+    total_items: {
+      introduction: number;
+      policies: number;
+      rules: number;
+      contact: number;
+      seo: number;
+      settings: number;
+      rooms: number;
+      dining: number;
+      services: number;
+      facilities: number;
     };
   };
   summary: {
     locales: number;
+    introduction?: number;
+    policies?: number;
+    rules?: number;
+    contact?: number;
+    seo?: number;
+    settings?: number;
     rooms: number;
     dining: number;
     services: number;
     facilities: number;
   };
   source_property: {
-    source_property_name: string;
-    source_property_id: number;
+    name: string;
+    id: number;
   };
   warnings: string[];
 }
@@ -46,6 +55,12 @@ interface ImportResult {
   message: string;
   summary: {
     locales: number;
+    introduction?: number;
+    policies?: number;
+    rules?: number;
+    contact?: number;
+    seo?: number;
+    settings?: number;
     rooms: number;
     dining: number;
     services: number;
@@ -141,31 +156,63 @@ export default function ExportImport() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Export / Import Property Template</h1>
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Export / Import Property Template</h1>
+        <p className="text-slate-600">
+          Quickly duplicate property content and configuration to speed up new property setup
+        </p>
+      </div>
 
-        {/* Export Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center mb-4">
-            <FontAwesomeIcon icon={faFileExport} className="text-blue-600 text-2xl mr-3" />
-            <h2 className="text-2xl font-bold">Export Property</h2>
+      {/* Export Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-b border-slate-200 pb-4 mb-6">
+          <div className="flex items-center gap-3">
+            <FontAwesomeIcon icon={faFileExport} className="text-blue-600 text-2xl" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Export Property</h2>
+              <p className="text-slate-600 text-sm mt-1">
+                Export all property content and configuration to a ZIP file
+              </p>
+            </div>
           </div>
-          
-          <p className="text-gray-600 mb-4">
-            Export all property content including rooms, dining, services, facilities, and their translations 
-            to a ZIP file. This template can be imported to quickly set up a new property.
-          </p>
+        </div>
           
           <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-            <h3 className="font-semibold mb-2">What will be exported:</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              <li>All room types with translations</li>
-              <li>All dining venues with translations</li>
-              <li>All services with translations</li>
-              <li>All facilities with translations</li>
-              <li>Language settings and translations</li>
-            </ul>
+            <h3 className="font-semibold mb-3">What will be exported:</h3>
+            <div className="grid grid-cols-3 gap-6 text-sm">
+              <div>
+                <p className="font-semibold text-blue-700 mb-2">Configuration</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                  <li>Language settings (Locales)</li>
+                  <li>VR Hotel settings</li>
+                  <li>Contact information</li>
+                  <li>SEO metadata per locale</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-blue-700 mb-2">Content Pages</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                  <li>Introduction content</li>
+                  <li>Policies & Terms</li>
+                  <li>House Rules</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-blue-700 mb-2">VR Items</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                  <li>All rooms with translations</li>
+                  <li>All dining venues with translations</li>
+                  <li>All services with translations</li>
+                  <li>All facilities with translations</li>
+                </ul>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-300 rounded p-3 mt-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Images are not included. You'll need to upload images separately for the new property.
+              </p>
+            </div>
           </div>
           
           <button
@@ -185,19 +232,40 @@ export default function ExportImport() {
               </>
             )}
           </button>
-        </div>
+      </div>
 
-        {/* Import Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center mb-4">
-            <FontAwesomeIcon icon={faFileImport} className="text-green-600 text-2xl mr-3" />
-            <h2 className="text-2xl font-bold">Import Property Template</h2>
+      {/* Import Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-b border-slate-200 pb-4 mb-6">
+          <div className="flex items-center gap-3">
+            <FontAwesomeIcon icon={faFileImport} className="text-green-600 text-2xl" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Import Property Template</h2>
+              <p className="text-slate-600 text-sm mt-1">
+                Import a property template ZIP file to quickly populate this property
+              </p>
+            </div>
           </div>
+        </div>
           
-          <p className="text-gray-600 mb-4">
-            Import a property template ZIP file to quickly populate this property with content.
-            All data will use this property's ID automatically.
-          </p>
+          <div className="bg-green-50 border border-green-200 rounded p-4 mb-4">
+            <h3 className="font-semibold mb-3">Import Information:</h3>
+            <div className="grid grid-cols-2 gap-6 text-sm">
+              <div>
+                <ul className="list-disc list-inside space-y-1 text-gray-700">
+                  <li><strong>Existing data:</strong> Configuration items (Settings, Contact, SEO) will be updated if they exist, or created if new</li>
+                  <li><strong>New items:</strong> All VR items (Rooms, Dining, Services, Facilities) will be added as new entries</li>
+                  <li><strong>Locales:</strong> Languages will be activated if not already present</li>
+                </ul>
+              </div>
+              <div>
+                <ul className="list-disc list-inside space-y-1 text-gray-700">
+                  <li><strong>Translations:</strong> All text content will be imported for each locale</li>
+                  <li><strong>Review needed:</strong> Please verify booking URLs and pricing after import</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
           {/* File Upload */}
           <div className="mb-6">
@@ -234,60 +302,98 @@ export default function ExportImport() {
           {/* Preview */}
           {importPreview && (
             <div className="mb-6">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center mb-3">
-                  <FontAwesomeIcon icon={faCheckCircle} className="text-green-600 mr-2" />
-                  <h3 className="font-semibold">Import Preview</h3>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <div className="flex items-center mb-4">
+                  <FontAwesomeIcon icon={faCheckCircle} className="text-green-600 text-lg mr-2" />
+                  <h3 className="text-lg font-semibold text-slate-800">Import Preview</h3>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-6 mb-6">
                   <div>
-                    <p className="text-sm text-gray-600">Source Property</p>
-                    <p className="font-semibold">{importPreview.source_property?.name || 'Unknown'}</p>
+                    <p className="text-sm text-slate-600 mb-1">Source Property</p>
+                    <p className="font-semibold text-slate-800">{importPreview.source_property?.name || 'Unknown'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Export Date</p>
-                    <p className="font-semibold">
+                    <p className="text-sm text-slate-600 mb-1">Export Date</p>
+                    <p className="font-semibold text-slate-800">
                       {importPreview.metadata?.export_date 
-                        ? new Date(importPreview.metadata.export_date).toLocaleDateString()
+                        ? new Date(importPreview.metadata.export_date).toLocaleDateString('en-GB')
                         : 'Unknown'}
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-white rounded p-3 mb-3">
-                  <h4 className="font-semibold mb-2 text-sm">Contents to Import:</h4>
-                  <div className="grid grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600">Locales:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.locales}</span>
+                <div className="mb-6">
+                  <h4 className="font-semibold text-slate-800 mb-4">Contents to Import:</h4>
+                  
+                  {/* Simple Grid Layout */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Locales:</span>
+                      <span className="font-semibold text-slate-800">{importPreview.summary.locales}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Rooms:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.rooms}</span>
+                    {importPreview.summary.settings ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Settings:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.settings}</span>
+                      </div>
+                    ) : null}
+                    {importPreview.summary.contact ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Contact:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.contact}</span>
+                      </div>
+                    ) : null}
+                    {importPreview.summary.seo ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">SEO:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.seo}</span>
+                      </div>
+                    ) : null}
+                    {importPreview.summary.introduction ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Introduction:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.introduction}</span>
+                      </div>
+                    ) : null}
+                    {importPreview.summary.policies ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Policies:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.policies}</span>
+                      </div>
+                    ) : null}
+                    {importPreview.summary.rules ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Rules:</span>
+                        <span className="font-semibold text-slate-800">{importPreview.summary.rules}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Rooms:</span>
+                      <span className="font-semibold text-slate-800">{importPreview.summary.rooms}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Dining:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.dining}</span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Dining:</span>
+                      <span className="font-semibold text-slate-800">{importPreview.summary.dining}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Services:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.services}</span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Services:</span>
+                      <span className="font-semibold text-slate-800">{importPreview.summary.services}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Facilities:</span>
-                      <span className="ml-2 font-semibold">{importPreview.summary.facilities}</span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Facilities:</span>
+                      <span className="font-semibold text-slate-800">{importPreview.summary.facilities}</span>
                     </div>
                   </div>
                 </div>
 
                 {importPreview.warnings.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                    <div className="flex items-start">
-                      <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-600 mt-1 mr-2" />
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-600 text-lg flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="font-semibold text-sm mb-1">Important Notes:</h4>
-                        <ul className="text-sm space-y-1">
+                        <h4 className="font-semibold text-slate-800 mb-2">Important Notes:</h4>
+                        <ul className="text-sm text-slate-700 space-y-1">
                           {importPreview.warnings.map((warning, idx) => (
                             <li key={idx}>• {warning}</li>
                           ))}
@@ -298,7 +404,7 @@ export default function ExportImport() {
                 )}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-4 mt-4">
                 <button
                   onClick={handleImport}
                   disabled={isImporting}
@@ -340,35 +446,82 @@ export default function ExportImport() {
               
               <p className="mb-3">{importResult.message}</p>
               
-              <div className="bg-white rounded p-3 mb-3">
-                <h4 className="font-semibold mb-2 text-sm">Imported:</h4>
-                <div className="grid grid-cols-5 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-600">Locales:</span>
-                    <span className="ml-2 font-semibold">{importResult.summary.locales}</span>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-slate-800 mb-4">Imported Successfully</h4>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Locales:</span>
+                    <span className="font-semibold text-slate-800">{importResult.summary.locales}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Rooms:</span>
-                    <span className="ml-2 font-semibold">{importResult.summary.rooms}</span>
+                  
+                  {importResult.summary.settings ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Settings:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.settings}</span>
+                    </div>
+                  ) : null}
+                  
+                  {importResult.summary.contact ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Contact:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.contact}</span>
+                    </div>
+                  ) : null}
+                  
+                  {importResult.summary.seo ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">SEO:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.seo}</span>
+                    </div>
+                  ) : null}
+                  
+                  {importResult.summary.introduction ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Introduction:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.introduction}</span>
+                    </div>
+                  ) : null}
+                  
+                  {importResult.summary.policies ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Policies:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.policies}</span>
+                    </div>
+                  ) : null}
+                  
+                  {importResult.summary.rules ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Rules:</span>
+                      <span className="font-semibold text-slate-800">{importResult.summary.rules}</span>
+                    </div>
+                  ) : null}
+                  
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Rooms:</span>
+                    <span className="font-semibold text-slate-800">{importResult.summary.rooms}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Dining:</span>
-                    <span className="ml-2 font-semibold">{importResult.summary.dining}</span>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Dining:</span>
+                    <span className="font-semibold text-slate-800">{importResult.summary.dining}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Services:</span>
-                    <span className="ml-2 font-semibold">{importResult.summary.services}</span>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Services:</span>
+                    <span className="font-semibold text-slate-800">{importResult.summary.services}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Facilities:</span>
-                    <span className="ml-2 font-semibold">{importResult.summary.facilities}</span>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Facilities:</span>
+                    <span className="font-semibold text-slate-800">{importResult.summary.facilities}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <h4 className="font-semibold mb-2 text-sm">Next Steps:</h4>
-                <ul className="text-sm space-y-1">
+              <div className="bg-blue-50 border border-blue-200 rounded p-4 mt-6">
+                <h4 className="font-semibold mb-3 text-sm">Next Steps:</h4>
+                <ul className="text-sm space-y-2">
                   {importResult.next_steps.map((step, idx) => (
                     <li key={idx}>• {step}</li>
                   ))}
@@ -387,7 +540,6 @@ export default function ExportImport() {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }

@@ -18,6 +18,12 @@ from app.models.vr_hotel import (
     VRDining, VRDiningTranslation,
     VRService, VRServiceTranslation,
     VRFacility, VRFacilityTranslation,
+    VRHotelIntroduction,
+    VRHotelPolicies,
+    VRHotelRules,
+    VRHotelContact,
+    VRHotelSEO,
+    VRHotelSettings,
     PropertyLocale
 )
 
@@ -61,11 +67,85 @@ async def export_property_template(
             "id": property_id
         },
         "locales": [{"code": loc.locale_code, "is_default": loc.is_default} for loc in locales],
+        "introduction": None,
+        "policies": None,
+        "rules": None,
+        "contact": None,
+        "seo": [],
+        "settings": None,
         "rooms": [],
         "dining": [],
         "services": [],
         "facilities": []
     }
+    
+    # Export introduction
+    introduction = db.query(VRHotelIntroduction).filter(VRHotelIntroduction.property_id == property_id).first()
+    if introduction:
+        export_data["introduction"] = {
+            "is_displaying": introduction.is_displaying,
+            "vr360_link": introduction.vr360_link,
+            "vr_title": introduction.vr_title,
+            "content_json": introduction.content_json
+        }
+    
+    # Export policies
+    policies = db.query(VRHotelPolicies).filter(VRHotelPolicies.property_id == property_id).first()
+    if policies:
+        export_data["policies"] = {
+            "is_displaying": policies.is_displaying,
+            "vr360_link": policies.vr360_link,
+            "vr_title": policies.vr_title,
+            "content_json": policies.content_json
+        }
+    
+    # Export rules
+    rules = db.query(VRHotelRules).filter(VRHotelRules.property_id == property_id).first()
+    if rules:
+        export_data["rules"] = {
+            "is_displaying": rules.is_displaying,
+            "vr360_link": rules.vr360_link,
+            "vr_title": rules.vr_title,
+            "content_json": rules.content_json
+        }
+    
+    # Export contact
+    contact = db.query(VRHotelContact).filter(VRHotelContact.property_id == property_id).first()
+    if contact:
+        export_data["contact"] = {
+            "is_displaying": contact.is_displaying,
+            "phone": contact.phone,
+            "email": contact.email,
+            "website": contact.website,
+            "address_json": contact.address_json,
+            "social_media_json": contact.social_media_json,
+            "working_hours_json": contact.working_hours_json,
+            "content_json": contact.content_json,
+            "map_coordinates": contact.map_coordinates,
+            "vr360_link": contact.vr360_link,
+            "vr_title": contact.vr_title
+        }
+    
+    # Export SEO (per locale)
+    seo_list = db.query(VRHotelSEO).filter(VRHotelSEO.property_id == property_id).all()
+    for seo in seo_list:
+        export_data["seo"].append({
+            "locale": seo.locale,
+            "meta_title": seo.meta_title,
+            "meta_description": seo.meta_description,
+            "meta_keywords": seo.meta_keywords
+        })
+    
+    # Export settings
+    settings = db.query(VRHotelSettings).filter(VRHotelSettings.property_id == property_id).first()
+    if settings:
+        export_data["settings"] = {
+            "primary_color": settings.primary_color,
+            "booking_url": settings.booking_url,
+            "messenger_url": settings.messenger_url,
+            "phone_number": settings.phone_number,
+            "settings_json": settings.settings_json
+        }
     
     # Export rooms
     rooms = db.query(VRRoom).filter(VRRoom.property_id == property_id).all()
@@ -190,6 +270,12 @@ async def export_property_template(
         "export_date": datetime.utcnow().isoformat(),
         "source_property": property_obj.property_name,
         "total_items": {
+            "introduction": 1 if export_data["introduction"] else 0,
+            "policies": 1 if export_data["policies"] else 0,
+            "rules": 1 if export_data["rules"] else 0,
+            "contact": 1 if export_data["contact"] else 0,
+            "seo": len(export_data["seo"]),
+            "settings": 1 if export_data["settings"] else 0,
             "rooms": len(rooms),
             "dining": len(dinings),
             "services": len(services),
@@ -241,6 +327,12 @@ async def preview_import_template(
             "metadata": metadata,
             "summary": {
                 "locales": len(data.get("locales", [])),
+                "introduction": 1 if data.get("introduction") else 0,
+                "policies": 1 if data.get("policies") else 0,
+                "rules": 1 if data.get("rules") else 0,
+                "contact": 1 if data.get("contact") else 0,
+                "seo": len(data.get("seo", [])),
+                "settings": 1 if data.get("settings") else 0,
                 "rooms": len(data.get("rooms", [])),
                 "dining": len(data.get("dining", [])),
                 "services": len(data.get("services", [])),
@@ -279,7 +371,19 @@ async def import_property_template(
         with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
             data = json.loads(zip_file.read('data.json'))
         
-        summary = {"locales": 0, "rooms": 0, "dining": 0, "services": 0, "facilities": 0}
+        summary = {
+            "locales": 0,
+            "introduction": 0,
+            "policies": 0,
+            "rules": 0,
+            "contact": 0,
+            "seo": 0,
+            "settings": 0,
+            "rooms": 0,
+            "dining": 0,
+            "services": 0,
+            "facilities": 0
+        }
         
         # Import locales first (required for translations)
         for locale_data in data.get("locales", []):
@@ -304,6 +408,178 @@ async def import_property_template(
                 summary["locales"] += 1
         
         db.flush()  # Ensure locales are created before translations
+        
+        # Import introduction
+        intro_data = data.get("introduction")
+        if intro_data:
+            # Check if introduction already exists
+            existing_intro = db.query(VRHotelIntroduction).filter(
+                VRHotelIntroduction.property_id == property_id
+            ).first()
+            
+            if existing_intro:
+                # Update existing
+                existing_intro.is_displaying = intro_data.get("is_displaying", True)
+                existing_intro.vr360_link = intro_data.get("vr360_link")
+                existing_intro.vr_title = intro_data.get("vr_title")
+                existing_intro.content_json = intro_data.get("content_json", {})
+                existing_intro.updated_at = datetime.utcnow()
+            else:
+                # Create new
+                new_intro = VRHotelIntroduction(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    is_displaying=intro_data.get("is_displaying", True),
+                    vr360_link=intro_data.get("vr360_link"),
+                    vr_title=intro_data.get("vr_title"),
+                    content_json=intro_data.get("content_json", {})
+                )
+                db.add(new_intro)
+            summary["introduction"] = 1
+        
+        # Import policies
+        policies_data = data.get("policies")
+        if policies_data:
+            existing_policies = db.query(VRHotelPolicies).filter(
+                VRHotelPolicies.property_id == property_id
+            ).first()
+            
+            if existing_policies:
+                existing_policies.is_displaying = policies_data.get("is_displaying", True)
+                existing_policies.vr360_link = policies_data.get("vr360_link")
+                existing_policies.vr_title = policies_data.get("vr_title")
+                existing_policies.content_json = policies_data.get("content_json", {})
+                existing_policies.updated_at = datetime.utcnow()
+            else:
+                new_policies = VRHotelPolicies(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    is_displaying=policies_data.get("is_displaying", True),
+                    vr360_link=policies_data.get("vr360_link"),
+                    vr_title=policies_data.get("vr_title"),
+                    content_json=policies_data.get("content_json", {})
+                )
+                db.add(new_policies)
+            summary["policies"] = 1
+        
+        # Import rules
+        rules_data = data.get("rules")
+        if rules_data:
+            existing_rules = db.query(VRHotelRules).filter(
+                VRHotelRules.property_id == property_id
+            ).first()
+            
+            if existing_rules:
+                existing_rules.is_displaying = rules_data.get("is_displaying", True)
+                existing_rules.vr360_link = rules_data.get("vr360_link")
+                existing_rules.vr_title = rules_data.get("vr_title")
+                existing_rules.content_json = rules_data.get("content_json", {})
+                existing_rules.updated_at = datetime.utcnow()
+            else:
+                new_rules = VRHotelRules(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    is_displaying=rules_data.get("is_displaying", True),
+                    vr360_link=rules_data.get("vr360_link"),
+                    vr_title=rules_data.get("vr_title"),
+                    content_json=rules_data.get("content_json", {})
+                )
+                db.add(new_rules)
+            summary["rules"] = 1
+        
+        # Import contact
+        contact_data = data.get("contact")
+        if contact_data:
+            existing_contact = db.query(VRHotelContact).filter(
+                VRHotelContact.property_id == property_id
+            ).first()
+            
+            if existing_contact:
+                existing_contact.is_displaying = contact_data.get("is_displaying", True)
+                existing_contact.phone = contact_data.get("phone")
+                existing_contact.email = contact_data.get("email")
+                existing_contact.website = contact_data.get("website")
+                existing_contact.address_json = contact_data.get("address_json")
+                existing_contact.social_media_json = contact_data.get("social_media_json")
+                existing_contact.working_hours_json = contact_data.get("working_hours_json")
+                existing_contact.content_json = contact_data.get("content_json")
+                existing_contact.map_coordinates = contact_data.get("map_coordinates")
+                existing_contact.vr360_link = contact_data.get("vr360_link")
+                existing_contact.vr_title = contact_data.get("vr_title")
+                existing_contact.updated_at = datetime.utcnow()
+            else:
+                new_contact = VRHotelContact(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    is_displaying=contact_data.get("is_displaying", True),
+                    phone=contact_data.get("phone"),
+                    email=contact_data.get("email"),
+                    website=contact_data.get("website"),
+                    address_json=contact_data.get("address_json"),
+                    social_media_json=contact_data.get("social_media_json"),
+                    working_hours_json=contact_data.get("working_hours_json"),
+                    content_json=contact_data.get("content_json"),
+                    map_coordinates=contact_data.get("map_coordinates"),
+                    vr360_link=contact_data.get("vr360_link"),
+                    vr_title=contact_data.get("vr_title")
+                )
+                db.add(new_contact)
+            summary["contact"] = 1
+        
+        # Import SEO
+        for seo_data in data.get("seo", []):
+            locale = seo_data.get("locale")
+            
+            existing_seo = db.query(VRHotelSEO).filter(
+                VRHotelSEO.property_id == property_id,
+                VRHotelSEO.locale == locale
+            ).first()
+            
+            if existing_seo:
+                existing_seo.meta_title = seo_data.get("meta_title")
+                existing_seo.meta_description = seo_data.get("meta_description")
+                existing_seo.meta_keywords = seo_data.get("meta_keywords")
+                existing_seo.updated_at = datetime.utcnow()
+            else:
+                new_seo = VRHotelSEO(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    locale=locale,
+                    meta_title=seo_data.get("meta_title"),
+                    meta_description=seo_data.get("meta_description"),
+                    meta_keywords=seo_data.get("meta_keywords")
+                )
+                db.add(new_seo)
+            summary["seo"] += 1
+        
+        # Import settings
+        settings_data = data.get("settings")
+        if settings_data:
+            existing_settings = db.query(VRHotelSettings).filter(
+                VRHotelSettings.property_id == property_id
+            ).first()
+            
+            if existing_settings:
+                existing_settings.primary_color = settings_data.get("primary_color", "#3b82f6")
+                existing_settings.booking_url = settings_data.get("booking_url")
+                existing_settings.messenger_url = settings_data.get("messenger_url")
+                existing_settings.phone_number = settings_data.get("phone_number")
+                existing_settings.settings_json = settings_data.get("settings_json")
+                existing_settings.updated_at = datetime.utcnow()
+            else:
+                new_settings = VRHotelSettings(
+                    tenant_id=current_user.tenant_id,
+                    property_id=property_id,
+                    primary_color=settings_data.get("primary_color", "#3b82f6"),
+                    booking_url=settings_data.get("booking_url"),
+                    messenger_url=settings_data.get("messenger_url"),
+                    phone_number=settings_data.get("phone_number"),
+                    settings_json=settings_data.get("settings_json")
+                )
+                db.add(new_settings)
+            summary["settings"] = 1
+        
+        db.flush()  # Ensure all base entities are created
         
         # Import rooms
         for room_data in data.get("rooms", []):
