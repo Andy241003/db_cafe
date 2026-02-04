@@ -315,7 +315,6 @@ const VRHotelContact: React.FC = () => {
 
           <div className="md:col-span-2">
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-              <FontAwesomeIcon icon={faMapPin} className="text-slate-500" />
               Map Coordinates
             </label>
             <input
@@ -325,7 +324,6 @@ const VRHotelContact: React.FC = () => {
               placeholder="e.g., 10.7769,106.7009"
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-slate-500 mt-1">Format: latitude,longitude</p>
           </div>
         </div>
       </div>
