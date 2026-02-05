@@ -141,6 +141,7 @@ async def export_property_template(
     if settings:
         export_data["settings"] = {
             "primary_color": settings.primary_color,
+            "background_color": settings.background_color,
             "booking_url": settings.booking_url,
             "messenger_url": settings.messenger_url,
             "phone_number": settings.phone_number,
@@ -561,6 +562,7 @@ async def import_property_template(
             
             if existing_settings:
                 existing_settings.primary_color = settings_data.get("primary_color", "#3b82f6")
+                existing_settings.background_color = settings_data.get("background_color", "#ffffff")
                 existing_settings.booking_url = settings_data.get("booking_url")
                 existing_settings.messenger_url = settings_data.get("messenger_url")
                 existing_settings.phone_number = settings_data.get("phone_number")
@@ -571,6 +573,7 @@ async def import_property_template(
                     tenant_id=current_user.tenant_id,
                     property_id=property_id,
                     primary_color=settings_data.get("primary_color", "#3b82f6"),
+                    background_color=settings_data.get("background_color", "#ffffff"),
                     booking_url=settings_data.get("booking_url"),
                     messenger_url=settings_data.get("messenger_url"),
                     phone_number=settings_data.get("phone_number"),

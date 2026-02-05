@@ -28,6 +28,7 @@ class VRSettingsResponse(BaseModel):
     """
     # VR-specific branding
     primary_color: str = "#3b82f6"
+    background_color: str = "#ffffff"
     
     # Contact & Booking
     booking_url: Optional[str] = None
@@ -51,6 +52,7 @@ class VRSettingsUpdate(BaseModel):
     """
     # VR-specific branding
     primary_color: Optional[str] = None
+    background_color: Optional[str] = None
     
     # Contact & Booking
     booking_url: Optional[str] = None
@@ -147,6 +149,7 @@ def get_vr_hotel_settings(
     # Return VR-specific settings only
     return VRSettingsResponse(
         primary_color=settings.primary_color if settings else "#3b82f6",
+        background_color=settings.background_color if settings else "#ffffff",
         booking_url=settings.booking_url if settings else None,
         messenger_url=settings.messenger_url if settings else None,
         phone_number=settings.phone_number if settings else None,
