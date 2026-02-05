@@ -51,6 +51,116 @@ class CRUDProperty(CRUDBase[Property, PropertyCreate, PropertyUpdate]):
             .where(Property.is_active == True)
         ).all()
 
+    def remove(self, db: Session, *, id: int) -> Property:
+        """
+        Delete a property and all related VR Hotel data
+        
+        This manually deletes related data to ensure cleanup even if
+        database CASCADE is not configured properly.
+        """
+        from app.models.vr_hotel import (
+            VRHotelSettings, VRHotelContact, VRHotelSEO,
+            VRHotelIntroduction, VRHotelPolicies, VRHotelRules,
+            VRRoom, VRDining, VRFacility, VRService, VROffer,
+            VRContent, PropertyLocale,
+            VRRoomTranslation, VRRoomMedia,
+            VRDiningTranslation, VRDiningMedia,
+            VRFacilityTranslation, VRFacilityMedia,
+            VRServiceTranslation, VRServiceMedia,
+            VROfferTranslation
+        )
+        
+        # Get property first
+        property_obj = db.exec(select(Property).where(Property.id == id)).first()
+        if not property_obj:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        # Delete VR Hotel related data in correct order (child → parent)
+        # 1. Delete translation and media junction tables first
+        db.exec(select(VRRoomTranslation).where(VRRoomTranslation.room_id.in_(
+            select(VRRoom.id).where(VRRoom.property_id == id)
+        ))).all()
+        for item in db.exec(select(VRRoomTranslation).where(VRRoomTranslation.room_id.in_(
+            select(VRRoom.id).where(VRRoom.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRRoomMedia).where(VRRoomMedia.room_id.in_(
+            select(VRRoom.id).where(VRRoom.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRDiningTranslation).where(VRDiningTranslation.dining_id.in_(
+            select(VRDining.id).where(VRDining.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRDiningMedia).where(VRDiningMedia.dining_id.in_(
+            select(VRDining.id).where(VRDining.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRFacilityTranslation).where(VRFacilityTranslation.facility_id.in_(
+            select(VRFacility.id).where(VRFacility.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRFacilityMedia).where(VRFacilityMedia.facility_id.in_(
+            select(VRFacility.id).where(VRFacility.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRServiceTranslation).where(VRServiceTranslation.service_id.in_(
+            select(VRService.id).where(VRService.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VRServiceMedia).where(VRServiceMedia.service_id.in_(
+            select(VRService.id).where(VRService.property_id == id)
+        ))):
+            db.delete(item)
+        
+        for item in db.exec(select(VROfferTranslation).where(VROfferTranslation.offer_id.in_(
+            select(VROffer.id).where(VROffer.property_id == id)
+        ))):
+            db.delete(item)
+        
+        # 2. Delete main VR Hotel tables
+        for item in db.exec(select(VRRoom).where(VRRoom.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRDining).where(VRDining.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRFacility).where(VRFacility.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRService).where(VRService.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VROffer).where(VROffer.property_id == id)):
+            db.delete(item)
+        
+        # 3. Delete VR Hotel settings and content
+        for item in db.exec(select(VRHotelSettings).where(VRHotelSettings.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRHotelContact).where(VRHotelContact.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRHotelSEO).where(VRHotelSEO.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRHotelIntroduction).where(VRHotelIntroduction.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRHotelPolicies).where(VRHotelPolicies.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRHotelRules).where(VRHotelRules.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(VRContent).where(VRContent.property_id == id)):
+            db.delete(item)
+        for item in db.exec(select(PropertyLocale).where(PropertyLocale.property_id == id)):
+            db.delete(item)
+        
+        # 4. Finally delete the property itself
+        db.delete(property_obj)
+        db.commit()
+        
+        return property_obj
+
 
 class CRUDFeatureCategory(CRUDBase[FeatureCategory, FeatureCategoryCreate, FeatureCategoryUpdate]):
     def get_by_slug(self, db: Session, *, slug: str, tenant_id: int = 0) -> Optional[FeatureCategory]:
