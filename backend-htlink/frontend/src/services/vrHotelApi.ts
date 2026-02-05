@@ -64,6 +64,7 @@ export interface VRHotelSettings {
   timezone: string;
   currency: string;
   primary_color: string;
+  background_color?: string;
   
   // Media
   logo_media_id?: number;

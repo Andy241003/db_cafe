@@ -9,6 +9,7 @@ import { getApiBaseUrl } from '../../utils/api';
 const VRHotelSettings: React.FC = () => {
   const [settings, setSettings] = useState({
     primaryColor: '#3b82f6',
+    backgroundColor: '#ffffff',
     bookingUrl: '',
     messengerUrl: '',
     phoneNumber: '',
@@ -71,6 +72,7 @@ const VRHotelSettings: React.FC = () => {
       // Map API response to local state
       setSettings({
         primaryColor: data.primary_color || '#3b82f6',
+        backgroundColor: data.background_color || '#ffffff',
         bookingUrl: data.booking_url || '',
         messengerUrl: data.messenger_url || '',
         phoneNumber: data.phone_number || '',
@@ -223,6 +225,7 @@ const VRHotelSettings: React.FC = () => {
       // Map local state to API format (only VR-specific fields)
       const updateData: Partial<VRHotelSettings> = {
         primary_color: settings.primaryColor,
+        background_color: settings.backgroundColor,
         booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
         messenger_url: settings.messengerUrl.trim() === '' ? null : settings.messengerUrl,
         phone_number: settings.phoneNumber.trim() === '' ? null : settings.phoneNumber,
@@ -413,6 +416,29 @@ const VRHotelSettings: React.FC = () => {
               />
               <span className="text-sm text-slate-500">
                 This color will be used for buttons, links, highlights
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-3">
+              Background Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={settings.backgroundColor}
+                onChange={(e) => handleInputChange('backgroundColor', e.target.value)}
+                className="w-[60px] h-10 border border-slate-300 rounded-lg cursor-pointer"
+              />
+              <input
+                type="text"
+                value={settings.backgroundColor}
+                readOnly
+                className="w-[120px] px-3 py-2 border border-slate-300 rounded-md bg-slate-50 text-slate-700 font-mono text-sm"
+              />
+              <span className="text-sm text-slate-500">
+                This color will be used as the main background color
               </span>
             </div>
           </div>

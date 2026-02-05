@@ -65,6 +65,7 @@ class VRHotelSettings(SQLModel, table=True):
     
     # VR-specific branding
     primary_color: str = Field(default="#3b82f6", max_length=20)
+    background_color: str = Field(default="#ffffff", max_length=20)
     
     # Contact & Booking
     booking_url: Optional[str] = Field(default=None, max_length=500)

@@ -21,6 +21,7 @@ class VRHotelSettingsBase(BaseModel):
     timezone: Optional[str] = Field(default="Asia/Ho_Chi_Minh", max_length=50)
     currency: Optional[str] = Field(default="VND", max_length=3)
     primary_color: Optional[str] = Field(default="#1a365d", max_length=50)
+    background_color: Optional[str] = Field(default="#ffffff", max_length=50)
     logo_media_id: Optional[int] = None
     favicon_media_id: Optional[int] = None
     settings_json: Optional[Dict[str, Any]] = None
