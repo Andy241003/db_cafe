@@ -3,7 +3,7 @@ VR Hotel Settings API endpoints
 
 Handles VR Hotel settings, contact, and SEO management
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
@@ -40,7 +40,7 @@ class VRSettingsResponse(BaseModel):
     favicon_media_id: Optional[int] = None
     
     # VR-specific settings (SEO)
-    seo: Optional[Dict[str, Dict[str, str]]] = None  # {locale: {title, description, keywords}}
+    seo: Optional[Dict[str, Dict[str, Any]]] = None  # {locale: {title, description, keywords, meta_image_media_id}}
     
     # VR Page Settings (Hero sections for list pages)
     pages: Optional[Dict[str, Any]] = None  # {page_type: {vr360_link, vr_title}}
@@ -64,7 +64,7 @@ class VRSettingsUpdate(BaseModel):
     favicon_media_id: Optional[int] = None
     
     # VR-specific SEO
-    seo: Optional[Dict[str, Dict[str, str]]] = None
+    seo: Optional[Dict[str, Dict[str, Any]]] = None
     
     # VR Page Settings (Hero sections for list pages)
     pages: Optional[Dict[str, Any]] = None
@@ -141,7 +141,8 @@ def get_vr_hotel_settings(
         seo.locale: {
             "meta_title": seo.meta_title,
             "meta_description": seo.meta_description,
-            "meta_keywords": seo.meta_keywords
+            "meta_keywords": seo.meta_keywords,
+            "meta_image_media_id": seo.meta_image_media_id
         }
         for seo in seo_records
     } if seo_records else None
@@ -233,7 +234,7 @@ def update_vr_hotel_settings(
             
             # Update SEO fields
             for key, value in seo_data.items():
-                if key in ["meta_title", "meta_description", "meta_keywords"]:
+                if key in ["meta_title", "meta_description", "meta_keywords", "meta_image_media_id"]:
                     setattr(seo, key, value)
     
     db.commit()

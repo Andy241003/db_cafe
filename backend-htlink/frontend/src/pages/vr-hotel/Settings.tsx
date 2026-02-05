@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { mediaApi } from '../../services/mediaApi';
-import { vrHotelPropertiesApi, vrHotelSettingsApi } from '../../services/vrHotelApi';
+import { vrHotelPropertiesApi, vrHotelSettingsApi, type VRHotelSettings } from '../../services/vrHotelApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const VRHotelSettings: React.FC = () => {
@@ -23,13 +23,17 @@ const VRHotelSettings: React.FC = () => {
   const [propertyInitialized, setPropertyInitialized] = useState(false);
   const [logoMediaId, setLogoMediaId] = useState<number | null>(null);
   const [faviconMediaId, setFaviconMediaId] = useState<number | null>(null);
+  const [metaImageMediaId, setMetaImageMediaId] = useState<number | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [faviconUrl, setFaviconUrl] = useState<string>('');
+  const [metaImageUrl, setMetaImageUrl] = useState<string>('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingMetaImage, setUploadingMetaImage] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+  const metaImageInputRef = useRef<HTMLInputElement>(null);
 
   // Set default property_id if not exists in localStorage
   useEffect(() => {
@@ -81,16 +85,34 @@ const VRHotelSettings: React.FC = () => {
         keywordsVi: data.seo?.vi?.meta_keywords || '',
       });
       
-      // Set logo and favicon
+      // Set or clear logo
       if (data.logo_media_id) {
         setLogoMediaId(data.logo_media_id);
         const API_BASE_URL = getApiBaseUrl();
         setLogoUrl(`${API_BASE_URL}/media/${data.logo_media_id}/view`);
+      } else {
+        setLogoMediaId(null);
+        setLogoUrl('');
       }
+      
+      // Set or clear favicon
       if (data.favicon_media_id) {
         setFaviconMediaId(data.favicon_media_id);
         const API_BASE_URL = getApiBaseUrl();
         setFaviconUrl(`${API_BASE_URL}/media/${data.favicon_media_id}/view`);
+      } else {
+        setFaviconMediaId(null);
+        setFaviconUrl('');
+      }
+      
+      // Set or clear meta image for SEO
+      if (data.seo?.vi?.meta_image_media_id) {
+        setMetaImageMediaId(data.seo.vi.meta_image_media_id);
+        const API_BASE_URL = getApiBaseUrl();
+        setMetaImageUrl(`${API_BASE_URL}/media/${data.seo.vi.meta_image_media_id}/view`);
+      } else {
+        setMetaImageMediaId(null);
+        setMetaImageUrl('');
       }
     } catch (error: any) {
       console.error('Failed to load settings:', error);
@@ -218,6 +240,75 @@ const VRHotelSettings: React.FC = () => {
     }
   };
 
+  const handleMetaImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+    
+    try {
+      setUploadingMetaImage(true);
+      
+      // Upload to media API with VR Hotel source
+      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'seo', undefined, 'meta_image');
+      
+      setMetaImageMediaId(uploadedFile.id);
+      const API_BASE_URL = getApiBaseUrl();
+      setMetaImageUrl(`${API_BASE_URL}/media/${uploadedFile.id}/view`);
+      
+      toast.success('Meta image uploaded successfully');
+      
+      // Auto-save meta_image_media_id to SEO
+      await vrHotelSettingsApi.updateSettings({ 
+        seo: { 
+          vi: { 
+            meta_image_media_id: uploadedFile.id 
+          } 
+        } 
+      });
+    } catch (error: any) {
+      console.error('Failed to upload meta image:', error);
+      toast.error('Failed to upload meta image');
+    } finally {
+      setUploadingMetaImage(false);
+      if (metaImageInputRef.current) metaImageInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveMetaImage = async () => {
+    if (!metaImageMediaId) return;
+    
+    try {
+      // Update settings to remove meta image
+      await vrHotelSettingsApi.updateSettings({ 
+        seo: { 
+          vi: { 
+            meta_image_media_id: null 
+          } 
+        } 
+      });
+      
+      setMetaImageMediaId(null);
+      setMetaImageUrl('');
+      
+      toast.success('Meta image removed successfully');
+    } catch (error: any) {
+      console.error('Failed to remove meta image:', error);
+      toast.error('Failed to remove meta image');
+    }
+  };
+
   const handleSaveSettings = async () => {
     try {
       setIsSaving(true);
@@ -235,7 +326,8 @@ const VRHotelSettings: React.FC = () => {
           vi: {
             meta_title: settings.metaTitleVi,
             meta_description: settings.metaDescriptionVi,
-            meta_keywords: settings.keywordsVi
+            meta_keywords: settings.keywordsVi,
+            meta_image_media_id: metaImageMediaId
           }
         }
       };
@@ -551,6 +643,67 @@ const VRHotelSettings: React.FC = () => {
             <p className="text-xs text-slate-500 mt-1">
               Keywords separated by commas
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-3">
+              Meta Image (Open Graph / Social Share)
+            </label>
+            <div className="flex items-start gap-4">
+              {/* Meta Image Preview Box */}
+              <div className="w-[200px] h-[120px] border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-slate-50 flex-shrink-0">
+                {metaImageUrl ? (
+                  <img src={metaImageUrl} alt="Meta Image" className="w-full h-full object-cover rounded-lg" />
+                ) : (
+                  <FontAwesomeIcon icon={faImage} className="text-4xl text-slate-400" />
+                )}
+              </div>
+              
+              {/* Upload Controls */}
+              <div className="flex-1">
+                <input
+                  ref={metaImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleMetaImageUpload(e.target.files)}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => metaImageInputRef.current?.click()}
+                    disabled={uploadingMetaImage}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {uploadingMetaImage ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faUpload} />
+                        Upload Meta Image
+                      </>
+                    )}
+                  </button>
+                  {metaImageUrl && (
+                    <button
+                      onClick={() => handleRemoveMetaImage()}
+                      className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 mt-2">
+                  Recommended: 1200x630px (Facebook, Twitter, LinkedIn)
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  This image will be displayed when sharing your website on social media platforms
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -96,6 +96,7 @@ export interface VRHotelSettings {
     meta_title?: string;
     meta_description?: string;
     meta_keywords?: string;
+    meta_image_media_id?: number;
   }>;
   
   // VR Page Settings (Hero sections)

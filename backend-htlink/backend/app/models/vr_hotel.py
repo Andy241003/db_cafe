@@ -125,6 +125,7 @@ class VRHotelSEO(SQLModel, table=True):
     meta_title: Optional[str] = Field(default=None, max_length=250)
     meta_description: Optional[str] = Field(default=None, max_length=500)
     meta_keywords: Optional[str] = Field(default=None, sa_column=Column(Text))
+    meta_image_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)

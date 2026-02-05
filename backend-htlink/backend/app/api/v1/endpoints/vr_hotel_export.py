@@ -133,7 +133,8 @@ async def export_property_template(
             "locale": seo.locale,
             "meta_title": seo.meta_title,
             "meta_description": seo.meta_description,
-            "meta_keywords": seo.meta_keywords
+            "meta_keywords": seo.meta_keywords,
+            "meta_image_media_id": seo.meta_image_media_id
         })
     
     # Export settings
@@ -540,6 +541,7 @@ async def import_property_template(
                 existing_seo.meta_title = seo_data.get("meta_title")
                 existing_seo.meta_description = seo_data.get("meta_description")
                 existing_seo.meta_keywords = seo_data.get("meta_keywords")
+                existing_seo.meta_image_media_id = seo_data.get("meta_image_media_id")
                 existing_seo.updated_at = datetime.utcnow()
             else:
                 new_seo = VRHotelSEO(
@@ -548,7 +550,8 @@ async def import_property_template(
                     locale=locale,
                     meta_title=seo_data.get("meta_title"),
                     meta_description=seo_data.get("meta_description"),
-                    meta_keywords=seo_data.get("meta_keywords")
+                    meta_keywords=seo_data.get("meta_keywords"),
+                    meta_image_media_id=seo_data.get("meta_image_media_id")
                 )
                 db.add(new_seo)
             summary["seo"] += 1
