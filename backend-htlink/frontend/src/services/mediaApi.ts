@@ -135,17 +135,33 @@ class MediaApiService {
    * Get all media files
    */
   async getMediaFiles(
-    kind?: 'image' | 'video' | 'file',
+    options?: {
+      kind?: 'image' | 'video' | 'file';
+      skip?: number;
+      limit?: number;
+      source?: string;
+      folder?: string;
+    } | 'image' | 'video' | 'file',
     skip = 0,
     limit = 100,
     source?: string
   ): Promise<MediaFile[]> {
-    const params: any = { skip, limit };
-    if (kind) {
-      params.kind = kind;
-    }
-    if (source) {
-      params.source = source;
+    let params: any = {};
+    
+    // Support both object params and individual params for backward compatibility
+    if (typeof options === 'object' && options !== null) {
+      params = {
+        skip: options.skip ?? 0,
+        limit: options.limit ?? 100
+      };
+      if (options.kind) params.kind = options.kind;
+      if (options.source) params.source = options.source;
+      if (options.folder) params.folder = options.folder;
+    } else {
+      // Old signature: getMediaFiles(kind, skip, limit, source)
+      params = { skip, limit };
+      if (options) params.kind = options; // options is kind in old signature
+      if (source) params.source = source;
     }
 
     const response = await mediaApiClient.get('/media/', { params });

@@ -16,6 +16,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import MediaPickerModal from '../../components/MediaPickerModal';
 import { mediaApi } from '../../services/mediaApi';
 import { propertyLocalesApi, type PropertyLocale } from '../../services/propertyLocalesApi';
 import { vrHotelDiningApi, vrHotelSettingsApi } from '../../services/vrHotelApi';
@@ -85,6 +86,9 @@ const VRHotelDining: React.FC = () => {
   const [diningVRTitle, setDiningVRTitle] = useState('');
   const [isSavingVR, setIsSavingVR] = useState(false);
   const [diningTypeFilter, setDiningTypeFilter] = useState<string>('all');
+  
+  // Media picker modal state
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   
   const [formData, setFormData] = useState<{
     code: string;
@@ -455,6 +459,26 @@ const VRHotelDining: React.FC = () => {
       ...prev,
       images: [...(prev.images || []), ...newImages]
     }));
+  };
+
+  const openMediaPicker = () => {
+    setMediaPickerOpen(true);
+  };
+
+  const handleMediaSelectMultiple = (mediaIds: number[], mediaUrls: string[]) => {
+    // Add all selected media from library to images
+    const newImages = mediaIds.map((mediaId, index) => ({
+      media_id: mediaId,
+      url: mediaUrls[index],
+      isPrimary: (formData.images || []).length === 0 && index === 0
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...(prev.images || []), ...newImages]
+    }));
+
+    setMediaPickerOpen(false);
   };
 
   const removeImage = (index: number) => {
@@ -854,22 +878,16 @@ const VRHotelDining: React.FC = () => {
                     <FontAwesomeIcon icon={faImages} />
                     Dining Images
                   </label>
-                  <div 
-                    onClick={() => !isSaving && isDisplaying && document.getElementById('diningImagesInput')?.click()}
-                    className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <FontAwesomeIcon icon={faImages} className="text-5xl text-slate-400 mb-3" />
-                    <p className="text-slate-600 mb-1">Click to select or drag and drop images here</p>
-                    <p className="text-slate-400 text-sm">PNG, JPG, WEBP (max 5MB per image)</p>
-                    <input
-                      id="diningImagesInput"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageUpload}
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      onClick={openMediaPicker}
                       disabled={!isDisplaying || isSaving}
-                      className="hidden"
-                    />
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <FontAwesomeIcon icon={faImages} />
+                      Select Images
+                    </button>
                   </div>
                   
                   {formData.images && formData.images.length > 0 && (
@@ -931,6 +949,19 @@ const VRHotelDining: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Media Picker Modal */}
+      <MediaPickerModal
+        isOpen={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        onSelectMultiple={handleMediaSelectMultiple}
+        title="Select Dining Images"
+        kind="image"
+        source="vr_hotel"
+        folder="dining"
+        maxFileSize={5 * 1024 * 1024}
+        allowMultiple={true}
+      />
     </div>
   );
 };

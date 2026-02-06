@@ -1,8 +1,8 @@
-import { faImage, faSpinner, faStar, faTrash, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faImage, faPhotoFilm, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { mediaApi } from '../../services/mediaApi';
+import MediaPickerModal from '../../components/MediaPickerModal';
 import { vrHotelPropertiesApi, vrHotelSettingsApi, type VRHotelSettings } from '../../services/vrHotelApi';
 import { getApiBaseUrl } from '../../utils/api';
 
@@ -27,13 +27,10 @@ const VRHotelSettings: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [faviconUrl, setFaviconUrl] = useState<string>('');
   const [metaImageUrl, setMetaImageUrl] = useState<string>('');
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingFavicon, setUploadingFavicon] = useState(false);
-  const [uploadingMetaImage, setUploadingMetaImage] = useState(false);
   
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const faviconInputRef = useRef<HTMLInputElement>(null);
-  const metaImageInputRef = useRef<HTMLInputElement>(null);
+  // Media picker modal state
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [currentMediaPicker, setCurrentMediaPicker] = useState<'logo' | 'favicon' | 'meta_image' | null>(null);
 
   // Set default property_id if not exists in localStorage
   useEffect(() => {
@@ -126,92 +123,12 @@ const VRHotelSettings: React.FC = () => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLogoUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-    
-    try {
-      setUploadingLogo(true);
-      
-      // Upload to media API with VR Hotel source
-      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'settings', undefined, 'settings');
-      
-      setLogoMediaId(uploadedFile.id);
-      const API_BASE_URL = getApiBaseUrl();
-      setLogoUrl(`${API_BASE_URL}/media/${uploadedFile.id}/view`);
-      
-      toast.success('Logo uploaded successfully');
-      
-      // Auto-save logo_media_id
-      await vrHotelSettingsApi.updateSettings({ logo_media_id: uploadedFile.id });
-    } catch (error: any) {
-      console.error('Failed to upload logo:', error);
-      toast.error('Failed to upload logo');
-    } finally {
-      setUploadingLogo(false);
-      if (logoInputRef.current) logoInputRef.current.value = '';
-    }
-  };
-
-  const handleFaviconUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/') && !file.name.endsWith('.ico')) {
-      toast.error('Please select an image file or .ico file');
-      return;
-    }
-    
-    // Validate file size (max 1MB for favicon)
-    if (file.size > 1 * 1024 * 1024) {
-      toast.error('Favicon size must be less than 1MB');
-      return;
-    }
-    
-    try {
-      setUploadingFavicon(true);
-      
-      // Upload to media API with VR Hotel source
-      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'settings', undefined, 'settings');
-      
-      setFaviconMediaId(uploadedFile.id);
-      const API_BASE_URL = getApiBaseUrl();
-      setFaviconUrl(`${API_BASE_URL}/media/${uploadedFile.id}/view`);
-      
-      toast.success('Favicon uploaded successfully');
-      
-      // Auto-save favicon_media_id
-      await vrHotelSettingsApi.updateSettings({ favicon_media_id: uploadedFile.id });
-    } catch (error: any) {
-      console.error('Failed to upload favicon:', error);
-      toast.error('Failed to upload favicon');
-    } finally {
-      setUploadingFavicon(false);
-      if (faviconInputRef.current) faviconInputRef.current.value = '';
-    }
-  };
-
   const handleRemoveLogo = async () => {
     if (!logoMediaId) return;
     
     try {
       // Update settings to remove logo
-      await vrHotelSettingsApi.updateSettings({ logo_media_id: null });
+      await vrHotelSettingsApi.updateSettings({ logo_media_id: undefined });
       
       setLogoMediaId(null);
       setLogoUrl('');
@@ -228,7 +145,7 @@ const VRHotelSettings: React.FC = () => {
     
     try {
       // Update settings to remove favicon
-      await vrHotelSettingsApi.updateSettings({ favicon_media_id: null });
+      await vrHotelSettingsApi.updateSettings({ favicon_media_id: undefined });
       
       setFaviconMediaId(null);
       setFaviconUrl('');
@@ -240,52 +157,6 @@ const VRHotelSettings: React.FC = () => {
     }
   };
 
-  const handleMetaImageUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-    
-    try {
-      setUploadingMetaImage(true);
-      
-      // Upload to media API with VR Hotel source
-      const uploadedFile = await mediaApi.uploadFile(file, 'image', undefined, 'vr_hotel', 'seo', undefined, 'meta_image');
-      
-      setMetaImageMediaId(uploadedFile.id);
-      const API_BASE_URL = getApiBaseUrl();
-      setMetaImageUrl(`${API_BASE_URL}/media/${uploadedFile.id}/view`);
-      
-      toast.success('Meta image uploaded successfully');
-      
-      // Auto-save meta_image_media_id to SEO
-      await vrHotelSettingsApi.updateSettings({ 
-        seo: { 
-          vi: { 
-            meta_image_media_id: uploadedFile.id 
-          } 
-        } 
-      });
-    } catch (error: any) {
-      console.error('Failed to upload meta image:', error);
-      toast.error('Failed to upload meta image');
-    } finally {
-      setUploadingMetaImage(false);
-      if (metaImageInputRef.current) metaImageInputRef.current.value = '';
-    }
-  };
-
   const handleRemoveMetaImage = async () => {
     if (!metaImageMediaId) return;
     
@@ -294,7 +165,7 @@ const VRHotelSettings: React.FC = () => {
       await vrHotelSettingsApi.updateSettings({ 
         seo: { 
           vi: { 
-            meta_image_media_id: null 
+            meta_image_media_id: undefined 
           } 
         } 
       });
@@ -309,6 +180,42 @@ const VRHotelSettings: React.FC = () => {
     }
   };
 
+  // Media picker handlers
+  const openMediaPicker = (type: 'logo' | 'favicon' | 'meta_image') => {
+    setCurrentMediaPicker(type);
+    setMediaPickerOpen(true);
+  };
+
+  const handleMediaSelect = async (mediaId: number, mediaUrl: string) => {
+    try {
+      if (currentMediaPicker === 'logo') {
+        setLogoMediaId(mediaId);
+        setLogoUrl(mediaUrl);
+        await vrHotelSettingsApi.updateSettings({ logo_media_id: mediaId });
+        toast.success('Logo đã được cập nhật');
+      } else if (currentMediaPicker === 'favicon') {
+        setFaviconMediaId(mediaId);
+        setFaviconUrl(mediaUrl);
+        await vrHotelSettingsApi.updateSettings({ favicon_media_id: mediaId });
+        toast.success('Favicon đã được cập nhật');
+      } else if (currentMediaPicker === 'meta_image') {
+        setMetaImageMediaId(mediaId);
+        setMetaImageUrl(mediaUrl);
+        await vrHotelSettingsApi.updateSettings({ 
+          seo: { 
+            vi: { 
+              meta_image_media_id: mediaId 
+            } 
+          } 
+        });
+        toast.success('Meta image đã được cập nhật');
+      }
+    } catch (error: any) {
+      console.error('Failed to update media:', error);
+      toast.error('Cập nhật ảnh thất bại');
+    }
+  };
+
   const handleSaveSettings = async () => {
     try {
       setIsSaving(true);
@@ -317,17 +224,17 @@ const VRHotelSettings: React.FC = () => {
       const updateData: Partial<VRHotelSettings> = {
         primary_color: settings.primaryColor,
         background_color: settings.backgroundColor,
-        booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
-        messenger_url: settings.messengerUrl.trim() === '' ? null : settings.messengerUrl,
-        phone_number: settings.phoneNumber.trim() === '' ? null : settings.phoneNumber,
-        logo_media_id: logoMediaId,
-        favicon_media_id: faviconMediaId,
+        booking_url: settings.bookingUrl.trim() === '' ? undefined : settings.bookingUrl,
+        messenger_url: settings.messengerUrl.trim() === '' ? undefined : settings.messengerUrl,
+        phone_number: settings.phoneNumber.trim() === '' ? undefined : settings.phoneNumber,
+        logo_media_id: logoMediaId ?? undefined,
+        favicon_media_id: faviconMediaId ?? undefined,
         seo: {
           vi: {
             meta_title: settings.metaTitleVi,
             meta_description: settings.metaDescriptionVi,
             meta_keywords: settings.keywordsVi,
-            meta_image_media_id: metaImageMediaId
+            meta_image_media_id: metaImageMediaId ?? undefined
           }
         }
       };
@@ -389,30 +296,13 @@ const VRHotelSettings: React.FC = () => {
               
               {/* Upload Controls */}
               <div className="flex-1">
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleLogoUpload(e.target.files)}
-                  className="hidden"
-                />
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={uploadingLogo}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={() => openMediaPicker('logo')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
-                    {uploadingLogo ? (
-                      <>
-                        <FontAwesomeIcon icon={faSpinner} spin />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faUpload} />
-                        Upload Logo
-                      </>
-                    )}
+                    <FontAwesomeIcon icon={faPhotoFilm} />
+                    Select Image
                   </button>
                   {logoUrl && (
                     <button
@@ -420,7 +310,7 @@ const VRHotelSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Remove
+                      Xóa
                     </button>
                   )}
                 </div>
@@ -447,30 +337,13 @@ const VRHotelSettings: React.FC = () => {
               
               {/* Upload Controls */}
               <div className="flex-1">
-                <input
-                  ref={faviconInputRef}
-                  type="file"
-                  accept="image/*,.ico"
-                  onChange={(e) => handleFaviconUpload(e.target.files)}
-                  className="hidden"
-                />
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => faviconInputRef.current?.click()}
-                    disabled={uploadingFavicon}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={() => openMediaPicker('favicon')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
-                    {uploadingFavicon ? (
-                      <>
-                        <FontAwesomeIcon icon={faSpinner} spin />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faUpload} />
-                        Upload Favicon
-                      </>
-                    )}
+                    <FontAwesomeIcon icon={faPhotoFilm} />
+                    Select Image
                   </button>
                   {faviconUrl && (
                     <button
@@ -478,7 +351,7 @@ const VRHotelSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Remove
+                      Xóa
                     </button>
                   )}
                 </div>
@@ -661,30 +534,13 @@ const VRHotelSettings: React.FC = () => {
               
               {/* Upload Controls */}
               <div className="flex-1">
-                <input
-                  ref={metaImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleMetaImageUpload(e.target.files)}
-                  className="hidden"
-                />
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => metaImageInputRef.current?.click()}
-                    disabled={uploadingMetaImage}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={() => openMediaPicker('meta_image')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
-                    {uploadingMetaImage ? (
-                      <>
-                        <FontAwesomeIcon icon={faSpinner} spin />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faUpload} />
-                        Upload Meta Image
-                      </>
-                    )}
+                    <FontAwesomeIcon icon={faPhotoFilm} />
+                    Select Image
                   </button>
                   {metaImageUrl && (
                     <button
@@ -692,7 +548,7 @@ const VRHotelSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Remove
+                      Xóa
                     </button>
                   )}
                 </div>
@@ -726,7 +582,24 @@ const VRHotelSettings: React.FC = () => {
         </button>
       </div>
 
-      {/* Add Language Modal */}
+      {/* Media Picker Modal */}
+      <MediaPickerModal
+        isOpen={mediaPickerOpen}
+        onClose={() => {
+          setMediaPickerOpen(false);
+          setCurrentMediaPicker(null);
+        }}
+        onSelect={handleMediaSelect}
+        title={
+          currentMediaPicker === 'logo' ? 'Select Logo' :
+          currentMediaPicker === 'favicon' ? 'Select Favicon' :
+          'Select Meta Image'
+        }
+        kind="image"
+        source="vr_hotel"
+        folder={currentMediaPicker === 'meta_image' ? 'seo' : 'settings'}
+        maxFileSize={currentMediaPicker === 'favicon' ? 1 : 5}
+      />
     </div>
   );
 };
