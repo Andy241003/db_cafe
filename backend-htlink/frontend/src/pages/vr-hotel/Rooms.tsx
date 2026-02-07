@@ -448,8 +448,32 @@ const VRHotelRooms: React.FC = () => {
     }
     
     const currentAmenities = formData.translations[currentLang]?.amenities || [];
-    if (currentAmenities.includes(newAmenity.trim())) {
-      toast.error('This amenity already exists');
+    
+    // Split by comma to allow multiple amenities at once
+    const newAmenities = newAmenity
+      .split(',')
+      .map(a => a.trim())
+      .filter(a => a); // Remove empty strings
+    
+    if (newAmenities.length === 0) {
+      toast.error('Please enter amenity name');
+      return;
+    }
+    
+    // Filter out duplicates
+    const duplicates: string[] = [];
+    const toAdd: string[] = [];
+    
+    newAmenities.forEach(amenity => {
+      if (currentAmenities.includes(amenity)) {
+        duplicates.push(amenity);
+      } else {
+        toAdd.push(amenity);
+      }
+    });
+    
+    if (toAdd.length === 0) {
+      toast.error('All amenities already exist');
       return;
     }
     
@@ -459,10 +483,17 @@ const VRHotelRooms: React.FC = () => {
         ...prev.translations,
         [currentLang]: {
           ...prev.translations[currentLang],
-          amenities: [...currentAmenities, newAmenity.trim()]
+          amenities: [...currentAmenities, ...toAdd]
         }
       }
     }));
+    
+    if (duplicates.length > 0) {
+      toast.success(`Added ${toAdd.length} amenity(ies). Skipped ${duplicates.length} duplicate(s).`);
+    } else {
+      toast.success(`Added ${toAdd.length} amenity(ies)`);
+    }
+    
     setNewAmenity('');
   };
 
@@ -967,25 +998,30 @@ const VRHotelRooms: React.FC = () => {
                   </label>
                   
                   {/* Add new amenity input */}
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={newAmenity}
-                      onChange={(e) => setNewAmenity(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addAmenity()}
-                      disabled={!isDisplaying}
-                      placeholder="Enter amenity (Example: Bathtub, Hair dryer...)"
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                    <button
-                      type="button"
-                      onClick={addAmenity}
-                      disabled={!isDisplaying}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <FontAwesomeIcon icon={faPlus} />
-                      Add
-                    </button>
+                  <div className="mb-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newAmenity}
+                        onChange={(e) => setNewAmenity(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addAmenity()}
+                        disabled={!isDisplaying}
+                        placeholder="Enter amenity name(s)..."
+                        className="flex-1 px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      />
+                      <button
+                        type="button"
+                        onClick={addAmenity}
+                        disabled={!isDisplaying}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <FontAwesomeIcon icon={faPlus} />
+                        Add
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      💡 Tip: Separate multiple amenities with commas (e.g., "WiFi, Air Conditioner, Bathtub, Hair dryer")
+                    </p>
                   </div>
                   
                   {/* List of amenities for current language */}

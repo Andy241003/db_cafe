@@ -34,8 +34,8 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -76,61 +76,80 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
+    const fileArray = Array.from(files);
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    // Validate each file
+    fileArray.forEach((file) => {
+      if (!file.type.startsWith('image/')) {
+        errors.push(`${file.name}: Not an image file`);
+        return;
+      }
+      if (file.size > maxFileSize * 1024 * 1024) {
+        errors.push(`${file.name}: Size exceeds ${maxFileSize}MB`);
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if (errors.length > 0) {
+      toast.error(`${errors.length} file(s) skipped: ${errors[0]}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`);
     }
 
-    // Validate file size
-    if (file.size > maxFileSize * 1024 * 1024) {
-      toast.error(`File size must be less than ${maxFileSize}MB`);
-      return;
-    }
+    if (validFiles.length === 0) return;
 
-    setSelectedFile(file);
+    setSelectedFiles(validFiles);
     
-    // Create preview URL
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    // Create preview URLs for all valid files
+    const newPreviewUrls: string[] = []
+    let loadedCount = 0;
+    
+    validFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newPreviewUrls[index] = reader.result as string;
+        loadedCount++;
+        if (loadedCount === validFiles.length) {
+          setPreviewUrls([...newPreviewUrls]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file to upload');
+    if (selectedFiles.length === 0) {
+      toast.error('Please select file(s) to upload');
       return;
     }
 
     try {
       setIsUploading(true);
       
-      const uploadedFile = await mediaApi.uploadFile(
-        selectedFile,
+      const loadingToast = toast.loading(`Uploading ${selectedFiles.length} image(s)...`);
+      
+      const uploadedFiles = await mediaApi.uploadFiles(
+        selectedFiles,
         kind,
-        undefined,  // altText
-        source,     // source
+        source,
         undefined,  // entityType
         undefined,  // entityId
-        folder      // folder
+        folder
       );
 
-      toast.success(`Upload successful! ID: ${uploadedFile.id}`);
+      toast.success(`Successfully uploaded ${uploadedFiles.length} image(s)!`, { id: loadingToast });
       
       // Reset upload form
-      setSelectedFile(null);
-      setPreviewUrl('');
+      setSelectedFiles([]);
+      setPreviewUrls([]);
       
-      // Switch to library tab and reload to show new image
+      // Switch to library tab and reload to show new images
       setActiveTab('library');
-      await loadMediaFiles(); // Reload the list
-      
-      toast.success('Image added to library!');
+      await loadMediaFiles();
       
     } catch (error: any) {
       console.error('❌ Upload failed:', error);
@@ -296,17 +315,33 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="max-w-xl mx-auto">
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                {previewUrl ? (
+            <div className="max-w-4xl mx-auto">
+              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8">
+                {previewUrls.length > 0 ? (
                   <div className="space-y-4">
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="max-h-64 mx-auto rounded-lg"
-                    />
-                    <p className="text-sm text-slate-600">{selectedFile?.name}</p>
-                    <div className="flex gap-2 justify-center">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {previewUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => {
+                              setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+                              setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            disabled={isUploading}
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                          >
+                            <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                          </button>
+                          <p className="text-xs text-slate-600 mt-1 truncate">{selectedFiles[index]?.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 justify-center pt-4">
                       <button
                         onClick={handleUpload}
                         disabled={isUploading}
@@ -318,13 +353,13 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
                             Uploading...
                           </>
                         ) : (
-                          'Upload this image'
+                          `Upload ${selectedFiles.length} image${selectedFiles.length > 1 ? 's' : ''}`
                         )}
                       </button>
                       <button
                         onClick={() => {
-                          setSelectedFile(null);
-                          setPreviewUrl('');
+                          setSelectedFiles([]);
+                          setPreviewUrls([]);
                         }}
                         disabled={isUploading}
                         className="px-6 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 transition-colors"
@@ -338,21 +373,22 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={handleFileSelect}
                       className="hidden"
                     />
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-center">
                       <FontAwesomeIcon icon={faUpload} className="text-6xl text-slate-400" />
                       <div>
                         <p className="text-lg font-medium text-slate-700">
-                          Click to select image
+                          Click to select image(s)
                         </p>
                         <p className="text-sm text-slate-500 mt-1">
                           or drag and drop here
                         </p>
                       </div>
                       <p className="text-xs text-slate-400">
-                        Maximum size: {maxFileSize}MB
+                        You can select multiple images. Maximum size per file: {maxFileSize}MB
                       </p>
                     </div>
                   </label>
