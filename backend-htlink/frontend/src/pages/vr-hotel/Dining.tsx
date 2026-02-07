@@ -304,7 +304,7 @@ const VRHotelDining: React.FC = () => {
       dining_type: 'restaurant',
       vr_link: '',
       booking_url: '',
-      display_order: 0,
+      display_order: dinings.length,
       translations: initialTranslations,
       images: []
     });

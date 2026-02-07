@@ -267,7 +267,7 @@ const VRHotelFacilities: React.FC = () => {
       facility_type: 'pool',
       operating_hours: '',
       vr_link: '',
-      display_order: 0,
+      display_order: facilities.length,
       translations: initialTranslations,
       images: []
     });

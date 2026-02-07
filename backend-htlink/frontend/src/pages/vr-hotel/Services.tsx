@@ -247,7 +247,7 @@ const VRHotelServices: React.FC = () => {
       price_info: '',
       vr_link: '',
       booking_url: '',
-      display_order: 0,
+      display_order: services.length,
       translations: initialTranslations,
       images: []
     });

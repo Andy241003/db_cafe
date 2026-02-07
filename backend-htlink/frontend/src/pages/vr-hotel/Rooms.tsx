@@ -301,7 +301,7 @@ const VRHotelRooms: React.FC = () => {
       price_per_night: 0,
       vr_link: '',
       booking_url: '',
-      display_order: 0,
+      display_order: rooms.length,
       translations: initialTranslations,
       images: []
     });
