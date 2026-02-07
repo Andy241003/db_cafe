@@ -1,7 +1,12 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
     faEdit,
     faEye,
     faFlag,
+    faGripVertical,
     faImages,
     faInfoCircle,
     faLink,
@@ -73,6 +78,86 @@ interface DiningCreate {
 
 interface DiningUpdate extends DiningCreate {}
 
+// Sortable Dining Item Component
+interface SortableDiningItemProps {
+  dining: Dining;
+  isDisplaying: boolean;
+  onEdit: (dining: Dining) => void;
+  onDelete: (id: number) => void;
+  getDiningName: (dining: Dining, lang: string) => string;
+}
+
+const SortableDiningItem: React.FC<SortableDiningItemProps> = ({ dining, isDisplaying, onEdit, onDelete, getDiningName }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: dining.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const hasVR = dining.vr_link;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-3"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2"
+      >
+        <FontAwesomeIcon icon={faGripVertical} size="lg" />
+      </div>
+      
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-lg font-semibold text-slate-800">
+            {getDiningName(dining, 'vi')} {dining.translations.en && `/ ${getDiningName(dining, 'en')}`}
+          </h3>
+          {hasVR && (
+            <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
+          )}
+        </div>
+        <div className="flex gap-6 text-sm text-slate-600">
+          <span className="font-medium text-blue-600">Order: {dining.display_order}</span>
+          {dining.dining_type && (
+            <span>Type: {dining.dining_type}</span>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => onEdit(dining)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faEdit} />
+          Edit
+        </button>
+        <button 
+          onClick={() => onDelete(dining.id)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faTrash} />
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const VRHotelDining: React.FC = () => {
   const [dinings, setDinings] = useState<Dining[]>([]);
   const [isDisplaying, setIsDisplaying] = useState(true);
@@ -95,6 +180,7 @@ const VRHotelDining: React.FC = () => {
     dining_type: string;
     vr_link: string;
     booking_url: string;
+    display_order: number;
     translations: Record<string, { name: string; description: string }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
@@ -102,6 +188,7 @@ const VRHotelDining: React.FC = () => {
     dining_type: 'restaurant',
     vr_link: '',
     booking_url: '',
+    display_order: 0,
     translations: {},
     images: []
   });
@@ -217,6 +304,7 @@ const VRHotelDining: React.FC = () => {
       dining_type: 'restaurant',
       vr_link: '',
       booking_url: '',
+      display_order: 0,
       translations: initialTranslations,
       images: []
     });
@@ -289,6 +377,7 @@ const VRHotelDining: React.FC = () => {
       dining_type: dining.dining_type || 'restaurant',
       vr_link: dining.vr_link || '',
       booking_url: dining.booking_url || '',
+      display_order: dining.display_order || 0,
       translations,
       images
     });
@@ -298,12 +387,15 @@ const VRHotelDining: React.FC = () => {
   const deleteDining = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this dining venue?')) {
       try {
+        console.log('Deleting dining with ID:', id);
         await vrHotelDiningApi.deleteDining(id);
         toast.success('Dining venue deleted successfully!');
         loadDinings();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete dining:', error);
-        toast.error('Failed to delete dining venue');
+        console.error('Error details:', error.response?.data);
+        const errorMessage = error.response?.data?.detail || 'Failed to delete dining venue';
+        toast.error(errorMessage);
       }
     }
   };
@@ -395,8 +487,9 @@ const VRHotelDining: React.FC = () => {
         const updateData: DiningUpdate = {
           code: formData.code,
           dining_type: formData.dining_type,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -407,8 +500,9 @@ const VRHotelDining: React.FC = () => {
         const createData: DiningCreate = {
           code: formData.code,
           dining_type: formData.dining_type,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -511,6 +605,49 @@ const VRHotelDining: React.FC = () => {
       window.open(diningVR360Link, '_blank', 'fullscreen=yes');
     } else {
       toast.error('Please enter VR360 link first.');
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = dinings.findIndex(d => d.id === active.id);
+    const newIndex = dinings.findIndex(d => d.id === over.id);
+    
+    // Reorder the array
+    const newDinings = [...dinings];
+    const [movedItem] = newDinings.splice(oldIndex, 1);
+    newDinings.splice(newIndex, 0, movedItem);
+    
+    // Update display_order for all affected items
+    const updatedDinings = newDinings.map((dining, index) => ({
+      ...dining,
+      display_order: index
+    }));
+    
+    setDinings(updatedDinings);
+    
+    // Save to backend - only update items with changed display_order
+    try {
+      const changedDinings = updatedDinings.filter((dining, index) => {
+        const originalDining = dinings.find(d => d.id === dining.id);
+        return originalDining && originalDining.display_order !== index;
+      });
+      
+      if (changedDinings.length === 0) return;
+      
+      const updatePromises = changedDinings.map(dining => 
+        vrHotelDiningApi.updateDining(dining.id, { display_order: dining.display_order })
+      );
+      await Promise.all(updatePromises);
+      toast.success(`Updated ${changedDinings.length} dining venue(s) order`);
+    } catch (error) {
+      console.error('Failed to update dining order:', error);
+      toast.error('Failed to save dining order');
+      // Reload to restore original order
+      loadDinings();
     }
   };
 
@@ -677,60 +814,27 @@ const VRHotelDining: React.FC = () => {
               <p>No dining venues yet. Click "Add New Dining" to add your first venue.</p>
             </div>
           ) : (
-            dinings
-              .filter(dining => diningTypeFilter === 'all' || dining.dining_type === diningTypeFilter)
-              .map(dining => (
-              <div key={dining.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-slate-800">
-                      {getDiningName(dining, 'vi')} {dining.translations.en && `/ ${getDiningName(dining, 'en')}`}
-                    </h3>
-                    {dining.vr_link && (
-                      <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
-                    )}
-                  </div>
-                  <div className="flex gap-6 text-sm text-slate-600">
-                    <span className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={faUtensils} className="text-slate-400" />
-                      {dining.dining_type}
-                    </span>
-                  </div>
-                  {dining.booking_url && (
-                    <div className="mt-2 text-sm">
-                      <a 
-                        href={dining.booking_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
-                        title={dining.booking_url}
-                      >
-                        <FontAwesomeIcon icon={faLink} className="text-xs" />
-                        <span className="truncate max-w-xs">{dining.booking_url}</span>
-                      </a>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => editDining(dining)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => deleteDining(dining.id)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext 
+                items={dinings
+                  .filter(dining => diningTypeFilter === 'all' || dining.dining_type === diningTypeFilter)
+                  .map(dining => dining.id)} 
+                strategy={verticalListSortingStrategy}
+              >
+                {dinings
+                  .filter(dining => diningTypeFilter === 'all' || dining.dining_type === diningTypeFilter)
+                  .map(dining => (
+                    <SortableDiningItem
+                      key={dining.id}
+                      dining={dining}
+                      isDisplaying={isDisplaying}
+                      onEdit={editDining}
+                      onDelete={deleteDining}
+                      getDiningName={getDiningName}
+                    />
+                  ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>

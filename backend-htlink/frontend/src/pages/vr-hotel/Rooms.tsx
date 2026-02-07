@@ -1,17 +1,22 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
-    faCheckCircle,
-    faEdit,
-    faEye,
-    faFlag,
-    faImages,
-    faInfoCircle,
-    faLink,
-    faPlay,
-    faPlus,
-    faSave,
-    faTimes,
-    faTrash,
-    faVrCardboard
+  faCheckCircle,
+  faEdit,
+  faEye,
+  faFlag,
+  faGripVertical,
+  faImages,
+  faInfoCircle,
+  faLink,
+  faPlay,
+  faPlus,
+  faSave,
+  faTimes,
+  faTrash,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -36,6 +41,106 @@ const getEmbedUrl = (url: string): string => {
   
   // Return original URL if not YouTube (VR360 panorama or other)
   return url;
+};
+
+// Sortable Room Item Component
+interface SortableRoomItemProps {
+  room: Room;
+  isDisplaying: boolean;
+  onEdit: (room: Room) => void;
+  onDelete: (id: number) => void;
+  getRoomName: (room: Room, lang: string) => string;
+}
+
+const SortableRoomItem: React.FC<SortableRoomItemProps> = ({ room, isDisplaying, onEdit, onDelete, getRoomName }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: room.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const hasVR = room.vr_link;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-3"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2"
+      >
+        <FontAwesomeIcon icon={faGripVertical} size="lg" />
+      </div>
+      
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-lg font-semibold text-slate-800">
+            {getRoomName(room, 'vi')} {room.translations.en && `/ ${getRoomName(room, 'en')}`}
+          </h3>
+          {hasVR && (
+            <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
+          )}
+        </div>
+        <div className="flex gap-6 text-sm text-slate-600">
+          <span className="font-medium text-blue-600">Order: {room.display_order}</span>
+          {room.room_type && (
+            <span>Type: {room.room_type}</span>
+          )}
+          {room.capacity && (
+            <span>Capacity: {room.capacity} guests</span>
+          )}
+          {room.size_sqm && (
+            <span>Size: {room.size_sqm}m²</span>
+          )}
+        </div>
+        {room.booking_url && (
+          <div className="mt-2 text-sm">
+            <a 
+              href={room.booking_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
+              title={room.booking_url}
+            >
+              <FontAwesomeIcon icon={faLink} className="text-xs" />
+              <span className="truncate max-w-xs">{room.booking_url}</span>
+            </a>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => onEdit(room)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faEdit} />
+          Edit
+        </button>
+        <button 
+          onClick={() => onDelete(room.id)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faTrash} />
+          Delete
+        </button>
+      </div>
+    </div>
+  );
 };
 
 const VRHotelRooms: React.FC = () => {
@@ -64,6 +169,7 @@ const VRHotelRooms: React.FC = () => {
     price_per_night: number;
     vr_link: string;
     booking_url: string;
+    display_order: number;
     translations: Record<string, { name: string; description: string; amenities: string[] }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
@@ -74,6 +180,7 @@ const VRHotelRooms: React.FC = () => {
     price_per_night: 0,
     vr_link: '',
     booking_url: '',
+    display_order: 0,
     translations: {},
     images: []
   });
@@ -194,6 +301,7 @@ const VRHotelRooms: React.FC = () => {
       price_per_night: 0,
       vr_link: '',
       booking_url: '',
+      display_order: 0,
       translations: initialTranslations,
       images: []
     });
@@ -275,6 +383,7 @@ const VRHotelRooms: React.FC = () => {
       price_per_night: room.price_per_night || 0,
       vr_link: room.vr_link || '',
       booking_url: room.booking_url || '',
+      display_order: room.display_order || 0,
       translations,
       images
     });
@@ -390,6 +499,7 @@ const VRHotelRooms: React.FC = () => {
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -405,6 +515,7 @@ const VRHotelRooms: React.FC = () => {
           price_per_night: formData.price_per_night,
           vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -511,22 +622,6 @@ const VRHotelRooms: React.FC = () => {
     }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newImages = Array.from(files).map(file => ({
-      file,
-      url: URL.createObjectURL(file),
-      isPrimary: (formData.images || []).length === 0
-    }));
-
-    setFormData(prev => ({
-      ...prev,
-      images: [...(prev.images || []), ...newImages]
-    }));
-  };
-
   const openMediaPicker = () => {
     setMediaPickerOpen(true);
   };
@@ -567,10 +662,6 @@ const VRHotelRooms: React.FC = () => {
     }));
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN').format(price);
-  };
-
   // Get room name in current locale
   const getRoomName = (room: Room, locale: string = 'vi') => {
     return room.translations[locale]?.name || room.room_code;
@@ -588,6 +679,49 @@ const VRHotelRooms: React.FC = () => {
       window.open(roomsVR360Link, '_blank', 'fullscreen=yes');
     } else {
       toast.error('Please enter VR360 link.');
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = rooms.findIndex(r => r.id === active.id);
+    const newIndex = rooms.findIndex(r => r.id === over.id);
+    
+    // Reorder the array
+    const newRooms = [...rooms];
+    const [movedItem] = newRooms.splice(oldIndex, 1);
+    newRooms.splice(newIndex, 0, movedItem);
+    
+    // Update display_order for all affected items
+    const updatedRooms = newRooms.map((room, index) => ({
+      ...room,
+      display_order: index
+    }));
+    
+    setRooms(updatedRooms);
+    
+    // Save to backend - only update items with changed display_order
+    try {
+      const changedRooms = updatedRooms.filter((room, index) => {
+        const originalRoom = rooms.find(r => r.id === room.id);
+        return originalRoom && originalRoom.display_order !== index;
+      });
+      
+      if (changedRooms.length === 0) return;
+      
+      const updatePromises = changedRooms.map(room => 
+        vrHotelRoomsApi.updateRoom(room.id, { display_order: room.display_order })
+      );
+      await Promise.all(updatePromises);
+      toast.success(`Updated ${changedRooms.length} room(s) order`);
+    } catch (error) {
+      console.error('Failed to update room order:', error);
+      toast.error('Failed to save room order');
+      // Reload to restore original order
+      loadRooms();
     }
   };
 
@@ -752,68 +886,27 @@ const VRHotelRooms: React.FC = () => {
               <p>No rooms yet. Click "Add New Room" to add a room.</p>
             </div>
           ) : (
-            rooms
-              .filter(room => roomTypeFilter === 'all' || room.room_type === roomTypeFilter)
-              .map(room => {
-              const hasVR = room.vr_link;
-              return (
-                <div key={room.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-slate-800">
-                        {getRoomName(room, 'vi')} {room.translations.en && `/ ${getRoomName(room, 'en')}`}
-                      </h3>
-                      {hasVR && (
-                        <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
-                      )}
-                    </div>
-                    <div className="flex gap-6 text-sm text-slate-600">
-                      {room.room_type && (
-                        <span>Type: {room.room_type}</span>
-                      )}
-                      {room.capacity && (
-                        <span>Capacity: {room.capacity} guests</span>
-                      )}
-                      {room.size_sqm && (
-                        <span>Size: {room.size_sqm}m²</span>
-                      )}
-                    </div>
-                    {room.booking_url && (
-                      <div className="mt-2 text-sm">
-                        <a 
-                          href={room.booking_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
-                          title={room.booking_url}
-                        >
-                          <FontAwesomeIcon icon={faLink} className="text-xs" />
-                          <span className="truncate max-w-xs">{room.booking_url}</span>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => editRoom(room)}
-                      disabled={!isDisplaying}
-                      className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => deleteRoom(room.id)}
-                      disabled={!isDisplaying}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext 
+                items={rooms
+                  .filter(room => roomTypeFilter === 'all' || room.room_type === roomTypeFilter)
+                  .map(room => room.id)} 
+                strategy={verticalListSortingStrategy}
+              >
+                {rooms
+                  .filter(room => roomTypeFilter === 'all' || room.room_type === roomTypeFilter)
+                  .map(room => (
+                    <SortableRoomItem
+                      key={room.id}
+                      room={room}
+                      isDisplaying={isDisplaying}
+                      onEdit={editRoom}
+                      onDelete={deleteRoom}
+                      getRoomName={getRoomName}
+                    />
+                  ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>

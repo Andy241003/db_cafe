@@ -1,7 +1,12 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
     faEdit,
     faEye,
     faFlag,
+    faGripVertical,
     faImages,
     faInfoCircle,
     faPlay,
@@ -70,6 +75,89 @@ interface FacilityCreate {
 
 interface FacilityUpdate extends FacilityCreate {}
 
+// Sortable Facility Item Component
+interface SortableFacilityItemProps {
+  facility: Facility;
+  isDisplaying: boolean;
+  onEdit: (facility: Facility) => void;
+  onDelete: (id: number) => void;
+  getFacilityName: (facility: Facility, lang: string) => string;
+}
+
+const SortableFacilityItem: React.FC<SortableFacilityItemProps> = ({ facility, isDisplaying, onEdit, onDelete, getFacilityName }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: facility.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const hasVR = facility.vr_link;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-3"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2"
+      >
+        <FontAwesomeIcon icon={faGripVertical} size="lg" />
+      </div>
+      
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-lg font-semibold text-slate-800">
+            {getFacilityName(facility, 'vi')} {facility.translations.en && `/ ${getFacilityName(facility, 'en')}`}
+          </h3>
+          {hasVR && (
+            <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
+          )}
+        </div>
+        <div className="flex gap-6 text-sm text-slate-600">
+          <span className="font-medium text-blue-600">Order: {facility.display_order}</span>
+          {facility.facility_type && (
+            <span>Type: {facility.facility_type}</span>
+          )}
+          {facility.operating_hours && (
+            <span>Hours: {facility.operating_hours}</span>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => onEdit(facility)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faEdit} />
+          Edit
+        </button>
+        <button 
+          onClick={() => onDelete(facility.id)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faTrash} />
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const VRHotelFacilities: React.FC = () => {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [isDisplaying, setIsDisplaying] = useState(true);
@@ -92,6 +180,7 @@ const VRHotelFacilities: React.FC = () => {
     facility_type: string;
     operating_hours: string;
     vr_link: string;
+    display_order: number;
     translations: Record<string, { name: string; description: string }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
@@ -99,6 +188,7 @@ const VRHotelFacilities: React.FC = () => {
     facility_type: 'pool',
     operating_hours: '',
     vr_link: '',
+    display_order: 0,
     translations: {},
     images: []
   });
@@ -177,6 +267,7 @@ const VRHotelFacilities: React.FC = () => {
       facility_type: 'pool',
       operating_hours: '',
       vr_link: '',
+      display_order: 0,
       translations: initialTranslations,
       images: []
     });
@@ -243,6 +334,7 @@ const VRHotelFacilities: React.FC = () => {
       facility_type: facility.facility_type || 'pool',
       operating_hours: facility.operating_hours || '',
       vr_link: facility.vr_link || '',
+      display_order: facility.display_order || 0,
       translations,
       images
     });
@@ -252,12 +344,15 @@ const VRHotelFacilities: React.FC = () => {
   const deleteFacility = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this facility?')) {
       try {
+        console.log('Deleting facility with ID:', id);
         await vrHotelFacilityApi.deleteFacility(id);
         toast.success('Facility deleted successfully!');
         loadFacilities();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete facility:', error);
-        toast.error('Failed to delete facility');
+        console.error('Error details:', error.response?.data);
+        const errorMessage = error.response?.data?.detail || 'Failed to delete facility';
+        toast.error(errorMessage);
       }
     }
   };
@@ -348,7 +443,8 @@ const VRHotelFacilities: React.FC = () => {
           code: formData.code,
           facility_type: formData.facility_type,
           operating_hours: formData.operating_hours || undefined,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -359,7 +455,8 @@ const VRHotelFacilities: React.FC = () => {
           code: formData.code,
           facility_type: formData.facility_type,
           operating_hours: formData.operating_hours || undefined,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media
         };
@@ -499,6 +596,49 @@ const VRHotelFacilities: React.FC = () => {
       window.open(facilitiesVR360Link, '_blank', 'fullscreen=yes');
     } else {
       toast.error('Please enter VR360 link first.');
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = facilities.findIndex(f => f.id === active.id);
+    const newIndex = facilities.findIndex(f => f.id === over.id);
+    
+    // Reorder the array
+    const newFacilities = [...facilities];
+    const [movedItem] = newFacilities.splice(oldIndex, 1);
+    newFacilities.splice(newIndex, 0, movedItem);
+    
+    // Update display_order for all affected items
+    const updatedFacilities = newFacilities.map((facility, index) => ({
+      ...facility,
+      display_order: index
+    }));
+    
+    setFacilities(updatedFacilities);
+    
+    // Save to backend - only update items with changed display_order
+    try {
+      const changedFacilities = updatedFacilities.filter((facility, index) => {
+        const originalFacility = facilities.find(f => f.id === facility.id);
+        return originalFacility && originalFacility.display_order !== index;
+      });
+      
+      if (changedFacilities.length === 0) return;
+      
+      const updatePromises = changedFacilities.map(facility => 
+        vrHotelFacilityApi.updateFacility(facility.id, { display_order: facility.display_order })
+      );
+      await Promise.all(updatePromises);
+      toast.success(`Updated ${changedFacilities.length} facility/facilities order`);
+    } catch (error) {
+      console.error('Failed to update facility order:', error);
+      toast.error('Failed to save facility order');
+      // Reload to restore original order
+      loadFacilities();
     }
   };
 
@@ -664,48 +804,27 @@ const VRHotelFacilities: React.FC = () => {
               <p>No facilities yet. Click "Add New Facility" to add your first facility.</p>
             </div>
           ) : (
-            facilities
-              .filter(facility => facilityTypeFilter === 'all' || facility.facility_type === facilityTypeFilter)
-              .map(facility => (
-              <div key={facility.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-slate-800">
-                      {getFacilityName(facility, 'vi')} {facility.translations.en && `/ ${getFacilityName(facility, 'en')}`}
-                    </h3>
-                    {facility.vr_link && (
-                      <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
-                    )}
-                  </div>
-                  <div className="flex gap-6 text-sm text-slate-600">
-                    {facility.facility_type && (
-                      <span>Type: {facility.facility_type}</span>
-                    )}
-                    {facility.operating_hours && (
-                      <span>Hours: {facility.operating_hours}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => editFacility(facility)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => deleteFacility(facility.id)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext 
+                items={facilities
+                  .filter(facility => facilityTypeFilter === 'all' || facility.facility_type === facilityTypeFilter)
+                  .map(facility => facility.id)} 
+                strategy={verticalListSortingStrategy}
+              >
+                {facilities
+                  .filter(facility => facilityTypeFilter === 'all' || facility.facility_type === facilityTypeFilter)
+                  .map(facility => (
+                    <SortableFacilityItem
+                      key={facility.id}
+                      facility={facility}
+                      isDisplaying={isDisplaying}
+                      onEdit={editFacility}
+                      onDelete={deleteFacility}
+                      getFacilityName={getFacilityName}
+                    />
+                  ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>

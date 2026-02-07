@@ -707,10 +707,7 @@ export const vrHotelFacilityApi = {
   },
 
   deleteFacility: async (facilityId: number): Promise<void> => {
-    const propertyId = localStorage.getItem('current_property_id');
-    await vrHotelClient.delete(`/vr-hotel/facilities/${facilityId}`, {
-      headers: { 'X-Property-Id': propertyId }
-    });
+    await vrHotelClient.delete(`/vr-hotel/facilities/${facilityId}`);
   }
 };
 
@@ -806,10 +803,8 @@ export const vrHotelServiceApi = {
     return response.data;
   },
 
-  deleteService: async (propertyId: number, serviceId: number): Promise<void> => {
-    await vrHotelClient.delete(`/vr-hotel/services/${serviceId}`, {
-      headers: { 'X-Property-Id': propertyId }
-    });
+  deleteService: async (serviceId: number): Promise<void> => {
+    await vrHotelClient.delete(`/vr-hotel/services/${serviceId}`);
   }
 };
 

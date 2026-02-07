@@ -1,16 +1,21 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
-    faEdit,
-    faEye,
-    faFlag,
-    faImages,
-    faInfoCircle,
-    faLink,
-    faPlay,
-    faPlus,
-    faSave,
-    faTimes,
-    faTrash,
-    faVrCardboard
+  faEdit,
+  faEye,
+  faFlag,
+  faGripVertical,
+  faImages,
+  faInfoCircle,
+  faLink,
+  faPlay,
+  faPlus,
+  faSave,
+  faTimes,
+  faTrash,
+  faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
@@ -43,6 +48,86 @@ interface ServiceTranslation {
   description?: string;
 }
 
+// Sortable Service Item Component
+interface SortableServiceItemProps {
+  service: Service;
+  isDisplaying: boolean;
+  onEdit: (service: Service) => void;
+  onDelete: (id: number) => void;
+  getServiceName: (service: Service, lang: string) => string;
+}
+
+const SortableServiceItem: React.FC<SortableServiceItemProps> = ({ service, isDisplaying, onEdit, onDelete, getServiceName }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: service.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const hasVR = service.vr_link;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-3"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2"
+      >
+        <FontAwesomeIcon icon={faGripVertical} size="lg" />
+      </div>
+      
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-lg font-semibold text-slate-800">
+            {getServiceName(service, 'vi')} {service.translations.en && `/ ${getServiceName(service, 'en')}`}
+          </h3>
+          {hasVR && (
+            <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
+          )}
+        </div>
+        <div className="flex gap-6 text-sm text-slate-600">
+          <span className="font-medium text-blue-600">Order: {service.display_order}</span>
+          {service.service_type && (
+            <span>Type: {service.service_type}</span>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => onEdit(service)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faEdit} />
+          Edit
+        </button>
+        <button 
+          onClick={() => onDelete(service.id)}
+          disabled={!isDisplaying}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <FontAwesomeIcon icon={faTrash} />
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const VRHotelServices: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [isDisplaying, setIsDisplaying] = useState(true);
@@ -67,6 +152,7 @@ const VRHotelServices: React.FC = () => {
     price_info: string;
     vr_link: string;
     booking_url: string;
+    display_order: number;
     translations: Record<string, { name: string; description: string }>;
     images: Array<{ file?: File; url: string; isPrimary: boolean; media_id?: number }>;
   }>({
@@ -76,6 +162,7 @@ const VRHotelServices: React.FC = () => {
     price_info: '',
     vr_link: '',
     booking_url: '',
+    display_order: 0,
     translations: {},
     images: []
   });
@@ -160,6 +247,7 @@ const VRHotelServices: React.FC = () => {
       price_info: '',
       vr_link: '',
       booking_url: '',
+      display_order: 0,
       translations: initialTranslations,
       images: []
     });
@@ -228,6 +316,7 @@ const VRHotelServices: React.FC = () => {
       price_info: service.price_info || '',
       vr_link: service.vr_link || '',
       booking_url: service.booking_url || '',
+      display_order: service.display_order || 0,
       translations,
       images
     });
@@ -237,14 +326,15 @@ const VRHotelServices: React.FC = () => {
   const deleteService = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this service?')) {
       try {
-        const propertyId = localStorage.getItem('current_property_id');
-        if (!propertyId) return;
-        await vrHotelServiceApi.deleteService(parseInt(propertyId), id);
+        console.log('Deleting service with ID:', id);
+        await vrHotelServiceApi.deleteService(id);
         toast.success('Service deleted successfully!');
         loadServices();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete service:', error);
-        toast.error('Failed to delete facility');
+        console.error('Error details:', error.response?.data);
+        const errorMessage = error.response?.data?.detail || 'Failed to delete service';
+        toast.error(errorMessage);
       }
     }
   };
@@ -332,8 +422,9 @@ const VRHotelServices: React.FC = () => {
           service_type: formData.service_type,
           availability: formData.availability || undefined,
           price_info: formData.price_info || undefined,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media_ids: mediaIds.length > 0 ? mediaIds : undefined,
           primary_media_id
@@ -348,8 +439,9 @@ const VRHotelServices: React.FC = () => {
           service_type: formData.service_type,
           availability: formData.availability || undefined,
           price_info: formData.price_info || undefined,
-          vr_link: formData.vr_link || undefined,
+          vr_link: formData.vr_link?.trim() || '',
           booking_url: formData.booking_url?.trim() || '',
+          display_order: formData.display_order,
           translations,
           media_ids: mediaIds.length > 0 ? mediaIds : undefined,
           primary_media_id
@@ -384,22 +476,6 @@ const VRHotelServices: React.FC = () => {
           [field]: value
         }
       }
-    }));
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newImages = Array.from(files).map(file => ({
-      file,
-      url: URL.createObjectURL(file),
-      isPrimary: (formData.images || []).length === 0
-    }));
-
-    setFormData(prev => ({
-      ...prev,
-      images: [...(prev.images || []), ...newImages]
     }));
   };
 
@@ -493,6 +569,55 @@ const VRHotelServices: React.FC = () => {
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = services.findIndex(s => s.id === active.id);
+    const newIndex = services.findIndex(s => s.id === over.id);
+    
+    // Reorder the array
+    const newServices = [...services];
+    const [movedItem] = newServices.splice(oldIndex, 1);
+    newServices.splice(newIndex, 0, movedItem);
+    
+    // Update display_order for all affected items
+    const updatedServices = newServices.map((service, index) => ({
+      ...service,
+      display_order: index
+    }));
+    
+    setServices(updatedServices);
+    
+    // Save to backend - only update items with changed display_order
+    try {
+      const propertyId = localStorage.getItem('current_property_id');
+      if (!propertyId) {
+        toast.error('Property ID not found');
+        return;
+      }
+      
+      const changedServices = updatedServices.filter((service, index) => {
+        const originalService = services.find(s => s.id === service.id);
+        return originalService && originalService.display_order !== index;
+      });
+      
+      if (changedServices.length === 0) return;
+      
+      const updatePromises = changedServices.map(service => 
+        vrHotelServiceApi.updateService(parseInt(propertyId), service.id, { display_order: service.display_order })
+      );
+      await Promise.all(updatePromises);
+      toast.success(`Updated ${changedServices.length} service(s) order`);
+    } catch (error) {
+      console.error('Failed to update service order:', error);
+      toast.error('Failed to save service order');
+      // Reload to restore original order
+      loadServices();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -506,7 +631,7 @@ const VRHotelServices: React.FC = () => {
       {/* Display Status Card */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">Display Status - services Section</h2>
+          <h2 className="text-xl font-bold text-slate-800">Display Status - Services Section</h2>
           <div className="flex items-center gap-3">
             <span className={`text-sm font-medium ${isDisplaying ? 'text-green-600' : 'text-slate-400'}`}>
               {isDisplaying ? 'Displaying' : 'Hidden'}
@@ -655,62 +780,27 @@ const VRHotelServices: React.FC = () => {
               <p>No services yet. Click "Add New Service" to add your first service.</p>
             </div>
           ) : (
-            services
-              .filter(service => serviceTypeFilter === 'all' || service.service_type === serviceTypeFilter)
-              .map(service => (
-              <div key={service.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-slate-800">
-                      {getServiceName(service, 'vi')} {service.translations.en && `/ ${getServiceName(service, 'en')}`}
-                    </h3>
-                    {service.vr_link && (
-                      <FontAwesomeIcon icon={faVrCardboard} className="text-blue-600" title="Has VR360 Tour" />
-                    )}
-                  </div>
-                  <div className="flex gap-6 text-sm text-slate-600">
-                    {service.service_type && (
-                      <span>Type: {service.service_type}</span>
-                    )}
-                    {service.availability && (
-                      <span>Hours: {service.availability}</span>
-                    )}
-                  </div>
-                  {service.booking_url && (
-                    <div className="mt-2 text-sm">
-                      <a 
-                        href={service.booking_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
-                        title={service.booking_url}
-                      >
-                        <FontAwesomeIcon icon={faLink} className="text-xs" />
-                        <span className="truncate max-w-xs">{service.booking_url}</span>
-                      </a>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => editService(service)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => deleteService(service.id)}
-                    disabled={!isDisplaying}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext 
+                items={services
+                  .filter(service => serviceTypeFilter === 'all' || service.service_type === serviceTypeFilter)
+                  .map(service => service.id)} 
+                strategy={verticalListSortingStrategy}
+              >
+                {services
+                  .filter(service => serviceTypeFilter === 'all' || service.service_type === serviceTypeFilter)
+                  .map(service => (
+                    <SortableServiceItem
+                      key={service.id}
+                      service={service}
+                      isDisplaying={isDisplaying}
+                      onEdit={editService}
+                      onDelete={deleteService}
+                      getServiceName={getServiceName}
+                    />
+                  ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
