@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
-import MainLayout from './layouts/MainLayout';
-import DashboardSelection from './pages/DashboardSelection';
+// MainLayout & DashboardSelection - REMOVED (Cafe only)
+// import MainLayout from './layouts/MainLayout';
+// import DashboardSelection from './pages/DashboardSelection';
 import Login from './pages/Login';
 
 // Admin imports
@@ -15,21 +16,32 @@ import AdminLayout from './pages/admin/AdminLayout';
 import SharedSettingsLayout from './layouts/SharedSettingsLayout';
 import Media from './pages/Media';
 
-// VR Hotel imports
-import VRHotelActivities from './pages/vr-hotel/Activities';
-import VRHotelContact from './pages/vr-hotel/Contact';
-import VRHotelDashboard from './pages/vr-hotel/Dashboard';
-import VRHotelDining from './pages/vr-hotel/Dining';
-import VRHotelExportImport from './pages/vr-hotel/ExportImport';
-import VRHotelFacilities from './pages/vr-hotel/Facilities';
-import VRHotelIntroduction from './pages/vr-hotel/Introduction';
-import VRHotelOffers from './pages/vr-hotel/Offers';
-import VRHotelPolicies from './pages/vr-hotel/Policies';
-import VRHotelRooms from './pages/vr-hotel/Rooms';
-import VRHotelRules from './pages/vr-hotel/Rules';
-import VRHotelServices from './pages/vr-hotel/Services';
-import VRHotelSettings from './pages/vr-hotel/Settings';
-import VRHotelLayout from './pages/vr-hotel/VRHotelLayout';
+// VR Hotel imports - REMOVED (Cafe only)
+// import VRHotelActivities from './pages/vr-hotel/Activities';
+// import VRHotelContact from './pages/vr-hotel/Contact';
+// ... (all VR Hotel imports removed)
+
+// Travel Link imports - REMOVED (Cafe only)
+// import MainLayout from './layouts/MainLayout';
+// import DashboardSelection from './pages/DashboardSelection';
+
+// Cafe imports
+import CafeActivities from './pages/cafe/Activities';
+import CafeBranches from './pages/cafe/Branches';
+import CafeCareers from './pages/cafe/Careers';
+import CafeContact from './pages/cafe/Contact';
+import CafeDashboard from './pages/cafe/Dashboard';
+import CafeEvents from './pages/cafe/Events';
+import CafeGallery from './pages/cafe/Gallery';
+import CafeHomeAbout from './pages/cafe/HomeAbout';
+import CafeLanguages from './pages/cafe/Languages';
+import CafeLayout from './pages/cafe/CafeLayout';
+import CafeMenu from './pages/cafe/Menu';
+import CafePromotions from './pages/cafe/Promotions';
+import CafeServices from './pages/cafe/Services';
+import CafeSettings from './pages/cafe/Settings';
+import CafeSpace from './pages/cafe/Space';
+import CafeUsers from './pages/cafe/Users';
 
 import { autoDetectLanguage } from './utils/languageDetection';
 
@@ -107,10 +119,9 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route 
-              path="/dashboard-selection" 
-              element={isAuthenticated ? <DashboardSelection /> : <Navigate to="/login" replace />} 
-            />
+            
+            {/* Dashboard Selection - REMOVED (Cafe only) */}
+            {/* <Route path="/dashboard-selection" element={...} /> */}
             
             {/* Core Admin Routes - Super Admin only */}
             <Route 
@@ -138,28 +149,33 @@ function App() {
               } 
             />
             
-            {/* VR Hotel Routes */}
+            {/* VR Hotel Routes - REMOVED (Cafe only) */}
+            {/* <Route path="/vr-hotel/*" element={...} /> */}
+
+            {/* Cafe Routes */}
             <Route 
-              path="/vr-hotel/*" 
+              path="/cafe/*" 
               element={
                 isAuthenticated ? (
-                  <ProtectedRoute requireService="vr-hotel">
+                  <ProtectedRoute>
                     <Routes>
-                      <Route element={<VRHotelLayout />}>
-                        <Route path="" element={<VRHotelDashboard />} />
-                        <Route path="introduction" element={<VRHotelIntroduction />} />
-                        <Route path="services" element={<VRHotelServices />} />
-                        <Route path="rooms" element={<VRHotelRooms />} />
-                        <Route path="dining" element={<VRHotelDining />} />
-                        <Route path="offers" element={<VRHotelOffers />} />
-                        <Route path="facilities" element={<VRHotelFacilities />} />
-                        <Route path="media" element={<Media defaultSource="vr_hotel" />} />
-                        <Route path="policies" element={<VRHotelPolicies />} />
-                        <Route path="rules" element={<VRHotelRules />} />
-                        <Route path="contact" element={<VRHotelContact />} />
-                        <Route path="settings" element={<VRHotelSettings />} />
-                        <Route path="activities" element={<VRHotelActivities />} />
-                        <Route path="export-import" element={<VRHotelExportImport />} />
+                      <Route element={<CafeLayout />}>
+                        <Route path="" element={<CafeDashboard />} />
+                        <Route path="activities" element={<CafeActivities />} />
+                        <Route path="users" element={<CafeUsers />} />
+                        <Route path="home-about" element={<CafeHomeAbout />} />
+                        <Route path="menu" element={<CafeMenu />} />
+                        <Route path="space" element={<CafeSpace />} />
+                        <Route path="services" element={<CafeServices />} />
+                        <Route path="branches" element={<CafeBranches />} />
+                        <Route path="events" element={<CafeEvents />} />
+                        <Route path="careers" element={<CafeCareers />} />
+                        <Route path="promotions" element={<CafePromotions />} />
+                        <Route path="gallery" element={<CafeGallery />} />
+                        <Route path="media" element={<Media defaultSource="cafe" />} />
+                        <Route path="contact" element={<CafeContact />} />
+                        <Route path="languages" element={<CafeLanguages />} />
+                        <Route path="settings" element={<CafeSettings />} />
                       </Route>
                     </Routes>
                   </ProtectedRoute>
@@ -169,12 +185,13 @@ function App() {
               } 
             />
 
-            {/* Travel Link Routes (MainLayout) */}
+            {/* Travel Link Routes - REMOVED (Cafe only) */}
+            {/* Default route: redirect to Cafe */}
             <Route 
               path="/" 
-              element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" replace />} 
+              element={isAuthenticated ? <Navigate to="/cafe" replace /> : <Navigate to="/login" replace />} 
             />
-            <Route path="/*" element={<MainLayout />} />
+            <Route path="/*" element={<Navigate to="/cafe" replace />} />
           </Routes>
         </div>
       </Router>

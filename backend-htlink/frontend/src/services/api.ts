@@ -598,8 +598,8 @@ const transformActivityLogs = (logs: any[]): ActivityItem[] => {
       case 'publish_post':
         text = details.message || `Post "${details.post_title || 'Unknown'}" was published`;
         icon = 'fas fa-bullhorn';
-        iconBg = '#ecfdf5';
-        iconColor = '#10b981';
+        iconBg = '#f0fdf4';
+        iconColor = '#16a34a';
         break;
       case 'create_property':
         text = details.message || `New property "${details.property_name || 'Unknown'}" was created`;
@@ -762,8 +762,8 @@ const getMockActivities = (limit: number): ActivityItem[] => {
       time: "3 days ago",
       user_name: "Admin User",
       icon: "fas fa-bullhorn",
-      iconBg: "#ecfdf5",
-      iconColor: "#10b981",
+      iconBg: "#f0fdf4",
+      iconColor: "#16a34a",
     }
   ];
 

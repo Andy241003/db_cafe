@@ -5,7 +5,9 @@ from app.api.v1.endpoints import (
     categories, events, settings, utils, locales, translations, property_categories,
     analytics, test_upload, property_posts, activity_logs, activity_test,
     vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction, vr_hotel_policies, vr_hotel_rules, vr_hotel_rooms,
-    vr_hotel_dining, vr_hotel_facility, vr_hotel_service, vr_hotel_contact, vr_hotel_offers, vr_hotel_export
+    vr_hotel_dining, vr_hotel_facility, vr_hotel_service, vr_hotel_contact, vr_hotel_offers, vr_hotel_export,
+    cafe_settings, cafe_contact, cafe_languages, cafe_branches, cafe_menu, cafe_events, cafe_careers, cafe_promotions,
+    cafe_spaces, cafe_content_sections, cafe_services
 )
 
 api_router = APIRouter()
@@ -44,3 +46,16 @@ api_router.include_router(vr_hotel_service.router, prefix="/vr-hotel", tags=["vr
 api_router.include_router(vr_hotel_contact.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_offers.router, prefix="/vr-hotel", tags=["vr-hotel"])
 api_router.include_router(vr_hotel_export.router, prefix="/vr-hotel", tags=["vr-hotel-export"])
+
+# Cafe routes
+api_router.include_router(cafe_settings.router, prefix="/cafe/settings", tags=["cafe"])
+api_router.include_router(cafe_contact.router, prefix="/cafe/contact", tags=["cafe"])
+api_router.include_router(cafe_languages.router, prefix="/cafe", tags=["cafe"])
+api_router.include_router(cafe_branches.router, prefix="/cafe/branches", tags=["cafe"])
+api_router.include_router(cafe_menu.router, prefix="/cafe/menu", tags=["cafe"])
+api_router.include_router(cafe_events.router, prefix="/cafe/events", tags=["cafe"])
+api_router.include_router(cafe_careers.router, prefix="/cafe/careers", tags=["cafe"])
+api_router.include_router(cafe_promotions.router, prefix="/cafe/promotions", tags=["cafe"])
+api_router.include_router(cafe_services.router, prefix="/cafe/services", tags=["cafe"])
+api_router.include_router(cafe_spaces.router, prefix="/cafe/spaces", tags=["cafe"])
+api_router.include_router(cafe_content_sections.router, prefix="/cafe/content-sections", tags=["cafe"])

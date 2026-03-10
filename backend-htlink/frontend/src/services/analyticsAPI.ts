@@ -252,8 +252,8 @@ class AnalyticsAPI {
           break;
         case 'login':
           icon = 'fas fa-sign-in-alt';
-          iconBg = '#ecfdf5';
-          iconColor = '#10b981';
+          iconBg = '#f0fdf4';
+          iconColor = '#16a34a';
           break;
         case 'logout':
           icon = 'fas fa-sign-out-alt';
@@ -272,8 +272,8 @@ class AnalyticsAPI {
           break;
         case 'publish_post':
           icon = 'fas fa-bullhorn';
-          iconBg = '#ecfdf5';
-          iconColor = '#10b981';
+          iconBg = '#f0fdf4';
+          iconColor = '#16a34a';
           break;
         default:
           icon = 'fas fa-info-circle';
@@ -343,8 +343,8 @@ class AnalyticsAPI {
         time: "3 days ago",
         user_name: "Admin User",
         icon: "fas fa-bullhorn",
-        iconBg: "#ecfdf5",
-        iconColor: "#10b981",
+        iconBg: "#f0fdf4",
+        iconColor: "#16a34a",
       }
     ];
 

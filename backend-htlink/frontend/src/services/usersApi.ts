@@ -58,6 +58,7 @@ export interface ApiUser {
   full_name: string;
   role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
   is_active: boolean;
+  service_access?: number;
   created_at: string;
   updated_at?: string;
 }
@@ -68,6 +69,7 @@ export interface ApiUserCreate {
   full_name: string;
   role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
   is_active?: boolean;
+  service_access?: number;
   tenant_id: number; // Required by backend schema
 }
 
@@ -76,6 +78,7 @@ export interface ApiUserUpdate {
   full_name?: string;
   role?: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
   is_active?: boolean;
+  service_access?: number;
 }
 
 export interface CurrentUserInfo {

@@ -1,0 +1,310 @@
+"""
+Cafe Spaces API endpoints
+
+Handles cafe spaces/areas management with multi-language support
+"""
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from sqlalchemy.orm.attributes import flag_modified
+from pydantic import BaseModel
+
+from app.core.db import get_db
+from app.api.deps import CurrentUser, SessionDep
+from app.models.cafe import (
+    CafeSpace,
+    CafeSpaceTranslation,
+    CafeSpaceMedia
+)
+
+router = APIRouter()
+
+
+# ==========================================
+# Pydantic Schemas
+# ==========================================
+
+class SpaceTranslationSchema(BaseModel):
+    """Space translation schema"""
+    locale: str
+    name: str
+    description: Optional[str] = None
+
+
+class SpaceMediaSchema(BaseModel):
+    """Space media schema"""
+    media_id: int
+    is_primary: bool = False
+    sort_order: int = 0
+
+
+class CafeSpaceResponse(BaseModel):
+    """Cafe Space Response"""
+    id: int
+    tenant_id: int
+    code: str
+    primary_image_media_id: Optional[int] = None
+    amenities_json: Optional[dict] = None
+    capacity: Optional[int] = None
+    area_size: Optional[str] = None
+    is_active: bool = True
+    display_order: int = 0
+    attributes_json: Optional[dict] = None
+    translations: List[SpaceTranslationSchema] = []
+    media: List[SpaceMediaSchema] = []
+
+
+class CafeSpaceCreate(BaseModel):
+    """Cafe Space Create"""
+    code: str
+    primary_image_media_id: Optional[int] = None
+    amenities_json: Optional[dict] = None
+    capacity: Optional[int] = None
+    area_size: Optional[str] = None
+    is_active: bool = True
+    display_order: int = 0
+    attributes_json: Optional[dict] = None
+    translations: List[SpaceTranslationSchema]
+    media_ids: Optional[List[int]] = None
+
+
+class CafeSpaceUpdate(BaseModel):
+    """Cafe Space Update"""
+    code: Optional[str] = None
+    primary_image_media_id: Optional[int] = None
+    amenities_json: Optional[dict] = None
+    capacity: Optional[int] = None
+    area_size: Optional[str] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    attributes_json: Optional[dict] = None
+    translations: Optional[List[SpaceTranslationSchema]] = None
+    media_ids: Optional[List[int]] = None
+
+
+# ==========================================
+# Helper Functions
+# ==========================================
+
+def get_space_with_relations(space_id: int, db: Session) -> dict:
+    """Get space with all relations"""
+    space = db.get(CafeSpace, space_id)
+    if not space:
+        return None
+    
+    trans_stmt = select(CafeSpaceTranslation).where(
+        CafeSpaceTranslation.space_id == space_id
+    )
+    translations = db.exec(trans_stmt).all()
+    
+    media_stmt = select(CafeSpaceMedia).where(
+        CafeSpaceMedia.space_id == space_id
+    ).order_by(CafeSpaceMedia.sort_order)
+    media = db.exec(media_stmt).all()
+    
+    return {
+        **space.model_dump(),
+        "translations": [
+            SpaceTranslationSchema(
+                locale=t.locale,
+                name=t.name,
+                description=t.description
+            ) for t in translations
+        ],
+        "media": [
+            SpaceMediaSchema(
+                media_id=m.media_id,
+                is_primary=m.is_primary,
+                sort_order=m.sort_order
+            ) for m in media
+        ]
+    }
+
+
+# ==========================================
+# API Endpoints
+# ==========================================
+
+@router.get("/", response_model=List[CafeSpaceResponse])
+def get_spaces(
+    current_user: CurrentUser,
+    db: SessionDep,
+    is_active: Optional[bool] = None
+):
+    """Get all spaces"""
+    statement = select(CafeSpace).where(
+        CafeSpace.tenant_id == current_user.tenant_id
+    )
+    
+    if is_active is not None:
+        statement = statement.where(CafeSpace.is_active == is_active)
+    
+    statement = statement.order_by(CafeSpace.display_order)
+    spaces = db.exec(statement).all()
+    
+    result = []
+    for space in spaces:
+        space_data = get_space_with_relations(space.id, db)
+        if space_data:
+            result.append(CafeSpaceResponse(**space_data))
+    
+    return result
+
+
+@router.get("/{space_id}", response_model=CafeSpaceResponse)
+def get_space(
+    space_id: int,
+    current_user: CurrentUser,
+    db: SessionDep
+):
+    """Get specific space"""
+    space = db.get(CafeSpace, space_id)
+    
+    if not space or space.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=404, detail="Space not found")
+    
+    space_data = get_space_with_relations(space_id, db)
+    return CafeSpaceResponse(**space_data)
+
+
+@router.post("/", response_model=CafeSpaceResponse)
+def create_space(
+    space_data: CafeSpaceCreate,
+    current_user: CurrentUser,
+    db: SessionDep
+):
+    """Create new space"""
+    existing = db.exec(
+        select(CafeSpace).where(CafeSpace.code == space_data.code)
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Space code already exists")
+    
+    new_space = CafeSpace(
+        tenant_id=current_user.tenant_id,
+        **space_data.model_dump(exclude={'translations', 'media_ids'})
+    )
+    
+    db.add(new_space)
+    db.commit()
+    db.refresh(new_space)
+    
+    # Add translations
+    for trans in space_data.translations:
+        translation = CafeSpaceTranslation(
+            space_id=new_space.id,
+            locale=trans.locale,
+            name=trans.name,
+            description=trans.description
+        )
+        db.add(translation)
+    
+    # Add media
+    if space_data.media_ids:
+        for idx, media_id in enumerate(space_data.media_ids):
+            space_media = CafeSpaceMedia(
+                space_id=new_space.id,
+                media_id=media_id,
+                sort_order=idx
+            )
+            db.add(space_media)
+    
+    db.commit()
+    
+    space_full = get_space_with_relations(new_space.id, db)
+    return CafeSpaceResponse(**space_full)
+
+
+@router.put("/{space_id}", response_model=CafeSpaceResponse)
+def update_space(
+    space_id: int,
+    space_data: CafeSpaceUpdate,
+    current_user: CurrentUser,
+    db: SessionDep
+):
+    """Update space"""
+    space = db.get(CafeSpace, space_id)
+    
+    if not space or space.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=404, detail="Space not found")
+    
+    for key, value in space_data.model_dump(
+        exclude_unset=True,
+        exclude={'translations', 'media_ids'}
+    ).items():
+        if value is not None:
+            setattr(space, key, value)
+            if key in ['amenities_json', 'attributes_json']:
+                flag_modified(space, key)
+    
+    db.add(space)
+    
+    if space_data.translations is not None:
+        for existing_trans in db.exec(
+            select(CafeSpaceTranslation).where(CafeSpaceTranslation.space_id == space_id)
+        ).all():
+            db.delete(existing_trans)
+        
+        for trans in space_data.translations:
+            translation = CafeSpaceTranslation(
+                space_id=space_id,
+                locale=trans.locale,
+                name=trans.name,
+                description=trans.description
+            )
+            db.add(translation)
+    
+    if space_data.media_ids is not None:
+        for existing_media in db.exec(
+            select(CafeSpaceMedia).where(CafeSpaceMedia.space_id == space_id)
+        ).all():
+            db.delete(existing_media)
+        
+        for idx, media_id in enumerate(space_data.media_ids):
+            space_media = CafeSpaceMedia(
+                space_id=space_id,
+                media_id=media_id,
+                sort_order=idx
+            )
+            db.add(space_media)
+    
+    db.commit()
+    
+    space_full = get_space_with_relations(space_id, db)
+    return CafeSpaceResponse(**space_full)
+
+
+@router.delete("/{space_id}")
+def delete_space(
+    space_id: int,
+    current_user: CurrentUser,
+    db: SessionDep
+):
+    """Delete space"""
+    space = db.get(CafeSpace, space_id)
+    
+    if not space or space.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=404, detail="Space not found")
+    
+    db.delete(space)
+    db.commit()
+    
+    return {"success": True, "message": "Space deleted"}
+
+
+@router.post("/reorder")
+def reorder_spaces(
+    space_ids: List[int],
+    current_user: CurrentUser,
+    db: SessionDep
+):
+    """Reorder spaces"""
+    for idx, space_id in enumerate(space_ids):
+        space = db.get(CafeSpace, space_id)
+        if space and space.tenant_id == current_user.tenant_id:
+            space.display_order = idx
+            db.add(space)
+    
+    db.commit()
+    return {"success": True, "message": "Spaces reordered"}

@@ -101,21 +101,21 @@ class AdminUserBase(BaseModel):
     email: EmailStr = Field(max_length=190)
     full_name: str = Field(max_length=180)
     role: UserRole = UserRole.EDITOR
-    service_access: Optional[int] = 0
+    # service_access: Removed - Cafe only system
     is_active: bool = True
 
 
 class AdminUserCreate(AdminUserBase):
     password: str = Field(min_length=8)
     tenant_id: int
-    service_access: int = 0
+    # service_access: Removed - Cafe only system
 
 
 class AdminUserUpdate(BaseModel):
     email: Optional[EmailStr] = Field(None, max_length=190)
     full_name: Optional[str] = Field(None, max_length=180)
     role: Optional[UserRole] = None
-    service_access: Optional[int] = None
+    # service_access: Removed - Cafe only system
     is_active: Optional[bool] = None
 
 

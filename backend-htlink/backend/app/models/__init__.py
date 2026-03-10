@@ -102,7 +102,7 @@ class AdminUser(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     full_name: str = Field(max_length=180)
     role: UserRole = Field(default=UserRole.EDITOR)
-    service_access: int = Field(default=0, description="0=Travel Link only, 1=VR Hotel only, 2=Both services")
+    # service_access: Removed - Cafe only system
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
@@ -371,7 +371,7 @@ class AdminUserCreate(SQLModel):
     password: str
     full_name: str
     role: UserRole = UserRole.EDITOR
-    service_access: int = 0
+    # service_access: Removed - Cafe only system
     tenant_id: int
 
 
@@ -379,7 +379,7 @@ class AdminUserUpdate(SQLModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
-    service_access: Optional[int] = None
+    # service_access: Removed - Cafe only system
     is_active: Optional[bool] = None
 
 
@@ -495,6 +495,29 @@ from app.models.vr_hotel import (
     VRLanguage
 )
 
+# Import Cafe models
+from app.models.cafe import (
+    # Enums
+    MenuItemStatus, EventStatus, CareerStatus, PromotionType,
+    # Settings models
+    CafeSettings, CafePageSettings,
+    # Branch models
+    CafeBranch, CafeBranchTranslation, CafeBranchMedia,
+    # Menu models
+    CafeMenuCategory, CafeMenuCategoryTranslation,
+    CafeMenuItem, CafeMenuItemTranslation, CafeMenuItemMedia,
+    # Event models
+    CafeEvent, CafeEventTranslation, CafeEventMedia,
+    # Career models
+    CafeCareer, CafeCareerTranslation, CafeCareerMedia,
+    # Promotion models
+    CafePromotion, CafePromotionTranslation, CafePromotionMedia,
+    # Space models
+    CafeSpace, CafeSpaceTranslation, CafeSpaceMedia,
+    # Content section models
+    CafeContentSection, CafeContentSectionTranslation
+)
+
 # Import all models to ensure they are registered
 __all__ = [
     "Plan", "Tenant", "Locale", "AdminUser", "Property", "PropertyTranslation",
@@ -526,5 +549,16 @@ __all__ = [
     "FeatureCategoryCreate", "FeatureCategoryUpdate",
     "PropertyCategoryCreate", "PropertyCategoryUpdate",
     # Analytics models
-    "ActivityLog", "AnalyticsSummary", "ActivityType"
+    "ActivityLog", "AnalyticsSummary", "ActivityType",
+    # Cafe models
+    "MenuItemStatus", "EventStatus", "CareerStatus", "PromotionType",
+    "CafeSettings", "CafePageSettings",
+    "CafeBranch", "CafeBranchTranslation", "CafeBranchMedia",
+    "CafeMenuCategory", "CafeMenuCategoryTranslation",
+    "CafeMenuItem", "CafeMenuItemTranslation", "CafeMenuItemMedia",
+    "CafeEvent", "CafeEventTranslation", "CafeEventMedia",
+    "CafeCareer", "CafeCareerTranslation", "CafeCareerMedia",
+    "CafePromotion", "CafePromotionTranslation", "CafePromotionMedia",
+    "CafeSpace", "CafeSpaceTranslation", "CafeSpaceMedia",
+    "CafeContentSection", "CafeContentSectionTranslation"
 ]

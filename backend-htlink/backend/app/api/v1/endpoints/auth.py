@@ -202,28 +202,19 @@ def get_user_services(
     """
     Get current user's service access configuration
     
+    UPDATED: Cafe-only system - always returns cafe service
+    
     Returns:
-    - service_access: 0 = Travel Link only, 1 = VR Hotel only, 2 = Both services
-    - available_services: List of available service codes
+    - service_access: 0 (kept for backward compatibility)
+    - available_services: ["cafe"] (always)
     
     GET /api/v1/auth/me/services
     Requires valid authentication token
     """
-    # Get service access value (0, 1, or 2)
-    service_access = current_user.service_access or 0
-    
-    # Map service_access to available services
-    service_map = {
-        0: ["travel-link"],           # Travel Link only
-        1: ["vr-hotel"],              # VR Hotel only
-        2: ["travel-link", "vr-hotel"]  # Both services
-    }
-    
-    available_services = service_map.get(service_access, ["travel-link"])
-    
+    # Cafe-only system - always return cafe service
     return {
-        "service_access": service_access,
-        "available_services": available_services,
+        "service_access": 0,  # Kept for backward compatibility
+        "available_services": ["cafe"],  # Always cafe
         "user_id": current_user.id,
         "email": current_user.email
     }

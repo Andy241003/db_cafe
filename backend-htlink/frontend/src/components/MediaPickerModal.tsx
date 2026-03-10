@@ -202,7 +202,7 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-[1050] flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">

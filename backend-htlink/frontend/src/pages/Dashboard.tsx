@@ -189,9 +189,9 @@ const Dashboard: React.FC = () => {
       </section>
 
       {/* Recent Activity */}
-      <section className="p-6 bg-white border border-slate-200 rounded-xl">
+      <section className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
+          <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
           <button
             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             onClick={() => navigate("/activities")}
@@ -199,7 +199,7 @@ const Dashboard: React.FC = () => {
             View all
           </button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {loading ? (
             <div className="text-center py-8 text-slate-500">
               <i className="fas fa-spinner fa-spin mr-2"></i>
@@ -211,9 +211,13 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             activities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-4">
+              <div 
+                key={activity.id} 
+                className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors border-l-4"
+                style={{ borderColor: activity.iconBg }}
+              >
                 <div
-                  className="flex items-center justify-center w-10 h-10 rounded-full"
+                  className="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0"
                   style={{
                     background: activity.iconBg,
                     color: activity.iconColor,
@@ -222,12 +226,9 @@ const Dashboard: React.FC = () => {
                   <i className={activity.icon}></i>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm text-slate-700">{activity.text}</div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <i className="fas fa-user"></i>
-                      {activity.user_name}
-                    </span>
+                  <p className="font-semibold text-gray-900 text-sm">{activity.text}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                    <span>{activity.user_name}</span>
                     <span>•</span>
                     <span>{activity.time}</span>
                   </div>

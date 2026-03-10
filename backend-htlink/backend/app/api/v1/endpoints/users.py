@@ -118,27 +118,8 @@ def create_user(
     # Ensure the user is being created in the correct tenant
     user_in.tenant_id = tenant_id
     
-    # Auto-sync service_access:
-    # - For OWNER: use provided value or default 0
-    # - For ADMIN/EDITOR/VIEWER: inherit from tenant OWNER
-    new_user_role_lower = new_user_role.lower() if new_user_role else "editor"
-    
-    if new_user_role_lower == "owner":
-        # OWNER can set their own service_access
-        if not hasattr(user_in, 'service_access') or user_in.service_access is None:
-            user_in.service_access = 0
-    else:
-        # ADMIN/EDITOR/VIEWER inherit service_access from tenant OWNER
-        owner = session.query(AdminUser).filter(
-            AdminUser.tenant_id == tenant_id,
-            AdminUser.role == "OWNER"
-        ).first()
-        
-        if owner:
-            user_in.service_access = owner.service_access
-        else:
-            # Fallback if no owner exists (shouldn't happen)
-            user_in.service_access = 0
+    # Auto-sync service_access: REMOVED - Cafe only system
+    # All users have access to Cafe by default
     
     user = crud.admin_user.create(session, obj_in=user_in)
     

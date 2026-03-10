@@ -1,6 +1,8 @@
-// Login.tsx - Updated to use Backend API
-import React, { useState, useEffect } from 'react';
+// Login.tsx - Simplified & Modern Login Logic
+import React, { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { authAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { getApiBaseUrl } from '../utils/api';
@@ -12,6 +14,7 @@ interface LoginFormData {
 }
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
   const { login } = useAuth();
   
   // State management for form data
@@ -23,11 +26,6 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
-  // Auto clear localStorage when entering login page to prevent cache issues
-  useEffect(() => {
-    localStorage.clear();
-  }, []);
-
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,105 +33,94 @@ const Login: React.FC = () => {
       ...prevState,
       [name]: value
     }));
+    // Clear error when user types
+    if (error) setError('');
   };
 
-  // doLogin function with real API
+  // Main login handler - Simplified and cleaner
   const doLogin = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
     try {
-      // Step 1: Login without tenant (backend will identify user's tenant)
+      // Step 1: Authenticate user and get access token
       await authAPI.login({
         username: formData.email,
         password: formData.password
       });
 
-      // Step 2: Get user data to determine tenant
+      // Step 2: Get current user data (includes tenant_id, role, service_access)
       const userData = await authAPI.getCurrentUser();
-
-      // ✅ IMPORTANT: Save user data to localStorage for permissions
+      
+      // Save user data to localStorage
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('tenant_id', userData.tenant_id.toString());
 
-      // Step 3: Get tenant data from backend based on user's tenant_id
-      try {
-        const tenantUrl = `${getApiBaseUrl()}/tenants/${userData.tenant_id}`;
+      // Step 3: Get tenant information
+      const tenantResponse = await fetch(`${getApiBaseUrl()}/tenants/${userData.tenant_id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-        const tenantResponse = await fetch(tenantUrl, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (tenantResponse.ok) {
-          const tenantData = await tenantResponse.json();
-
-          // Save tenant info to localStorage
-          localStorage.setItem('tenant_code', tenantData.code);
-          localStorage.setItem('tenant_id', userData.tenant_id.toString());
-          localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
-        } else if (tenantResponse.status === 404) {
+      if (!tenantResponse.ok) {
+        if (tenantResponse.status === 404) {
           throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);
-        } else {
-          throw new Error('Failed to load tenant information. Please try again.');
         }
-      } catch (tenantError) {
-        // Re-throw tenant errors for user to see
-        throw tenantError;
+        throw new Error('Failed to load tenant information. Please try again.');
       }
 
-      // Step 4: Get service access information
-      try {
-        const servicesResponse = await authAPI.getUserServices();
-        localStorage.setItem('service_access', servicesResponse.service_access.toString());
-        localStorage.setItem('available_services', JSON.stringify(servicesResponse.available_services));
-      } catch (serviceError) {
-        console.warn('Failed to load service access info, defaulting to Travel Link only:', serviceError);
-        // Fallback to default service if error
-        localStorage.setItem('service_access', '0');
-        localStorage.setItem('available_services', JSON.stringify(['travel-link']));
-      }
+      const tenantData = await tenantResponse.json();
+      localStorage.setItem('tenant_code', tenantData.code);
+      localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
+
+      // Step 4: Get user's service access
+      const servicesResponse = await authAPI.getUserServices();
+      localStorage.setItem('service_access', servicesResponse.service_access.toString());
+      localStorage.setItem('available_services', JSON.stringify(servicesResponse.available_services));
+
+      // Step 5: Update authentication state
+      login();
       
-      // Step 5: Trigger auth state change using useAuth hook
-      login(); // This will set isAuthenticated state and dispatch event
+      // Step 6: Show success message and navigate to Cafe dashboard
+      toast.success(`Welcome back, ${userData.full_name}!`);
       
-      // Step 6: Multiple redirect attempts to ensure it works
-      // Method 1: Immediate redirect to dashboard selection
-      window.location.href = '/dashboard-selection';
-      
-      // Method 2: Fallback after 100ms
+      // Navigate directly to Cafe dashboard
       setTimeout(() => {
-        if (window.location.pathname === '/login') {
-          window.location.replace('/dashboard-selection');
-        }
+        navigate('/cafe', { replace: true });
       }, 100);
       
-      // Method 3: Force refresh if still on login page after 1 second
-      setTimeout(() => {
-        if (window.location.pathname === '/login') {
-          window.location.reload();
-        }
-      }, 1000);
-      
     } catch (err: any) {
-      if (err.response?.data?.detail) {
+      console.error('Login error:', err);
+      
+      // Handle different error types
+      if (err.response?.status === 401) {
+        setError('Invalid email or password. Please try again.');
+      } else if (err.response?.data?.detail) {
         setError(err.response.data.detail);
       } else if (err.message) {
         setError(err.message);
       } else {
-        setError('Login failed. Please check your credentials.');
+        setError('Login failed. Please check your credentials and try again.');
       }
+      
+      // Clear sensitive data on error
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('isAuthenticated');
+      
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle reset password link click
+  // Handle reset password
   const handleResetPassword = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    alert('Reset password functionality would be implemented here');
+    toast('Password reset functionality coming soon', {
+      icon: '🔑',
+    });
   };
 
   return (
@@ -141,7 +128,8 @@ const Login: React.FC = () => {
       <div className="bg-white w-full max-w-md py-12 px-9 rounded-2xl shadow-2xl">
         
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Hotel Dashboard Login</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Management Dashboard Login</h2>
+          <p className="text-sm text-gray-500 mt-2">Travel Link • VR Hotel • Cafe</p>
         </div>
 
         {error && (
@@ -159,10 +147,12 @@ const Login: React.FC = () => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none transition-all duration-200 bg-gray-50 text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white placeholder-gray-400" 
               name="email"
               id="email" 
-              placeholder="test@demo.com" 
+              placeholder="your.email@example.com" 
               required
               value={formData.email}
               onChange={handleInputChange}
+              disabled={isLoading}
+              autoComplete="email"
             />
           </div>
           
@@ -173,10 +163,12 @@ const Login: React.FC = () => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none transition-all duration-200 bg-gray-50 text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white placeholder-gray-400" 
               name="password"
               id="password" 
-              placeholder="test123" 
+              placeholder="Enter your password" 
               required
               value={formData.password}
               onChange={handleInputChange}
+              disabled={isLoading}
+              autoComplete="current-password"
             />
           </div>
 
