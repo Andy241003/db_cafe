@@ -1,26 +1,12 @@
 services:
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - app-db-data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    networks:
-      - app-network
+  # Database is remote: travel.link360.vn
+  # Connection: pymysql://vrcafe_user:cafe@1234@travel.link360.vn:3306/vrcafe_db
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
-    depends_on:
-      - db
     env_file:
       - .env.production
     ports:
@@ -30,7 +16,7 @@ services:
     networks:
       - app-network
     environment:
-      - MYSQL_SERVER=db
+      - RUN_ALEMBIC_MIGRATIONS=false
 
   frontend:
     build:
@@ -50,28 +36,23 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: "no"
-    depends_on:
-      - db
     command: bash scripts/prestart.sh
     env_file:
       - .env.production
     networks:
       - app-network
     environment:
-      - MYSQL_SERVER=db
+      - RUN_ALEMBIC_MIGRATIONS=true
 
   adminer:
     image: adminer
     restart: always
-    depends_on:
-      - db
     ports:
       - "8081:8080"
     networks:
       - app-network
 
 volumes:
-  app-db-data:
   app-uploads:
 
 networks:

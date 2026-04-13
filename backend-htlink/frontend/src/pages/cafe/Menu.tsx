@@ -1,7 +1,7 @@
-import { faImages, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
+﻿import { faImages, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Form, Input, InputNumber, Popconfirm, Select, Tag } from 'antd';
-import { Coffee, Edit, Eye, Info, Play, Plus, Trash2 } from 'lucide-react';
+import { Coffee, Edit, Eye, GripVertical, Info, Play, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
@@ -10,14 +10,33 @@ import { getApiBaseUrl } from '../../utils/api';
 
 const { TextArea } = Input;
 
-const LANGUAGE_CONFIG: Record<string, { name: string; flag: string }> = {
-  vi: { name: 'Tiếng Việt', flag: '🇻🇳' },
-  en: { name: 'English', flag: '🇬🇧' },
-  zh: { name: '中文', flag: '🇨🇳' },
-  ja: { name: '日本語', flag: '🇯🇵' },
-  ko: { name: '한국어', flag: '🇰🇷' },
-  th: { name: 'ไทย', flag: '🇹🇭' },
-  fr: { name: 'Français', flag: '🇫🇷' },
+const LANGUAGE_CONFIG: Record<string, { name: string; flag: string; shortLabel: string }> = {
+  vi: { name: 'Vietnamese', flag: 'VN', shortLabel: 'VI' },
+  en: { name: 'English', flag: 'GB', shortLabel: 'EN' },
+  zh: { name: 'Chinese', flag: 'CN', shortLabel: 'ZH' },
+  'zh-TW': { name: 'Traditional Chinese', flag: 'TW', shortLabel: 'ZH-TW' },
+  yue: { name: 'Cantonese', flag: 'HK', shortLabel: 'YUE' },
+  ja: { name: 'Japanese', flag: 'JP', shortLabel: 'JA' },
+  ko: { name: 'Korean', flag: 'KR', shortLabel: 'KO' },
+  th: { name: 'Thai', flag: 'TH', shortLabel: 'TH' },
+  fr: { name: 'French', flag: 'FR', shortLabel: 'FR' },
+};
+
+const getLanguageDisplay = (locale: string) => {
+  return LANGUAGE_CONFIG[locale] || { name: locale.toUpperCase(), flag: locale.toUpperCase(), shortLabel: locale.toUpperCase() };
+};
+
+type MenuItemFormState = {
+  category_id?: number;
+  code?: string;
+  price?: number;
+  original_price?: number;
+  status?: string;
+  is_bestseller: boolean;
+  is_new: boolean;
+  is_seasonal: boolean;
+  display_order?: number;
+  calories?: number;
 };
 
 const CafeMenu: React.FC = () => {
@@ -30,7 +49,6 @@ const CafeMenu: React.FC = () => {
 
   // Menu Items state
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [menuItemModalVisible, setMenuItemModalVisible] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
   const [menuItemForm] = Form.useForm();
@@ -48,12 +66,21 @@ const CafeMenu: React.FC = () => {
   const [currentCategoryLocale, setCurrentCategoryLocale] = useState('vi');
   const [currentItemLocale, setCurrentItemLocale] = useState('vi');
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
+  const [menuItemState, setMenuItemState] = useState<MenuItemFormState>({
+    status: 'available',
+    is_bestseller: false,
+    is_new: false,
+    is_seasonal: false,
+  });
+  const selectedCategoryStatus = Form.useWatch('is_active', categoryForm);
+  const selectedCategoryDisplayOrder = Form.useWatch('display_order', categoryForm);
 
   // Temporary state for category form when media picker is open
   const [tempCategoryFormData, setTempCategoryFormData] = useState<any>(null);
 
   // Drag & drop state
   const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [tempMenuItemFormData, setTempMenuItemFormData] = useState<any>(null);
 
   // Display status state
@@ -67,6 +94,21 @@ const CafeMenu: React.FC = () => {
     loadCategories();
     loadLanguageSettings();
     loadMenuItems(); // Load items on mount
+  }, []);
+
+  useEffect(() => {
+    const handleLanguagesUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ supportedLanguages?: string[] }>;
+      const nextLanguages = customEvent.detail?.supportedLanguages;
+      if (nextLanguages && nextLanguages.length > 0) {
+        setSupportedLanguages(nextLanguages);
+        setCurrentCategoryLocale((prev) => nextLanguages.includes(prev) ? prev : nextLanguages[0]);
+        setCurrentItemLocale((prev) => nextLanguages.includes(prev) ? prev : nextLanguages[0]);
+      }
+    };
+
+    window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+    return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
   }, []);
 
   // Restore category form when returning from media picker
@@ -88,8 +130,19 @@ const CafeMenu: React.FC = () => {
       setItemTranslations(tempMenuItemFormData.translations);
       setCurrentItemLocale(tempMenuItemFormData.locale);
       setEditingMenuItem(tempMenuItemFormData.editingMenuItem);
+      setMenuItemState(tempMenuItemFormData.menuItemState || {
+        status: 'available',
+        is_bestseller: false,
+        is_new: false,
+        is_seasonal: false,
+      });
     }
   }, [menuItemModalVisible, tempMenuItemFormData]);
+
+  const updateMenuItemField = <K extends keyof MenuItemFormState>(field: K, value: MenuItemFormState[K]) => {
+    setMenuItemState(prev => ({ ...prev, [field]: value }));
+    menuItemForm.setFieldValue(field, value);
+  };
 
   const loadLanguageSettings = async () => {
     try {
@@ -122,15 +175,12 @@ const CafeMenu: React.FC = () => {
   };
 
   const loadMenuItems = async () => {
-    setMenuItemsLoading(true);
     try {
       const data = await cafeMenuApi.getItems();
       setMenuItems(data);
     } catch (error) {
       toast.error('Failed to load menu items');
       console.error(error);
-    } finally {
-      setMenuItemsLoading(false);
     }
   };
 
@@ -226,15 +276,18 @@ const CafeMenu: React.FC = () => {
         return;
       }
 
+      const displayOrder = values.display_order ?? categoryForm.getFieldValue('display_order') ?? (editingCategory?.display_order || categories.length + 1);
+      const isActive = values.is_active ?? categoryForm.getFieldValue('is_active') ?? (editingCategory?.is_active ?? true);
+
       const submitData: MenuCategoryCreate = {
         code: values.code || `cat_${Date.now()}`,
         icon_media_id: selectedCategoryIconId || undefined,
-        display_order: values.display_order,
-        is_active: values.is_active,
+        display_order: displayOrder,
+        is_active: isActive,
         translations
       };
 
-      console.log('📤 Submitting category:', submitData);
+      console.log('Submitting category:', submitData);
 
       if (editingCategory) {
         await cafeMenuApi.updateCategory(editingCategory.id, submitData);
@@ -247,7 +300,7 @@ const CafeMenu: React.FC = () => {
       setTempCategoryFormData(null);
       loadCategories();
     } catch (error: any) {
-      console.error('❌ Category submit error:', error);
+      console.error('Category submit error:', error);
       console.error('Error response:', error.response?.data);
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to save category';
       toast.error(errorMsg);
@@ -268,14 +321,16 @@ const CafeMenu: React.FC = () => {
     // Get display order based on category
     const catItems = categoryId ? menuItems.filter(item => item.category_id === categoryId) : menuItems;
     
-    menuItemForm.setFieldsValue({ 
+    const initialState: MenuItemFormState = {
       category_id: categoryId,
       status: 'available',
       is_bestseller: false,
       is_new: false,
       is_seasonal: false,
       display_order: catItems.length + 1 
-    });
+    };
+    setMenuItemState(initialState);
+    menuItemForm.setFieldsValue(initialState);
     setSelectedImageIds([]);
     setPrimaryImageId(null);
     setMenuItemModalVisible(true);
@@ -304,7 +359,7 @@ const CafeMenu: React.FC = () => {
       setPrimaryImageId(null);
     }
     
-    menuItemForm.setFieldsValue({
+    const initialState: MenuItemFormState = {
       code: item.code,
       category_id: item.category_id,
       price: item.price,
@@ -315,7 +370,9 @@ const CafeMenu: React.FC = () => {
       is_seasonal: item.is_seasonal,
       display_order: item.display_order,
       calories: item.calories
-    });
+    };
+    setMenuItemState(initialState);
+    menuItemForm.setFieldsValue(initialState);
     
     // Load images if available
     if (item.image_media_id) {
@@ -345,6 +402,14 @@ const CafeMenu: React.FC = () => {
 
   const handleMenuItemSubmit = async (values: any) => {
     try {
+      const formValues = menuItemForm.getFieldsValue();
+      const categoryId = values.category_id ?? menuItemState.category_id ?? formValues.category_id;
+
+      if (!categoryId) {
+        toast.error('Please select a category');
+        return;
+      }
+
       const translations = Object.values(itemTranslations).filter(t => t.name.trim() !== '');
       
       if (translations.length === 0) {
@@ -352,20 +417,43 @@ const CafeMenu: React.FC = () => {
         return;
       }
 
+      const submitCode = values.code ?? menuItemState.code ?? formValues.code ?? editingMenuItem?.code ?? `item_${Date.now()}`;
+      const submitStatus = values.status ?? menuItemState.status ?? formValues.status ?? editingMenuItem?.status ?? 'available';
+      const submitDisplayOrder =
+        values.display_order ??
+        menuItemState.display_order ??
+        formValues.display_order ??
+        editingMenuItem?.display_order ??
+        menuItems.filter(item => item.category_id === categoryId).length + (editingMenuItem ? 0 : 1);
+      const submitPrice = values.price ?? menuItemState.price ?? formValues.price ?? editingMenuItem?.price;
+      const submitOriginalPrice = values.original_price ?? menuItemState.original_price ?? formValues.original_price ?? editingMenuItem?.original_price;
+      const submitCalories = values.calories ?? menuItemState.calories ?? formValues.calories ?? editingMenuItem?.calories;
+      const submitIsBestseller = values.is_bestseller ?? menuItemState.is_bestseller ?? formValues.is_bestseller ?? editingMenuItem?.is_bestseller ?? false;
+      const submitIsNew = values.is_new ?? menuItemState.is_new ?? formValues.is_new ?? editingMenuItem?.is_new ?? false;
+      const submitIsSeasonal = values.is_seasonal ?? menuItemState.is_seasonal ?? formValues.is_seasonal ?? editingMenuItem?.is_seasonal ?? false;
+
       const submitData: MenuItemCreate = {
-        code: values.code || `item_${Date.now()}`,
-        category_id: values.category_id,
-        price: values.price,
-        original_price: values.original_price,
-        status: values.status,
-        is_bestseller: values.is_bestseller,
-        is_new: values.is_new,
-        is_seasonal: values.is_seasonal,
-        display_order: values.display_order,
-        calories: values.calories,
-        primary_image_media_id: primaryImageId || selectedImageIds[0] || undefined,
-        translations
+        code: submitCode,
+        category_id: categoryId,
+        price: submitPrice,
+        original_price: submitOriginalPrice,
+        status: submitStatus,
+        is_bestseller: submitIsBestseller,
+        is_new: submitIsNew,
+        is_seasonal: submitIsSeasonal,
+        display_order: submitDisplayOrder,
+        calories: submitCalories,
+        primary_image_media_id: primaryImageId || selectedImageIds[0] || editingMenuItem?.primary_image_media_id || undefined,
+        media_ids: selectedImageIds.length > 0 ? selectedImageIds : undefined,
+        translations: translations.map((translation) => ({
+          locale: translation.locale,
+          name: translation.name.trim(),
+          description: translation.description?.trim() || undefined,
+          ingredients: translation.ingredients?.trim() || undefined,
+        })),
       };
+
+      console.log('Submitting menu item:', submitData);
       
       if (editingMenuItem) {
         await cafeMenuApi.updateItem(editingMenuItem.id, submitData);
@@ -375,10 +463,16 @@ const CafeMenu: React.FC = () => {
         toast.success('Menu item created successfully');
       }
       setMenuItemModalVisible(false);
+      setTempMenuItemFormData(null);
       loadMenuItems();
-    } catch (error) {
-      toast.error('Failed to save menu item');
-      console.error(error);
+    } catch (error: any) {
+      console.error('Menu item submit error:', error);
+      console.error('Menu item submit response:', error.response?.data);
+      const detail = error.response?.data?.detail;
+      const errorMessage = Array.isArray(detail)
+        ? detail.map((item: any) => item.msg).join(', ')
+        : detail || 'Failed to save menu item';
+      toast.error(errorMessage);
     }
   };
 
@@ -432,6 +526,7 @@ const CafeMenu: React.FC = () => {
     const currentFormValues = menuItemForm.getFieldsValue();
     setTempMenuItemFormData({
       formValues: currentFormValues,
+      menuItemState: { ...menuItemState },
       translations: { ...itemTranslations },
       locale: currentItemLocale,
       editingMenuItem: editingMenuItem
@@ -490,16 +585,39 @@ const CafeMenu: React.FC = () => {
     setDraggedCategoryIndex(null);
   };
 
-  const getBadgeForItem = (item: MenuItem) => {
-    if (item.is_new) return { text: 'NEW', class: 'bg-green-500' };
-    if (item.is_bestseller) return { text: 'HOT', class: 'bg-red-500' };
-    if (item.is_seasonal) return { text: 'SEASON', class: 'bg-yellow-500' };
-    return null;
+  const getBadgesForItem = (item: MenuItem) => {
+    const badges: Array<{ text: string; className: string }> = [];
+
+    if (item.is_bestseller) {
+      badges.push({ text: 'HOT', className: 'bg-red-500 text-white' });
+    }
+
+    if (item.is_new) {
+      badges.push({ text: 'NEW', className: 'bg-green-500 text-white' });
+    }
+
+    if (item.is_seasonal) {
+      badges.push({ text: 'SEASON', className: 'bg-yellow-500 text-white' });
+    }
+
+    return badges;
   };
+
+  const filteredCategories = categories.filter((category) => {
+    if (categoryFilter === 'active') return category.is_active;
+    if (categoryFilter === 'inactive') return !category.is_active;
+    return true;
+  });
 
   const handleMenuItemModalClose = () => {
     setMenuItemModalVisible(false);
     setTempMenuItemFormData(null); // Clear temp data when manually closing
+    setMenuItemState({
+      status: 'available',
+      is_bestseller: false,
+      is_new: false,
+      is_seasonal: false,
+    });
   };
 
   return (
@@ -574,7 +692,7 @@ const CafeMenu: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <Info className="mt-0.5 w-4 h-4" />
               <span>
-                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
+                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or a YouTube video URL
               </span>
             </p>
           </div>
@@ -625,46 +743,49 @@ const CafeMenu: React.FC = () => {
         </div>
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Menu Management</h1>
-          <p className="text-gray-600 mt-1">Manage your cafe menu categories and items with multi-language support</p>
-        </div>
-      </div>
-
-      {/* Card-based Categories & Items */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <Button
-            type="primary"
-            icon={<Plus className="w-4 h-4" />}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-800">Menu Management</h2>
+          <button
+            type="button"
             onClick={handleAddCategory}
-            className="bg-blue-600 hover:bg-blue-700"
-            size="large"
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-            Add Category
-          </Button>
+            <Plus className="w-4 h-4" />
+            Add New Category
+          </button>
+        </div>
+
+        <div className="mb-6 flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700">Filter by Status:</label>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as 'all' | 'active' | 'inactive')}
+            className="px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Categories</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
 
         {categoriesLoading ? (
-          <div className="flex justify-center items-center py-20">
+          <div className="flex items-center justify-center py-20">
             <div className="text-slate-500">Loading categories...</div>
           </div>
-        ) : categories.length === 0 ? (
+        ) : filteredCategories.length === 0 ? (
           <div className="text-center py-20 text-slate-500">
             <Coffee className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-            <p className="text-lg font-medium">No categories yet</p>
-            <p className="text-sm">Click "Add Category" to get started</p>
+            <p className="text-lg font-medium">No categories found</p>
+            <p className="text-sm">Adjust the filter or add a new category to get started</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {categories.map((category, catIndex) => {
+          <div className="space-y-4">
+            {filteredCategories.map((category, catIndex) => {
               const catItems = menuItems.filter(item => item.category_id === category.id);
-              const catName = category.translations.find(t => t.locale === 'vi')?.name || 
-                            category.translations.find(t => t.locale === 'en')?.name || 
+              const catName = category.translations.find(t => t.locale === 'vi')?.name ||
+                            category.translations.find(t => t.locale === 'en')?.name ||
                             category.code;
-              const catDesc = category.translations.find(t => t.locale === 'vi')?.description || '';
 
               return (
                 <div
@@ -674,113 +795,118 @@ const CafeMenu: React.FC = () => {
                   onDragEnd={handleDragEnd}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, catIndex)}
-                  className={`border-2 rounded-xl transition-all duration-200 ${
-                    draggedCategoryIndex === catIndex 
-                      ? 'border-blue-500 shadow-2xl opacity-50' 
-                      : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                  className={`border border-slate-200 rounded-lg px-5 py-4 hover:border-blue-300 hover:shadow-md transition-all ${
+                    draggedCategoryIndex === catIndex ? 'opacity-60 border-blue-400' : ''
                   }`}
                 >
-                  {/* Category Header */}
-                  <div className="bg-gradient-to-r from-slate-50 to-white p-5 border-b border-slate-200 rounded-t-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="cursor-move text-slate-400 hover:text-slate-600">
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M9 3h2v2H9V3zm0 4h2v2H9V7zm0 4h2v2H9v-2zm0 4h2v2H9v-2zm0 4h2v2H9v-2zm4-16h2v2h-2V3zm0 4h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/>
-                          </svg>
-                        </div>
-                        
-                        {category.icon_media_id ? (
-                          <div className="w-14 h-14 rounded-xl overflow-hidden shadow-md bg-white border-2 border-slate-200">
-                            <img 
-                              src={`${getApiBaseUrl()}/media/${category.icon_media_id}/view`}
-                              alt={catName}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-md">
-                            <Coffee className="w-7 h-7 text-blue-600" />
-                          </div>
-                        )}
+                  <div className="flex items-center gap-3">
+                    <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2">
+                      <GripVertical className="w-5 h-5" />
+                    </div>
 
-                        <div>
-                          <h3 className="text-xl font-bold text-slate-800">{catName}</h3>
-                          {catDesc && <p className="text-sm text-slate-500 mt-0.5">{catDesc}</p>}
-                          <div className="flex items-center gap-3 mt-2">
-                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                              {catItems.length} món
-                            </span>
-                            <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
-                              {category.code}
-                            </code>
-                            {!category.is_active && (
-                              <Tag color="red" className="text-xs">Inactive</Tag>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleAddMenuItem(category.id)}
-                          icon={<Plus className="w-4 h-4" />}
-                          className="bg-green-600 hover:bg-green-700 text-white border-0"
-                        >
-                          Thêm Món
-                        </Button>
-                        <Button
-                          onClick={() => handleEditCategory(category)}
-                          icon={<Edit className="w-4 h-4" />}
-                          className="border-slate-300 hover:border-blue-500"
+                    {category.icon_media_id ? (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden bg-blue-600 shadow-sm">
+                        <img
+                          src={`${getApiBaseUrl()}/media/${category.icon_media_id}/view`}
+                          alt={catName}
+                          className="h-full w-full object-cover"
                         />
-                        <Popconfirm
-                          title="Delete Category"
-                          description="Xóa danh mục này? Tất cả món ăn trong danh mục sẽ bị ảnh hưởng."
-                          onConfirm={() => handleDeleteCategory(category.id)}
-                          okText="Xóa"
-                          cancelText="Hủy"
-                          okButtonProps={{ danger: true }}
-                        >
-                          <Button
-                            danger
-                            icon={<Trash2 className="w-4 h-4" />}
-                          />
-                        </Popconfirm>
                       </div>
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center bg-blue-600 text-white shadow-sm">
+                        <Coffee className="h-5 w-5" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-lg font-semibold leading-tight text-slate-800">{catName}</h3>
+                        {!category.is_active && (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-sm leading-none text-slate-500">
+                        {catItems.length} item{catItems.length === 1 ? '' : 's'}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleEditCategory(category)}
+                        className="px-4 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors flex items-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </button>
+                      <Popconfirm
+                        title="Delete Category"
+                        description="Delete this category? All items in this category will be affected."
+                        onConfirm={() => handleDeleteCategory(category.id)}
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <button
+                          type="button"
+                          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </Popconfirm>
                     </div>
                   </div>
 
-                  {/* Items Grid */}
-                  <div className="p-5 bg-white rounded-b-xl">
+                  <div className="mt-4 border-t border-slate-200 pt-4">
+                    <div className="mb-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleAddMenuItem(category.id)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Item
+                      </button>
+                    </div>
+
                     {catItems.length === 0 ? (
                       <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
                         <Coffee className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">Chưa có món nào trong danh mục này</p>
+                        <p className="text-sm">No items in this category yet</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
                         {catItems.map((item) => {
-                          const itemName = item.translations.find(t => t.locale === 'vi')?.name || 
-                                         item.translations.find(t => t.locale === 'en')?.name || 
+                          const itemName = item.translations.find(t => t.locale === 'vi')?.name ||
+                                         item.translations.find(t => t.locale === 'en')?.name ||
                                          'Untitled';
                           const itemDesc = item.translations.find(t => t.locale === 'vi')?.description || '';
-                          const badge = getBadgeForItem(item);
+                          const badges = getBadgesForItem(item);
 
                           return (
                             <div
                               key={item.id}
-                              className="group border border-slate-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 bg-white relative"
+                              className="group border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200 bg-white relative"
                             >
-                              {badge && (
-                                <span className={`absolute top-2 right-2 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg ${badge.class}`}>
-                                  {badge.text}
-                                </span>
+                              {badges.length > 0 && (
+                                <div className="absolute top-1.5 right-1.5 z-10 flex flex-row items-center gap-1">
+                                  {badges.map((badge) => (
+                                    <span
+                                      key={badge.text}
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow ${badge.className}`}
+                                    >
+                                      {badge.text}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
 
                               {item.primary_image_media_id ? (
                                 <div className="aspect-square overflow-hidden bg-slate-100">
-                                  <img 
+                                  <img
                                     src={`${getApiBaseUrl()}/media/${item.primary_image_media_id}/view`}
                                     alt={itemName}
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
@@ -788,30 +914,30 @@ const CafeMenu: React.FC = () => {
                                 </div>
                               ) : (
                                 <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                                  <Coffee className="w-12 h-12 text-slate-400" />
+                                  <Coffee className="w-8 h-8 text-slate-400" />
                                 </div>
                               )}
 
-                              <div className="p-3">
-                                <h4 className="font-semibold text-slate-800 mb-1 line-clamp-1">{itemName}</h4>
+                              <div className="p-2.5">
+                                <h4 className="text-sm font-semibold text-slate-800 mb-1 line-clamp-1">{itemName}</h4>
                                 {itemDesc && (
-                                  <p className="text-xs text-slate-500 mb-2 line-clamp-2">{itemDesc}</p>
+                                  <p className="text-[11px] text-slate-500 mb-2 line-clamp-2 min-h-[32px]">{itemDesc}</p>
                                 )}
-                                
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-bold text-blue-600">
-                                      {item.price?.toLocaleString()}đ
+
+                                <div className="flex items-center justify-between mb-2.5 min-h-[24px]">
+                                  <div className="flex items-baseline gap-1.5">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {item.price?.toLocaleString()} VND
                                     </span>
-                                    {item.original_price && item.original_price > item.price && (
-                                      <span className="text-xs text-slate-400 line-through">
-                                        {item.original_price.toLocaleString()}đ
+                                    {item.original_price !== undefined && item.price !== undefined && item.original_price > item.price && (
+                                      <span className="text-[10px] text-slate-400 line-through">
+                                        {item.original_price.toLocaleString()} VND
                                       </span>
                                     )}
                                   </div>
                                   {item.status !== 'available' && (
-                                    <Tag color={item.status === 'sold_out' ? 'red' : 'orange'} className="text-xs">
-                                      {item.status === 'sold_out' ? 'Hết' : 'Ngừng'}
+                                    <Tag color={item.status === 'sold_out' ? 'red' : 'orange'} className="m-0 text-[10px] leading-none">
+                                      {item.status === 'sold_out' ? 'Sold Out' : 'Unavailable'}
                                     </Tag>
                                   )}
                                 </div>
@@ -821,22 +947,22 @@ const CafeMenu: React.FC = () => {
                                     size="small"
                                     onClick={() => handleEditMenuItem(item)}
                                     icon={<Edit className="w-3 h-3" />}
-                                    className="flex-1 text-xs"
+                                    className="flex-1 text-xs px-2"
                                   >
-                                    Sửa
+                                    Edit
                                   </Button>
                                   <Popconfirm
-                                    title="Xóa món này?"
+                                    title="Delete this item?"
                                     onConfirm={() => handleDeleteMenuItem(item.id)}
-                                    okText="Xóa"
-                                    cancelText="Hủy"
+                                    okText="Delete"
+                                    cancelText="Cancel"
                                     okButtonProps={{ danger: true }}
                                   >
                                     <Button
                                       size="small"
                                       danger
                                       icon={<Trash2 className="w-3 h-3" />}
-                                      className="text-xs"
+                                      className="text-xs px-2"
                                     />
                                   </Popconfirm>
                                 </div>
@@ -857,7 +983,7 @@ const CafeMenu: React.FC = () => {
       {/* Category Modal */}
       {categoryModalVisible && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             {/* Header - Sticky */}
             <div className="border-b border-slate-200 p-6 flex items-center justify-between bg-white sticky top-0 z-10">
               <h3 className="text-xl font-bold text-slate-800">
@@ -865,30 +991,35 @@ const CafeMenu: React.FC = () => {
               </h3>
               <button
                 onClick={handleCategoryModalClose}
-                className="text-slate-400 hover:text-slate-600 text-2xl transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-md text-2xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               >
-                ✕
+                <FontAwesomeIcon icon={faXmark} />
               </button>
             </div>
 
             {/* Content - Scrollable */}
-            <div className="overflow-y-auto flex-1 p-6">
+            <div className="p-6">
               {/* Language Tabs */}
-              <div className="flex gap-2 mb-6 border-b border-slate-200">
-                {supportedLanguages.map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => setCurrentCategoryLocale(lang)}
-                    className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-                      currentCategoryLocale === lang
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-600 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="text-lg">{LANGUAGE_CONFIG[lang]?.flag}</span>
-                    {LANGUAGE_CONFIG[lang]?.name}
-                  </button>
-                ))}
+              <div className="mb-6 overflow-x-auto border-b border-slate-200">
+                <div className="flex w-max min-w-full gap-2 whitespace-nowrap pr-2">
+                  {supportedLanguages.map(lang => {
+                    const languageDisplay = getLanguageDisplay(lang);
+
+                    return (
+                      <button
+                        key={lang}
+                        onClick={() => setCurrentCategoryLocale(lang)}
+                        className={`shrink-0 px-3 py-1.5 text-sm font-medium border-b-2 transition-colors ${
+                          currentCategoryLocale === lang
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-800'
+                        }`}
+                      >
+                        {languageDisplay.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <Form
@@ -911,7 +1042,7 @@ const CafeMenu: React.FC = () => {
                           [currentCategoryLocale]: { ...prev[currentCategoryLocale], locale: currentCategoryLocale, name: e.target.value }
                         }));
                       }}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -929,7 +1060,7 @@ const CafeMenu: React.FC = () => {
                           [currentCategoryLocale]: { ...prev[currentCategoryLocale], locale: currentCategoryLocale, description: e.target.value }
                         }));
                       }}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
@@ -942,7 +1073,7 @@ const CafeMenu: React.FC = () => {
                       placeholder="e.g., CAT-01"
                       defaultValue={editingCategory?.code || ''}
                       onChange={(e) => categoryForm.setFieldValue('code', e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -951,17 +1082,15 @@ const CafeMenu: React.FC = () => {
                     <InputNumber 
                       min={1}
                       className="w-full"
-                      defaultValue={editingCategory?.display_order || 1}
+                      value={selectedCategoryDisplayOrder}
                       onChange={(value) => categoryForm.setFieldValue('display_order', value)}
                     />
                   </div>
 
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                      Status
-                    </label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
                     <Select
-                      defaultValue={editingCategory?.is_active ? 'active' : 'inactive'}
+                      value={(selectedCategoryStatus ?? true) ? 'active' : 'inactive'}
                       onChange={(value) => categoryForm.setFieldValue('is_active', value === 'active')}
                       className="w-full"
                     >
@@ -974,40 +1103,44 @@ const CafeMenu: React.FC = () => {
                 {/* Image Section */}
                 <div className="mt-6 space-y-4">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    🖼️ Category Image
+                    <FontAwesomeIcon icon={faImages} />
+                    Category Image
                   </label>
                   <div className="mb-3">
-                    <Button 
+                    <button
+                      type="button"
                       onClick={handleOpenMediaPickerForCategory}
-                      type="primary"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
                     >
+                      <FontAwesomeIcon icon={faImages} />
                       Select Image
-                    </Button>
+                    </button>
                   </div>
                   {selectedCategoryIconId && (
-                    <div className="mt-4">
+                    <div className="mt-4 grid grid-cols-4 gap-3">
                       <div className="relative group">
                         <img 
                           src={`${getApiBaseUrl()}/media/${selectedCategoryIconId}/view`}
                           alt="Category Image"
                           className="w-full h-24 object-cover rounded-md border-2 border-slate-200"
                         />
-                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center gap-2">
-                          <Button
-                            danger
-                            size="small"
+                        <div className="absolute top-1 left-1 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                          Primary
+                        </div>
+                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                          <button
+                            type="button"
                             onClick={() => setSelectedCategoryIconId(null)}
-                            className="bg-red-600 text-white hover:bg-red-700"
+                            className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                           >
                             Remove
-                          </Button>
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
                   <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-                    <span>ℹ️</span>
+                    <span>Info</span>
                     <span>Recommended: Square image (1:1 ratio) for best display</span>
                   </p>
                 </div>
@@ -1016,19 +1149,20 @@ const CafeMenu: React.FC = () => {
 
             {/* Footer - Sticky */}
             <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
-              <Button 
+              <button
+                type="button"
                 onClick={handleCategoryModalClose}
-                className="px-6 py-2 border border-slate-600 text-slate-600 hover:bg-slate-50"
+                className="rounded-md border border-slate-600 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Cancel
-              </Button>
-              <Button
-                type="primary"
+              </button>
+              <button
+                type="button"
                 onClick={() => categoryForm.submit()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+                className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
               >
                 Save
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -1037,7 +1171,7 @@ const CafeMenu: React.FC = () => {
       {/* Menu Item Modal */}
       {menuItemModalVisible && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             {/* Header - Sticky */}
             <div className="border-b border-slate-200 p-6 flex items-center justify-between bg-white sticky top-0 z-10">
               <h3 className="text-xl font-bold text-slate-800">
@@ -1045,30 +1179,35 @@ const CafeMenu: React.FC = () => {
               </h3>
               <button
                 onClick={handleMenuItemModalClose}
-                className="text-slate-400 hover:text-slate-600 text-2xl transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-md text-2xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               >
-                ✕
+                <FontAwesomeIcon icon={faXmark} />
               </button>
             </div>
 
             {/* Content - Scrollable */}
-            <div className="overflow-y-auto flex-1 p-6">
+            <div className="p-6">
               {/* Language Tabs */}
-              <div className="flex gap-2 mb-6 border-b border-slate-200 pb-0">
-                {supportedLanguages.map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => setCurrentItemLocale(lang)}
-                    className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-                      currentItemLocale === lang
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-600 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="text-lg">{LANGUAGE_CONFIG[lang]?.flag}</span>
-                    {LANGUAGE_CONFIG[lang]?.name}
-                  </button>
-                ))}
+              <div className="mb-6 overflow-x-auto border-b border-slate-200 pb-0">
+                <div className="flex w-max min-w-full gap-2 whitespace-nowrap pr-2">
+                  {supportedLanguages.map(lang => {
+                    const languageDisplay = getLanguageDisplay(lang);
+
+                    return (
+                      <button
+                        key={lang}
+                        onClick={() => setCurrentItemLocale(lang)}
+                        className={`shrink-0 px-3 py-1.5 text-sm font-medium flex items-center gap-1.5 border-b-2 transition-colors ${
+                          currentItemLocale === lang
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-800'
+                        }`}
+                      >
+                        {languageDisplay.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <Form
@@ -1138,8 +1277,8 @@ const CafeMenu: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-2">Category *</label>
                     <Select 
                       placeholder="Select category"
-                      defaultValue={editingMenuItem?.category_id}
-                      onChange={(value) => menuItemForm.setFieldValue('category_id', value)}
+                      value={menuItemState.category_id}
+                      onChange={(value) => updateMenuItemField('category_id', value)}
                       className="w-full"
                     >
                       {categories.map((cat) => {
@@ -1157,8 +1296,8 @@ const CafeMenu: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-2">Code (Internal)</label>
                     <Input
                       placeholder="e.g., ITEM-01"
-                      defaultValue={editingMenuItem?.code || ''}
-                      onChange={(e) => menuItemForm.setFieldValue('code', e.target.value)}
+                      value={menuItemState.code ?? ''}
+                      onChange={(e) => updateMenuItemField('code', e.target.value)}
                       className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -1168,10 +1307,10 @@ const CafeMenu: React.FC = () => {
                     <InputNumber 
                       min={0}
                       className="w-full"
-                      defaultValue={editingMenuItem?.price}
-                      onChange={(value) => menuItemForm.setFieldValue('price', value)}
+                      value={menuItemState.price}
+                      onChange={(value) => updateMenuItemField('price', value === null ? undefined : Number(value))}
                       formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                      parser={(value) => Number((value ?? '').replace(/\$\s?|(,*)/g, ''))}
                     />
                   </div>
 
@@ -1180,18 +1319,18 @@ const CafeMenu: React.FC = () => {
                     <InputNumber 
                       min={0}
                       className="w-full"
-                      defaultValue={editingMenuItem?.original_price}
-                      onChange={(value) => menuItemForm.setFieldValue('original_price', value)}
+                      value={menuItemState.original_price}
+                      onChange={(value) => updateMenuItemField('original_price', value === null ? undefined : Number(value))}
                       formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                      parser={(value) => Number((value ?? '').replace(/\$\s?|(,*)/g, ''))}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
                     <Select 
-                      defaultValue={editingMenuItem?.status || 'available'}
-                      onChange={(value) => menuItemForm.setFieldValue('status', value)}
+                      value={menuItemState.status ?? 'available'}
+                      onChange={(value) => updateMenuItemField('status', value)}
                       className="w-full"
                     >
                       <Select.Option value="available">Available</Select.Option>
@@ -1205,8 +1344,8 @@ const CafeMenu: React.FC = () => {
                     <InputNumber 
                       min={1}
                       className="w-full"
-                      defaultValue={editingMenuItem?.display_order || 1}
-                      onChange={(value) => menuItemForm.setFieldValue('display_order', value)}
+                      value={menuItemState.display_order}
+                      onChange={(value) => updateMenuItemField('display_order', value === null ? undefined : Number(value))}
                     />
                   </div>
 
@@ -1215,39 +1354,33 @@ const CafeMenu: React.FC = () => {
                     <InputNumber 
                       min={0}
                       className="w-full"
-                      defaultValue={editingMenuItem?.calories}
-                      onChange={(value) => menuItemForm.setFieldValue('calories', value)}
+                      value={menuItemState.calories}
+                      onChange={(value) => updateMenuItemField('calories', value === null ? undefined : Number(value))}
                     />
                   </div>
 
-                  <div>
+                  <div className="flex flex-row flex-wrap items-center gap-4">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                       <input 
                         type="checkbox" 
-                        defaultChecked={editingMenuItem?.is_bestseller} 
-                        onChange={(e) => menuItemForm.setFieldValue('is_bestseller', e.target.checked)}
+                        checked={menuItemState.is_bestseller ?? false}
+                        onChange={(e) => updateMenuItemField('is_bestseller', e.target.checked)}
                       />
                       Bestseller
                     </label>
-                  </div>
-
-                  <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                       <input 
                         type="checkbox" 
-                        defaultChecked={editingMenuItem?.is_new} 
-                        onChange={(e) => menuItemForm.setFieldValue('is_new', e.target.checked)}
+                        checked={menuItemState.is_new ?? false}
+                        onChange={(e) => updateMenuItemField('is_new', e.target.checked)}
                       />
                       New Item
                     </label>
-                  </div>
-
-                  <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                       <input 
                         type="checkbox" 
-                        defaultChecked={editingMenuItem?.is_seasonal} 
-                        onChange={(e) => menuItemForm.setFieldValue('is_seasonal', e.target.checked)}
+                        checked={menuItemState.is_seasonal ?? false}
+                        onChange={(e) => updateMenuItemField('is_seasonal', e.target.checked)}
                       />
                       Seasonal
                     </label>
@@ -1256,11 +1389,6 @@ const CafeMenu: React.FC = () => {
 
                 {/* Item Image Section */}
                 <div className="mt-6 space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    <FontAwesomeIcon icon={faImages} />
-                    Dining Images
-                  </label>
-                  
                   <div className="mb-3">
                     <button
                       type="button"
@@ -1324,14 +1452,14 @@ const CafeMenu: React.FC = () => {
             <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
               <Button 
                 onClick={handleMenuItemModalClose}
-                className="px-6 py-2 border border-slate-600 text-slate-600 hover:bg-slate-50"
+                className="rounded-md border border-slate-600 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </Button>
               <Button
                 type="primary"
                 onClick={() => menuItemForm.submit()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+                className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 Save
               </Button>
@@ -1369,3 +1497,4 @@ const CafeMenu: React.FC = () => {
 };
 
 export default CafeMenu;
+

@@ -20,6 +20,38 @@ from app.models.cafe import (
 router = APIRouter()
 
 
+def _get_primary_branch_translation(translations: List["BranchTranslationSchema"]) -> Optional["BranchTranslationSchema"]:
+    for locale in ["vi", "en"]:
+        for translation in translations:
+            if translation.locale == locale and translation.name:
+                return translation
+
+    return next((translation for translation in translations if translation.name), None)
+
+
+def _get_primary_opening_hours(attributes_json: Optional[dict]) -> Optional[str]:
+    if not attributes_json:
+        return None
+
+    opening_hours_by_locale = attributes_json.get("opening_hours_by_locale")
+    if isinstance(opening_hours_by_locale, dict):
+        for locale in ["vi", "en"]:
+            value = opening_hours_by_locale.get(locale)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        for value in opening_hours_by_locale.values():
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    for key in ["opening_hours_vi", "opening_hours", "hours"]:
+        value = attributes_json.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return None
+
+
 # ==========================================
 # Pydantic Schemas
 # ==========================================
@@ -30,6 +62,7 @@ class BranchTranslationSchema(BaseModel):
     name: str
     address: Optional[str] = None
     description: Optional[str] = None
+    amenities_text: Optional[str] = None
 
 
 class BranchMediaSchema(BaseModel):
@@ -44,6 +77,9 @@ class CafeBranchResponse(BaseModel):
     id: int
     tenant_id: int
     code: str
+    name: Optional[str] = None
+    address: Optional[str] = None
+    opening_hours: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     latitude: Optional[float] = None
@@ -62,6 +98,7 @@ class CafeBranchResponse(BaseModel):
 class CafeBranchCreate(BaseModel):
     """Cafe Branch Create"""
     code: str
+    opening_hours: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     latitude: Optional[float] = None
@@ -80,6 +117,7 @@ class CafeBranchCreate(BaseModel):
 class CafeBranchUpdate(BaseModel):
     """Cafe Branch Update"""
     code: Optional[str] = None
+    opening_hours: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     latitude: Optional[float] = None
@@ -124,7 +162,8 @@ def get_branch_with_relations(branch_id: int, db: Session) -> dict:
                 locale=t.locale,
                 name=t.name,
                 address=t.address,
-                description=t.description
+                description=t.description,
+                amenities_text=t.amenities_text
             ) for t in translations
         ],
         "media": [
@@ -198,16 +237,24 @@ def create_branch(
     """
     # Check if code already exists
     existing = db.exec(
-        select(CafeBranch).where(CafeBranch.code == branch_data.code)
+        select(CafeBranch).where(
+            CafeBranch.tenant_id == current_user.tenant_id,
+            CafeBranch.code == branch_data.code
+        )
     ).first()
     
     if existing:
         raise HTTPException(status_code=400, detail="Branch code already exists")
+
+    primary_translation = _get_primary_branch_translation(branch_data.translations)
     
     # Create branch
     new_branch = CafeBranch(
         tenant_id=current_user.tenant_id,
         code=branch_data.code,
+        name=primary_translation.name if primary_translation else branch_data.code,
+        address=primary_translation.address if primary_translation else None,
+        opening_hours=branch_data.opening_hours or _get_primary_opening_hours(branch_data.attributes_json),
         phone=branch_data.phone,
         email=branch_data.email,
         latitude=branch_data.latitude,
@@ -227,14 +274,15 @@ def create_branch(
     
     # Add translations
     for trans in branch_data.translations:
-        translation = CafeBranchTranslation(
-            branch_id=new_branch.id,
-            locale=trans.locale,
-            name=trans.name,
-            address=trans.address,
-            description=trans.description
-        )
-        db.add(translation)
+            translation = CafeBranchTranslation(
+                branch_id=new_branch.id,
+                locale=trans.locale,
+                name=trans.name,
+                address=trans.address,
+                description=trans.description,
+                amenities_text=trans.amenities_text
+            )
+            db.add(translation)
     
     # Add media
     if branch_data.media_ids:
@@ -267,9 +315,21 @@ def update_branch(
     
     if not branch or branch.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Branch not found")
+
+    update_data = branch_data.model_dump(exclude_unset=True, exclude={'translations', 'media_ids'})
+    if branch_data.translations is not None:
+        primary_translation = _get_primary_branch_translation(branch_data.translations)
+        if primary_translation:
+            update_data["name"] = primary_translation.name
+            update_data["address"] = primary_translation.address
+
+    if branch_data.attributes_json is not None and "opening_hours" not in update_data:
+        derived_opening_hours = _get_primary_opening_hours(branch_data.attributes_json)
+        if derived_opening_hours is not None:
+            update_data["opening_hours"] = derived_opening_hours
     
     # Update branch fields
-    for key, value in branch_data.model_dump(exclude_unset=True, exclude={'translations', 'media_ids'}).items():
+    for key, value in update_data.items():
         if value is not None:
             setattr(branch, key, value)
             if key == 'attributes_json':
@@ -290,6 +350,7 @@ def update_branch(
             select(CafeBranchTranslation).where(CafeBranchTranslation.branch_id == branch_id)
         ).all():
             db.delete(existing_trans)
+        db.flush()
         
         # Add new translations
         for trans in branch_data.translations:
@@ -298,7 +359,8 @@ def update_branch(
                 locale=trans.locale,
                 name=trans.name,
                 address=trans.address,
-                description=trans.description
+                description=trans.description,
+                amenities_text=trans.amenities_text
             )
             db.add(translation)
     
@@ -309,6 +371,7 @@ def update_branch(
             select(CafeBranchMedia).where(CafeBranchMedia.branch_id == branch_id)
         ).all():
             db.delete(existing_media)
+        db.flush()
         
         # Add new media
         for idx, media_id in enumerate(branch_data.media_ids):

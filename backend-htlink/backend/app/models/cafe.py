@@ -139,6 +139,9 @@ class CafeBranch(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     code: str = Field(unique=True, index=True)
+    name: Optional[str] = None
+    address: Optional[str] = None
+    opening_hours: Optional[str] = None
     
     # Contact
     phone: Optional[str] = None
@@ -179,6 +182,7 @@ class CafeBranchTranslation(SQLModel, table=True):
     name: str
     address: Optional[str] = None
     description: Optional[str] = None
+    amenities_text: Optional[str] = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

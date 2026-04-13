@@ -6,12 +6,33 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
-// API Base Configuration
-const API_BASE_URL = getApiBaseUrl();
+const resolveCafeBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'backend') {
+    return '/api/v1';
+  }
+
+  return getApiBaseUrl();
+};
+
+const buildCafeDirectConfig = () => {
+  const token = localStorage.getItem('access_token');
+  const tenantCode = localStorage.getItem('tenant_code') || 'demo';
+
+  return {
+    timeout: 10000,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Tenant-Code': tenantCode,
+    },
+  };
+};
 
 // Create axios instance for Cafe
 const cafeClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: resolveCafeBaseUrl(),
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -26,6 +47,10 @@ cafeClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = localStorage.getItem('tenant_code') || 'demo';
+
+    // Resolve the base URL on every request so the browser never keeps a stale
+    // Docker-internal hostname like http://backend:8000.
+    config.baseURL = resolveCafeBaseUrl();
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -72,26 +97,26 @@ export interface CafeSettings {
   slogan?: string;
   primary_color: string;
   background_color?: string;
-  logo_media_id?: number;
-  favicon_media_id?: number;
-  booking_url?: string;
-  messenger_url?: string;
-  phone_number?: string;
+  logo_media_id?: number | null;
+  favicon_media_id?: number | null;
+  booking_url?: string | null;
+  messenger_url?: string | null;
+  phone_number?: string | null;
   
   // Contact information
-  address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  facebook_url?: string;
-  instagram_url?: string;
-  youtube_url?: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  facebook_url?: string | null;
+  instagram_url?: string | null;
+  youtube_url?: string | null;
   
   // SEO
-  meta_title?: string;
-  meta_description?: string;
-  meta_keywords?: string;
-  meta_image_media_id?: number;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  meta_keywords?: string | null;
+  meta_image_media_id?: number | null;
   
   // Settings JSON
   settings_json?: Record<string, any>;
@@ -180,6 +205,7 @@ export interface MenuItemCreate {
   is_seasonal?: boolean;
   display_order?: number;
   calories?: number;
+  media_ids?: number[];
   translations: ItemTranslation[];
 }
 
@@ -191,6 +217,7 @@ export interface BranchTranslation {
   name: string;
   address?: string;
   description?: string;
+  amenities_text?: string;
 }
 
 export interface EventTranslation {
@@ -232,6 +259,10 @@ export interface ContentSectionTranslation {
 export interface Branch {
   id: number;
   tenant_id: number;
+  code?: string;
+  name?: string;
+  address?: string;
+  opening_hours?: string;
   name_vi: string;
   name_en?: string;
   address_vi?: string;
@@ -244,6 +275,11 @@ export interface Branch {
   map_longitude?: number;
   google_map_url?: string;
   image_media_id?: number;
+  primary_image_media_id?: number;
+  google_maps_url?: string;
+  vr360_link?: string;
+  is_primary?: boolean;
+  attributes_json?: Record<string, unknown> | null;
   display_order: number;
   is_active: boolean;
   created_at: string;
@@ -254,6 +290,7 @@ export interface Branch {
 export interface BranchCreate {
   name_vi: string;
   name_en?: string;
+  opening_hours?: string;
   address_vi?: string;
   address_en?: string;
   phone?: string;
@@ -407,6 +444,13 @@ export interface Space {
   created_at: string;
   updated_at: string;
   translations?: SpaceTranslation[];
+  media?: SpaceMedia[];
+}
+
+export interface SpaceMedia {
+  media_id: number;
+  is_primary: boolean;
+  sort_order: number;
 }
 
 export interface SpaceCreate {
@@ -419,6 +463,7 @@ export interface SpaceCreate {
   display_order?: number;
   attributes_json?: Record<string, any>;
   translations: SpaceTranslation[];
+  media_ids?: number[];
 }
 
 export interface SpaceUpdate extends Partial<SpaceCreate> {}
@@ -468,12 +513,12 @@ export interface LanguageCreate {
 
 export const cafeSettingsApi = {
   getSettings: async (): Promise<CafeSettings> => {
-    const response = await cafeClient.get('/cafe/settings');
+    const response = await cafeClient.get('/cafe/settings/');
     return response.data;
   },
 
   updateSettings: async (data: CafeSettingsUpdate): Promise<CafeSettings> => {
-    const response = await cafeClient.post('/cafe/settings', data);
+    const response = await cafeClient.post('/cafe/settings/', data);
     return response.data;
   },
 };
@@ -507,12 +552,12 @@ export interface CafeContactUpdate extends Partial<CafeContact> {}
 
 export const cafeContactApi = {
   getContact: async (): Promise<CafeContact> => {
-    const response = await cafeClient.get('/cafe/contact');
+    const response = await cafeClient.get('/cafe/contact/');
     return response.data;
   },
 
   updateContact: async (data: CafeContactUpdate): Promise<CafeContact> => {
-    const response = await cafeClient.post('/cafe/contact', data);
+    const response = await cafeClient.post('/cafe/contact/', data);
     return response.data;
   },
 };
@@ -1039,35 +1084,43 @@ export const cafeAuditLogsApi = {
 
 export const cafeSpacesApi = {
   getSpaces: async (): Promise<Space[]> => {
-    const response = await cafeClient.get('/cafe/spaces');
+    const response = await axios.get(`${resolveCafeBaseUrl()}/cafe/spaces`, buildCafeDirectConfig());
     return response.data;
   },
 
   getSpace: async (id: number): Promise<Space> => {
-    const response = await cafeClient.get(`/cafe/spaces/${id}`);
+    const response = await axios.get(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, buildCafeDirectConfig());
     return response.data;
   },
 
   createSpace: async (data: SpaceCreate): Promise<Space> => {
-    const response = await cafeClient.post('/cafe/spaces', data);
+    const response = await axios.post(`${resolveCafeBaseUrl()}/cafe/spaces`, data, buildCafeDirectConfig());
     return response.data;
   },
 
   updateSpace: async (id: number, data: SpaceUpdate): Promise<Space> => {
-    const response = await cafeClient.put(`/cafe/spaces/${id}`, data);
+    const response = await axios.put(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, data, buildCafeDirectConfig());
     return response.data;
   },
 
   deleteSpace: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/spaces/${id}`);
+    await axios.delete(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, buildCafeDirectConfig());
   },
 
   reorderSpaces: async (spaceIds: number[]): Promise<void> => {
-    await cafeClient.post('/cafe/spaces/reorder', { space_ids: spaceIds });
+    await axios.post(
+      `${resolveCafeBaseUrl()}/cafe/spaces/reorder`,
+      { space_ids: spaceIds },
+      buildCafeDirectConfig()
+    );
   },
 
   updateSpaceTranslations: async (id: number, translations: SpaceTranslation[]): Promise<Space> => {
-    const response = await cafeClient.put(`/cafe/spaces/${id}`, { translations });
+    const response = await axios.put(
+      `${resolveCafeBaseUrl()}/cafe/spaces/${id}`,
+      { translations },
+      buildCafeDirectConfig()
+    );
     return response.data;
   },
 };
