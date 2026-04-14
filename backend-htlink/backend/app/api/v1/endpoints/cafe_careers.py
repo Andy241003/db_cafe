@@ -248,6 +248,8 @@ def update_career(
             select(CafeCareerTranslation).where(CafeCareerTranslation.career_id == career_id)
         ).all():
             db.delete(existing_trans)
+
+        db.flush()
         
         for trans in career_data.translations:
             translation = CafeCareerTranslation(

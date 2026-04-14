@@ -7,10 +7,6 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 const resolveCafeBaseUrl = (): string => {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'backend') {
-    return '/api/v1';
-  }
-
   return getApiBaseUrl();
 };
 
@@ -407,41 +403,52 @@ export interface CareerCreate {
 
 export interface CareerUpdate extends Partial<CareerCreate> {}
 // Promotion Types
+export interface PromotionMedia {
+  media_id: number;
+  is_primary: boolean;
+  sort_order: number;
+}
+
 export interface Promotion {
   id: number;
   tenant_id: number;
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  discount_type?: string;
-  discount_value?: number;
-  valid_from?: string;
-  valid_to?: string;
-  terms_vi?: string;
-  terms_en?: string;
-  image_media_id?: number;
+  code: string;
+  promotion_type: 'percentage' | 'fixed_amount' | 'buy_one_get_one' | 'gift';
+  discount_value?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  applicable_menu_items?: Record<string, unknown> | null;
+  applicable_categories?: Record<string, unknown> | null;
+  applicable_branches?: Record<string, unknown> | null;
+  min_purchase_amount?: number | null;
+  primary_image_media_id?: number | null;
+  is_active: boolean;
+  is_featured: boolean;
   display_order: number;
-  status: 'active' | 'inactive' | 'expired';
-  created_at: string;
+  attributes_json?: Record<string, unknown> | null;
+  created_at?: string;
   updated_at?: string;
   translations?: PromotionTranslation[];
+  media?: PromotionMedia[];
 }
 
 export interface PromotionCreate {
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  discount_type?: string;
-  discount_value?: number;
-  valid_from?: string;
-  valid_to?: string;
-  terms_vi?: string;
-  terms_en?: string;
-  image_media_id?: number;
+  code: string;
+  promotion_type?: 'percentage' | 'fixed_amount' | 'buy_one_get_one' | 'gift';
+  discount_value?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  applicable_menu_items?: Record<string, unknown> | null;
+  applicable_categories?: Record<string, unknown> | null;
+  applicable_branches?: Record<string, unknown> | null;
+  min_purchase_amount?: number | null;
+  primary_image_media_id?: number | null;
+  is_active?: boolean;
+  is_featured?: boolean;
   display_order?: number;
-  status?: 'active' | 'inactive' | 'expired';
+  attributes_json?: Record<string, unknown> | null;
+  translations: PromotionTranslation[];
+  media_ids?: number[];
 }
 
 export interface PromotionUpdate extends Partial<PromotionCreate> {}
@@ -800,7 +807,7 @@ export const cafeCareersApi = {
 
 export const cafePromotionsApi = {
   getPromotions: async (): Promise<Promotion[]> => {
-    const response = await cafeClient.get('/cafe/promotions');
+    const response = await cafeClient.get('/cafe/promotions/');
     return response.data;
   },
 
@@ -810,7 +817,7 @@ export const cafePromotionsApi = {
   },
 
   createPromotion: async (data: PromotionCreate): Promise<Promotion> => {
-    const response = await cafeClient.post('/cafe/promotions', data);
+    const response = await cafeClient.post('/cafe/promotions/', data);
     return response.data;
   },
 

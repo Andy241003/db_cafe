@@ -27,8 +27,6 @@ const CafeLayout: React.FC = () => {
         return { title: 'Menu Management', breadcrumb: 'Cafe / Menu' };
        case '/space':
         return { title: 'Space', breadcrumb: 'Cafe / Space' };
-      case '/services':
-        return { title: 'Services', breadcrumb: 'Cafe / Services' };
       case '/branches':
         return { title: 'Branches', breadcrumb: 'Cafe / Branches' };
       case '/events':

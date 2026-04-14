@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, HTTPException, Depends
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, CurrentSuperUser, CurrentTenantId
+from app.api.deps import CurrentUser, SessionDep, CurrentSuperUser
 from app.models import Tenant
 from app.schemas import TenantCreate, TenantResponse, TenantUpdate
 
@@ -15,12 +15,11 @@ router = APIRouter()
 def read_current_tenant(
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
 ) -> Any:
     """
     Get current tenant information.
     """
-    tenant = crud.tenant.get(session, id=tenant_id)
+    tenant = crud.tenant.get(session, id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     return tenant
@@ -31,7 +30,6 @@ def update_current_tenant(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
     tenant_in: TenantUpdate,
 ) -> Any:
     """
@@ -41,7 +39,7 @@ def update_current_tenant(
     if current_user.role not in ["OWNER", "ADMIN"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    tenant = crud.tenant.get(session, id=tenant_id)
+    tenant = crud.tenant.get(session, id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     
@@ -98,7 +96,7 @@ def update_tenant(
     """
     Update a tenant. Only superusers can update tenants.
     """
-    tenant = crud.tenant.get(session, id=tenant_id)
+    tenant = crud.tenant.get(session, id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     
@@ -124,7 +122,7 @@ def read_tenant(
     """
     Get tenant by ID. Superusers can access any tenant, regular users only their own.
     """
-    tenant = crud.tenant.get(session, id=tenant_id)
+    tenant = crud.tenant.get(session, id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     
@@ -145,7 +143,7 @@ def delete_tenant(
     """
     Delete a tenant. Only superusers can delete tenants.
     """
-    tenant = crud.tenant.get(session, id=tenant_id)
+    tenant = crud.tenant.get(session, id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     

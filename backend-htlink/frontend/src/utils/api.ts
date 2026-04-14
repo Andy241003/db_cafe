@@ -43,15 +43,7 @@ export const getApiBaseUrl = (): string => {
     return 'https://travel.link360.vn/api/v1';
   }
 
-  // For old production domains or backend domain itself
-  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn') || hostname.includes('trip360.vn')) {
-    return `https://${hostname}/api/v1`;
-  }
-
-  // For any HTTPS site, use same origin with HTTPS
-  if (protocol === 'https:' && !hostname.includes('localhost')) {
-    return `${protocol}//${hostname}/api/v1`;
-  }
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '');
 
   // If we are running on localhost or 127.0.0.1, rely on the Vite/dev proxy or current origin.
   if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
@@ -60,15 +52,23 @@ export const getApiBaseUrl = (): string => {
 
   // If VITE_API_URL explicitly points to the internal Docker backend hostname,
   // do not expose that to the browser from a non-Docker client.
-  const configuredUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '');
   if (configuredUrl && configuredUrl.includes('backend:8000') && hostname !== 'backend') {
     return '/api/v1';
   }
 
-  // If VITE_API_URL is explicitly set in production and we're not on localhost,
-  // use the configured backend URL.
+  // If VITE_API_URL is explicitly set in production, prefer it over hostname inference.
   if (configuredUrl) {
     return normalizeApiBaseUrl(configuredUrl) || '/api/v1';
+  }
+
+  // For old production domains or backend domain itself
+  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn') || hostname.includes('trip360.vn')) {
+    return `https://${hostname}/api/v1`;
+  }
+
+  // For any HTTPS site, use same origin with HTTPS
+  if (protocol === 'https:' && !hostname.includes('localhost')) {
+    return `${protocol}//${hostname}/api/v1`;
   }
 
   // For non-localhost HTTP environments, use same origin as a fallback.

@@ -1,146 +1,397 @@
-import { Button, DatePicker, Form, Input, InputNumber, message, Modal, Select, Switch, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+
+import {
+  faCalendarAlt,
+  faCircleInfo,
+  faEye,
+  faImage,
+  faImages,
+  faInfoCircle,
+  faMoneyBillWave,
+  faPenToSquare,
+  faPercent,
+  faPlus,
+  faTag,
+  faTimes,
+  faTrashCan,
+  faVrCardboard,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
-import { Edit, Eye, EyeOff, Languages, Percent, Plus, Tag as TagIcon, Trash2, Glasses, Play, Info } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import TranslationModal from '../../components/TranslationModal';
-import { cafePromotionsApi, cafeLanguagesApi, cafeSettingsApi, type Promotion as ApiPromotion, type PromotionTranslation } from '../../services/cafeApi';
+import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import MediaPickerModal from '../../components/MediaPickerModal';
+import {
+  cafeBranchesApi,
+  cafeLanguagesApi,
+  cafePromotionsApi,
+  cafeSettingsApi,
+  type Branch,
+  type Promotion,
+  type PromotionCreate,
+  type PromotionTranslation,
+} from '../../services/cafeApi';
 
-const { TextArea } = Input;
-const { RangePicker } = DatePicker;
+const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
+const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
+const SECTION_CLASS = 'rounded-lg bg-white p-6 shadow';
 
-interface Promotion {
-  id: number;
+type PromotionTypeValue = 'percentage' | 'fixed_amount' | 'buy_one_get_one' | 'gift';
+
+type PromotionLocalizedFields = {
   title: string;
-  description?: string;
-  promotion_type: 'percentage' | 'fixed_amount' | 'buy_x_get_y' | 'combo';
-  discount_value?: number;
-  valid_from: string;
-  valid_to: string;
-  is_displaying: boolean;
+  description: string;
+  terms_and_conditions: string;
+};
+
+type EditablePromotion = {
+  id?: number;
+  code: string;
+  promotion_type: PromotionTypeValue;
+  discount_value: string;
+  start_date: string;
+  end_date: string;
+  min_purchase_amount: string;
+  primary_image_media_id?: number;
+  media_ids: number[];
+  is_active: boolean;
   is_featured: boolean;
-  terms_conditions?: string;
-  usage_limit?: number;
-  current_usage?: number;
-}
+  display_order: number;
+  branch_id?: number | null;
+  translations: Record<string, PromotionLocalizedFields>;
+};
+
+const getLocaleShortLabel = (locale: string) => {
+  const normalized = locale.toLowerCase();
+  const shortLabels: Record<string, string> = {
+    vi: 'VI',
+    en: 'EN',
+    de: 'DE',
+    zh: 'ZH',
+    'zh-tw': 'ZH-TW',
+    yue: 'YUE',
+    ja: 'JA',
+    ko: 'KO',
+    fr: 'FR',
+    ru: 'RU',
+  };
+
+  return shortLabels[normalized] || locale.toUpperCase();
+};
+
+const buildEmptyLocalizedPromotionData = (locales: string[]) =>
+  locales.reduce<Record<string, PromotionLocalizedFields>>((acc, locale) => {
+    acc[locale] = { title: '', description: '', terms_and_conditions: '' };
+    return acc;
+  }, {});
+
+const getPromotionTranslation = (promotion: Promotion, locale: string) =>
+  promotion.translations?.find((translation) => translation.locale === locale);
+
+const getPromotionTitle = (promotion: Promotion) =>
+  getPromotionTranslation(promotion, 'vi')?.title ||
+  getPromotionTranslation(promotion, 'en')?.title ||
+  promotion.translations?.find((translation) => translation.title)?.title ||
+  promotion.code ||
+  'Untitled promotion';
+
+const getPromotionDescription = (promotion: Promotion) =>
+  getPromotionTranslation(promotion, 'vi')?.description ||
+  getPromotionTranslation(promotion, 'en')?.description ||
+  promotion.translations?.find((translation) => translation.description)?.description ||
+  '';
+
+const getBranchName = (branch: Branch) =>
+  branch.translations?.find((translation) => translation.locale === 'vi')?.name ||
+  branch.translations?.find((translation) => translation.locale === 'en')?.name ||
+  branch.name_vi ||
+  branch.name_en ||
+  branch.code ||
+  'Unknown branch';
+
+const getPromotionValueLabel = (promotion: Promotion) => {
+  if (promotion.discount_value == null) return 'No discount value';
+  if (promotion.promotion_type === 'percentage') return `${promotion.discount_value}% off`;
+  return `${promotion.discount_value.toLocaleString('vi-VN')} VND`;
+};
+
+const getPromotionLanguageLabel = (promotion: Promotion) => {
+  const count = promotion.translations?.length || 0;
+  return count > 0 ? `${count} languages` : 'No translations';
+};
+
+const getPromotionImageCountLabel = (promotion: Promotion) => {
+  const count = promotion.media?.length || 0;
+  return count > 0 ? `${count} images` : 'No gallery';
+};
+
+const getPromotionStatusBadge = (promotion: Promotion) => {
+  if (!promotion.is_active) {
+    return { label: 'inactive', className: 'bg-slate-200 text-slate-700' };
+  }
+
+  const now = dayjs();
+  const startDate = promotion.start_date ? dayjs(promotion.start_date) : null;
+  const endDate = promotion.end_date ? dayjs(promotion.end_date) : null;
+
+  if (startDate && now.isBefore(startDate, 'day')) {
+    return { label: 'upcoming', className: 'bg-blue-100 text-blue-700' };
+  }
+
+  if (endDate && now.isAfter(endDate, 'day')) {
+    return { label: 'expired', className: 'bg-slate-200 text-slate-700' };
+  }
+
+  return { label: 'active', className: 'bg-emerald-100 text-emerald-700' };
+};
+
+const getBranchIdFromPromotion = (promotion: Promotion): number | null => {
+  const branchIds = promotion.applicable_branches?.branch_ids;
+  if (Array.isArray(branchIds) && branchIds.length > 0) {
+    const numericId = Number(branchIds[0]);
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+  return null;
+};
+
+const convertToEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+  const match = url.match(youtubeRegex);
+  if (match?.[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return url;
+};
 
 const CafePromotions: React.FC = () => {
+  const [loading, setLoading] = useState(true);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
-  const [form] = Form.useForm();
-
-  // Translation state
-  const [translationModalVisible, setTranslationModalVisible] = useState(false);
-  const [translatingPromotion, setTranslatingPromotion] = useState<ApiPromotion | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
-
-  // Display status state
+  const [currentLocale, setCurrentLocale] = useState('vi');
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
   const [vr360Link, setVr360Link] = useState('');
   const [vrTitle, setVrTitle] = useState('');
   const [savingVR, setSavingVR] = useState(false);
+  const [promotionFilter, setPromotionFilter] = useState<'all' | 'active' | 'inactive' | 'upcoming' | 'expired'>('all');
+  const [editingPromotion, setEditingPromotion] = useState<EditablePromotion | null>(null);
+  const [savingPromotion, setSavingPromotion] = useState(false);
+  const [mediaPickerMode, setMediaPickerMode] = useState<'gallery' | null>(null);
 
   useEffect(() => {
-    loadPromotions();
-    loadLanguageSettings();
+    void loadInitialData();
   }, []);
 
-  const loadLanguageSettings = async () => {
+  const loadInitialData = async () => {
     try {
-      const langs = await cafeLanguagesApi.getLanguageCodes();
-      setSupportedLanguages(langs);
-      
-      // Load display status
-      const settings = await cafeSettingsApi.getSettings();
-      const displayStatus = settings.settings_json?.promotions_is_displaying ?? true;
-      setIsDisplaying(displayStatus);
+      setLoading(true);
+      const [promotionData, languages, settings, branchData] = await Promise.all([
+        cafePromotionsApi.getPromotions(),
+        cafeLanguagesApi.getLanguages(),
+        cafeSettingsApi.getSettings(),
+        cafeBranchesApi.getBranches(),
+      ]);
+
+      const locales = languages.length > 0 ? languages.map((item) => item.locale) : ['vi', 'en'];
+      setSupportedLanguages(locales);
+      setCurrentLocale((previous) => (locales.includes(previous) ? previous : locales[0]));
+      setPromotions(promotionData);
+      setBranches(branchData);
+      setIsDisplaying(settings.settings_json?.promotions_is_displaying ?? true);
       setVr360Link(settings.settings_json?.promotions_vr360_link || '');
       setVrTitle(settings.settings_json?.promotions_vr_title || '');
-    } catch (error) {
-      console.error('Error loading languages:', error);
-    }
-  };
-
-  const loadPromotions = async () => {
-    setLoading(true);
-    try {
-      // Mock data
-      const mockPromotions: Promotion[] = [
-        {
-          id: 1,
-          title: 'Happy Hour - 30% Off',
-          description: 'Get 30% off on all beverages from 2-4 PM',
-          promotion_type: 'percentage',
-          discount_value: 30,
-          valid_from: '2024-02-01T14:00:00',
-          valid_to: '2024-02-28T16:00:00',
-          is_displaying: true,
-          is_featured: true,
-          terms_conditions: 'Valid only during happy hours. Cannot be combined with other offers.',
-          usage_limit: 1000,
-          current_usage: 245
-        },
-        {
-          id: 2,
-          title: 'Buy 2 Get 1 Free',
-          description: 'Buy any 2 drinks and get 1 free pastry',
-          promotion_type: 'buy_x_get_y',
-          valid_from: '2024-02-15T00:00:00',
-          valid_to: '2024-03-15T23:59:59',
-          is_displaying: true,
-          is_featured: false,
-          terms_conditions: 'Free pastry must be of equal or lesser value.',
-          usage_limit: 500,
-          current_usage: 89
-        },
-        {
-          id: 3,
-          title: 'Student Discount',
-          description: '20% off for students with valid ID',
-          promotion_type: 'percentage',
-          discount_value: 20,
-          valid_from: '2024-01-01T00:00:00',
-          valid_to: '2024-12-31T23:59:59',
-          is_displaying: true,
-          is_featured: false,
-          terms_conditions: 'Must present valid student ID. Valid all day.'
-        },
-        {
-          id: 4,
-          title: 'Valentine Special Combo',
-          description: '2 coffees + 2 desserts for 150,000 VND',
-          promotion_type: 'combo',
-          discount_value: 150000,
-          valid_from: '2024-02-10T00:00:00',
-          valid_to: '2024-02-14T23:59:59',
-          is_displaying: false,
-          is_featured: false,
-          terms_conditions: 'Limited availability. While stocks last.',
-          usage_limit: 100,
-          current_usage: 100
-        },
-      ];
-      
-      setPromotions(mockPromotions);
-    } catch (error) {
-      message.error('Failed to load promotions');
-      console.error(error);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load promotions');
     } finally {
       setLoading(false);
     }
   };
 
-  const convertToEmbedUrl = (url: string): string => {
-    if (!url) return url;
-    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
-    const match = url.match(youtubeRegex);
-    if (match && match[1]) {
-      return `https://www.youtube.com/embed/${match[1]}`;
+  const loadPromotions = async () => {
+    try {
+      const promotionData = await cafePromotionsApi.getPromotions();
+      setPromotions(promotionData);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to refresh promotions');
     }
-    return url;
+  };
+
+  const makeTranslations = (promotion?: Promotion) => {
+    const result = buildEmptyLocalizedPromotionData(supportedLanguages);
+    supportedLanguages.forEach((locale) => {
+      const translation = promotion?.translations?.find((item) => item.locale === locale);
+      result[locale] = {
+        title: translation?.title || '',
+        description: translation?.description || '',
+        terms_and_conditions: translation?.terms_and_conditions || '',
+      };
+    });
+    return result;
+  };
+  const createDraftPromotion = (promotion?: Promotion): EditablePromotion => ({
+    id: promotion?.id,
+    code: promotion?.code || `promotion_${Date.now()}`,
+    promotion_type: (promotion?.promotion_type as PromotionTypeValue) || 'percentage',
+    discount_value: promotion?.discount_value != null ? String(promotion.discount_value) : '',
+    start_date: promotion?.start_date || '',
+    end_date: promotion?.end_date || '',
+    min_purchase_amount: promotion?.min_purchase_amount != null ? String(promotion.min_purchase_amount) : '',
+    primary_image_media_id: promotion?.primary_image_media_id ?? undefined,
+    media_ids: promotion?.media?.map((item) => item.media_id) || [],
+    is_active: promotion?.is_active ?? true,
+    is_featured: promotion?.is_featured ?? false,
+    display_order: promotion?.display_order ?? promotions.length,
+    branch_id: promotion ? getBranchIdFromPromotion(promotion) ?? undefined : undefined,
+    translations: makeTranslations(promotion),
+  });
+
+  const filteredPromotions = useMemo(() => {
+    if (promotionFilter === 'all') return promotions;
+    return promotions.filter((promotion) => getPromotionStatusBadge(promotion).label === promotionFilter);
+  }, [promotionFilter, promotions]);
+
+  const currentTranslation = useMemo(
+    () => editingPromotion?.translations[currentLocale] || { title: '', description: '', terms_and_conditions: '' },
+    [currentLocale, editingPromotion]
+  );
+
+  const handleAddNew = () => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingPromotion(createDraftPromotion());
+  };
+
+  const handleEdit = (promotion: Promotion) => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingPromotion(createDraftPromotion(promotion));
+  };
+
+  const handleDelete = async (promotionId: number) => {
+    const confirmed = window.confirm('Delete this promotion? This action cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await cafePromotionsApi.deletePromotion(promotionId);
+      toast.success('Promotion deleted');
+      if (editingPromotion?.id === promotionId) {
+        setEditingPromotion(null);
+      }
+      await loadPromotions();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete promotion');
+    }
+  };
+
+  const handleLocalizedFieldChange = (field: keyof PromotionLocalizedFields, value: string) => {
+    setEditingPromotion((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        translations: {
+          ...previous.translations,
+          [currentLocale]: {
+            ...previous.translations[currentLocale],
+            [field]: value,
+          },
+        },
+      };
+    });
+  };
+
+  const handleFieldChange = <K extends keyof EditablePromotion>(field: K, value: EditablePromotion[K]) => {
+    setEditingPromotion((previous) => (previous ? { ...previous, [field]: value } : previous));
+  };
+
+  const handleGallerySelect = (mediaIds: number[]) => {
+    setEditingPromotion((previous) => {
+      if (!previous) return previous;
+      const dedupedMediaIds = Array.from(new Set(mediaIds));
+      const nextPrimary = previous.primary_image_media_id && dedupedMediaIds.includes(previous.primary_image_media_id)
+        ? previous.primary_image_media_id
+        : dedupedMediaIds[0];
+      return {
+        ...previous,
+        media_ids: dedupedMediaIds,
+        primary_image_media_id: nextPrimary,
+      };
+    });
+    setMediaPickerMode(null);
+  };
+
+  const handleRemoveMedia = (mediaId: number) => {
+    setEditingPromotion((previous) => {
+      if (!previous) return previous;
+      const nextMediaIds = previous.media_ids.filter((id) => id !== mediaId);
+      const nextPrimary = previous.primary_image_media_id === mediaId ? nextMediaIds[0] : previous.primary_image_media_id;
+      return {
+        ...previous,
+        media_ids: nextMediaIds,
+        primary_image_media_id: nextPrimary,
+      };
+    });
+  };
+
+  const handleSetPrimaryMedia = (mediaId: number) => {
+    setEditingPromotion((previous) => (previous ? { ...previous, primary_image_media_id: mediaId } : previous));
+  };
+
+  const handleSavePromotion = async () => {
+    if (!editingPromotion) return;
+
+    const translations: PromotionTranslation[] = supportedLanguages
+      .map((locale) => ({
+        locale,
+        title: editingPromotion.translations[locale]?.title?.trim() || '',
+        description: editingPromotion.translations[locale]?.description?.trim() || '',
+        terms_and_conditions: editingPromotion.translations[locale]?.terms_and_conditions?.trim() || '',
+      }))
+      .filter((translation) => translation.title || translation.description || translation.terms_and_conditions);
+
+    if (translations.length === 0 || !translations.some((translation) => translation.title)) {
+      toast.error('Please add at least one promotion title');
+      return;
+    }
+
+    if (!editingPromotion.code.trim()) {
+      toast.error('Promotion code is required');
+      return;
+    }
+
+    const branchIds = editingPromotion.branch_id ? [editingPromotion.branch_id] : [];
+
+    const payload: PromotionCreate = {
+      code: editingPromotion.code.trim(),
+      promotion_type: editingPromotion.promotion_type,
+      discount_value: editingPromotion.discount_value ? Number(editingPromotion.discount_value) : null,
+      start_date: editingPromotion.start_date || undefined,
+      end_date: editingPromotion.end_date || undefined,
+      min_purchase_amount: editingPromotion.min_purchase_amount ? Number(editingPromotion.min_purchase_amount) : null,
+      primary_image_media_id: editingPromotion.primary_image_media_id || null,
+      is_active: editingPromotion.is_active,
+      is_featured: editingPromotion.is_featured,
+      display_order: Number.isFinite(editingPromotion.display_order) ? editingPromotion.display_order : promotions.length,
+      applicable_branches: branchIds.length > 0 ? { branch_ids: branchIds } : null,
+      attributes_json: null,
+      translations,
+      media_ids: editingPromotion.media_ids,
+    };
+
+    try {
+      setSavingPromotion(true);
+      if (editingPromotion.id) {
+        await cafePromotionsApi.updatePromotion(editingPromotion.id, payload);
+        toast.success('Promotion updated');
+      } else {
+        await cafePromotionsApi.createPromotion(payload);
+        toast.success('Promotion created');
+      }
+      setEditingPromotion(null);
+      await loadPromotions();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save promotion');
+    } finally {
+      setSavingPromotion(false);
+    }
   };
 
   const handleVR360Change = async (field: 'link' | 'title', value: string) => {
@@ -148,7 +399,7 @@ const CafePromotions: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
-      
+
       if (field === 'link') {
         const embedUrl = convertToEmbedUrl(value);
         updates.promotions_vr360_link = embedUrl;
@@ -157,488 +408,327 @@ const CafePromotions: React.FC = () => {
         updates.promotions_vr_title = value;
         setVrTitle(value);
       }
-      
+
       await cafeSettingsApi.updateSettings({ settings_json: updates });
-      message.success('VR360 settings saved');
+      toast.success('VR360 settings saved');
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to save VR360 settings');
+      toast.error(error.message || 'Failed to save VR settings');
     } finally {
       setSavingVR(false);
     }
   };
 
-  const handleAdd = () => {
-    setEditingPromotion(null);
-    form.resetFields();
-    form.setFieldsValue({ 
-      promotion_type: 'percentage',
-      is_displaying: true,
-      is_featured: false 
-    });
-    setModalVisible(true);
-  };
-
-  const handleEdit = (promotion: Promotion) => {
-    setEditingPromotion(promotion);
-    form.setFieldsValue({
-      ...promotion,
-      date_range: [dayjs(promotion.valid_from), dayjs(promotion.valid_to)]
-    });
-    setModalVisible(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    Modal.confirm({
-      title: 'Delete Promotion',
-      content: 'Are you sure you want to delete this promotion?',
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          message.success('Promotion deleted successfully');
-          loadPromotions();
-        } catch (error) {
-          message.error('Failed to delete promotion');
-        }
-      },
-    });
-  };
-
-  const handleEditPromotionTranslations = async (promotion: Promotion) => {
+  const handleDisplayStatusChange = async (nextValue: boolean) => {
     try {
-      const fullPromotion = await cafePromotionsApi.getPromotion(promotion.id);
-      setTranslatingPromotion(fullPromotion);
-      setTranslationModalVisible(true);
-    } catch (error) {
-      message.error('Failed to load promotion data');
+      setSavingDisplayStatus(true);
+      const currentSettings = await cafeSettingsApi.getSettings();
+      await cafeSettingsApi.updateSettings({
+        settings_json: {
+          ...currentSettings.settings_json,
+          promotions_is_displaying: nextValue,
+        },
+      });
+      setIsDisplaying(nextValue);
+      toast.success(nextValue ? 'Promotions section enabled' : 'Promotions section hidden');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update display status');
+    } finally {
+      setSavingDisplayStatus(false);
     }
   };
 
-  const handleSaveTranslations = async (translations: Record<string, Record<string, string>>) => {
-    if (!translatingPromotion) return;
-
-    try {
-      const translationArray: PromotionTranslation[] = Object.entries(translations).map(([locale, data]) => ({
-        locale,
-        title: data.title || '',
-        description: data.description || '',
-        terms_and_conditions: data.terms_and_conditions || '',
-      }));
-
-      await cafePromotionsApi.updatePromotionTranslations(translatingPromotion.id, translationArray);
-      message.success('Translations updated successfully');
-      setTranslationModalVisible(false);
-      setTranslatingPromotion(null);
-      loadPromotions();
-    } catch (error) {
-      console.error('Error updating translations:', error);
-      message.error('Failed to update translations');
-      throw error;
-    }
+  const getBranchLabelById = (branchId?: number | null) => {
+    if (!branchId) return 'All branches';
+    const branch = branches.find((item) => item.id === branchId);
+    return branch ? getBranchName(branch) : 'Unknown branch';
   };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const { date_range, ...rest } = values;
-      const payload = {
-        ...rest,
-        valid_from: date_range[0].toISOString(),
-        valid_to: date_range[1].toISOString()
-      };
-      
-      if (editingPromotion) {
-        message.success('Promotion updated successfully');
-      } else {
-        message.success('Promotion created successfully');
-      }
-      setModalVisible(false);
-      loadPromotions();
-    } catch (error) {
-      message.error('Failed to save promotion');
-    }
-  };
-
-  const columns: ColumnsType<Promotion> = [
-    {
-      title: 'Promotion',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text, record) => (
-        <div>
-          <div className="flex items-center gap-2">
-            <TagIcon className="w-4 h-4 text-red-600" />
-            <span className="font-semibold">{text}</span>
-            {record.is_featured && <Tag color="gold">Featured</Tag>}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">{record.description}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Type & Value',
-      key: 'discount',
-      render: (_, record) => {
-        const typeLabels = {
-          percentage: 'Percentage',
-          fixed_amount: 'Fixed Amount',
-          buy_x_get_y: 'Buy X Get Y',
-          combo: 'Combo Deal'
-        };
-        
-        return (
-          <div>
-            <Tag color="blue">{typeLabels[record.promotion_type as keyof typeof typeLabels]}</Tag>
-            {record.discount_value && (
-              <div className="text-sm font-semibold text-red-600 mt-1 flex items-center gap-1">
-                <Percent className="w-3 h-3" />
-                {record.promotion_type === 'percentage' ? `${record.discount_value}%` : `${record.discount_value.toLocaleString()} VND`}
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Valid Period',
-      key: 'period',
-      render: (_, record) => {
-        const now = dayjs();
-        const start = dayjs(record.valid_from);
-        const end = dayjs(record.valid_to);
-        
-        let status = 'Active';
-        let color = 'green';
-        
-        if (now.isBefore(start)) {
-          status = 'Upcoming';
-          color = 'blue';
-        } else if (now.isAfter(end)) {
-          status = 'Expired';
-          color = 'default';
-        }
-        
-        return (
-          <div>
-            <Tag color={color}>{status}</Tag>
-            <div className="text-xs text-gray-500 mt-1">
-              {start.format('MMM D')} - {end.format('MMM D, YYYY')}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Usage',
-      key: 'usage',
-      render: (_, record) => {
-        if (!record.usage_limit) return <span className="text-gray-400">Unlimited</span>;
-        
-        const percentage = ((record.current_usage || 0) / record.usage_limit) * 100;
-        const color = percentage >= 100 ? 'red' : percentage >= 80 ? 'orange' : 'green';
-        
-        return (
-          <Tag color={color}>
-            {record.current_usage || 0} / {record.usage_limit}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Visible',
-      dataIndex: 'is_displaying',
-      key: 'is_displaying',
-      width: 80,
-      render: (visible) => visible ? <Eye className="w-5 h-5 text-green-600" /> : <EyeOff className="w-5 h-5 text-gray-400" />,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 150,
-      render: (_, record) => (
-        <div className="flex gap-2">
-          <Button
-            type="text"
-            icon={<Languages className="w-4 h-4" />}
-            onClick={() => handleEditPromotionTranslations(record)}
-            title="Edit Translations"
-            className="text-blue-600"
-          />
-          <Button
-            type="text"
-            icon={<Edit className="w-4 h-4" />}
-            onClick={() => handleEdit(record)}
-          />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 className="w-4 h-4" />}
-            onClick={() => handleDelete(record.id)}
-          />
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-6">
-      {/* Display Status */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <h2 className="text-xl font-bold text-slate-800">Display Status - Promotions Section</h2>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${isDisplaying ? 'text-green-600' : 'text-slate-500'}`}>
+            <span className={`text-sm font-medium ${isDisplaying ? 'text-emerald-600' : 'text-slate-500'}`}>
               {isDisplaying ? 'Displaying' : 'Hidden'}
             </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={isDisplaying}
-                onChange={async (e) => {
-                  const newValue = e.target.checked;
-                  try {
-                    setSavingDisplayStatus(true);
-                    const currentSettings = await cafeSettingsApi.getSettings();
-                    await cafeSettingsApi.updateSettings({
-                      settings_json: {
-                        ...currentSettings.settings_json,
-                        promotions_is_displaying: newValue
-                      }
-                    });
-                    setIsDisplaying(newValue);
-                    message.success(newValue ? 'Promotions section enabled' : 'Promotions section disabled');
-                  } catch (error: any) {
-                    message.error(error.response?.data?.detail || 'Failed to update display status');
-                  } finally {
-                    setSavingDisplayStatus(false);
-                  }
-                }}
-                disabled={savingDisplayStatus}
-              />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"></div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" className="peer sr-only" checked={isDisplaying} onChange={(e) => void handleDisplayStatusChange(e.target.checked)} disabled={savingDisplayStatus} />
+              <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white" />
             </label>
           </div>
         </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-          <Percent className="text-blue-600 text-xl mt-0.5" />
-          <span className="text-blue-800 text-sm">
-            When display is turned off, the "Promotions" section will not appear on the website. You can still edit and manage promotions.
-          </span>
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5 text-blue-600" />
+          <span>When display is turned off, the Promotions section will not appear on the website, but you can still manage promotions here.</span>
         </div>
       </div>
 
-      {/* VR360 Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center gap-3">
-          <Glasses className="text-purple-600 text-xl" />
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center gap-3 border-b border-slate-200 pb-4">
+          <FontAwesomeIcon icon={faVrCardboard} className="text-xl text-purple-600" />
           <h2 className="text-xl font-bold text-slate-800">VR360 Settings</h2>
         </div>
-        
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama / YouTube Video
-            </label>
-            <input
-              type="url"
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-              value={vr360Link}
-              onChange={(e) => handleVR360Change('link', e.target.value)}
-              disabled={savingVR}
-            />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <Info className="mt-0.5 w-4 h-4" />
-              <span>
-                Enter the URL to a 360Â° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
-              </span>
+            <label className={LABEL_CLASS}>VR360 Link</label>
+            <input type="url" className={FIELD_CLASS} value={vr360Link} onChange={(e) => void handleVR360Change('link', e.target.value)} placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..." disabled={savingVR} />
+            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
+              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
+              <span>Enter the URL to a 360° panorama image or YouTube video URL.</span>
             </p>
           </div>
-          
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
-            <input
-              type="text"
-              placeholder="Enter VR tour title"
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-              value={vrTitle}
-              onChange={(e) => handleVR360Change('title', e.target.value)}
-              disabled={savingVR}
-            />
+            <label className={LABEL_CLASS}>VR360 Title</label>
+            <input type="text" className={FIELD_CLASS} value={vrTitle} onChange={(e) => void handleVR360Change('title', e.target.value)} placeholder="Enter VR tour title" disabled={savingVR} />
           </div>
-          
           {vr360Link && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="text-slate-600 w-5 h-5" />
+              <div className="mb-3 flex items-center gap-2">
+                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
                 <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
               </div>
-              
-              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
+              <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
-                  <iframe
-                    src={vr360Link}
-                    className="absolute top-0 left-0 w-full h-full"
-                    allowFullScreen
-                    title="VR360 Preview"
-                    allow="xr-spatial-tracking; gyroscope; accelerometer"
-                  />
+                  <iframe src={vr360Link} className="absolute left-0 top-0 h-full w-full" allowFullScreen title="VR360 Preview" allow="xr-spatial-tracking; gyroscope; accelerometer" />
                 </div>
-              </div>
-              
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => window.open(vr360Link, '_blank')}
-                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors inline-flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  View Fullscreen
-                </button>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Promotions Management</h1>
-          <p className="text-gray-600 mt-1">Manage special offers and discounts</p>
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Promotions Management</h2>
+            <p className="mt-1 text-sm text-slate-500">Manage promotion content, active period, featured deals, and visual highlights for the cafe site.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <select value={promotionFilter} onChange={(e) => setPromotionFilter(e.target.value as typeof promotionFilter)} className="h-11 min-w-[140px] rounded-md border border-slate-300 px-4 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="expired">Expired</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button type="button" onClick={handleAddNew} className="inline-flex h-11 min-w-[212px] items-center justify-center gap-2 rounded-md bg-blue-600 px-5 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+              <FontAwesomeIcon icon={faPlus} />
+              Add New Promotion
+            </button>
+          </div>
         </div>
-        <Button
-          type="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          Add Promotion
-        </Button>
+
+        {loading ? (
+          <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">Loading promotions...</div>
+        ) : filteredPromotions.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">No promotions found for the current filter.</div>
+        ) : (
+          <div className="space-y-4">
+            {filteredPromotions.map((promotion) => {
+              const title = getPromotionTitle(promotion);
+              const description = getPromotionDescription(promotion);
+              const statusBadge = getPromotionStatusBadge(promotion);
+              const branchLabel = getBranchLabelById(getBranchIdFromPromotion(promotion));
+              const valueLabel = getPromotionValueLabel(promotion);
+              const imageLabel = getPromotionImageCountLabel(promotion);
+              const languageLabel = getPromotionLanguageLabel(promotion);
+              const primaryImageId = promotion.primary_image_media_id || promotion.media?.[0]?.media_id;
+              const startDateLabel = promotion.start_date ? dayjs(promotion.start_date).format('DD/MM/YYYY') : 'No start date';
+              const endDateLabel = promotion.end_date ? dayjs(promotion.end_date).format('DD/MM/YYYY') : 'No end date';
+
+              return (
+                <div key={promotion.id} className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <div className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:w-52">
+                      {primaryImageId ? (
+                        <img src={`/api/v1/media/${primaryImageId}/view`} alt={title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-600">
+                          <FontAwesomeIcon icon={faImage} className="text-2xl" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <h3 className="text-2xl font-semibold leading-tight text-slate-700">{title}</h3>
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${statusBadge.className}`}>{statusBadge.label}</span>
+                            {promotion.is_featured && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">featured</span>}
+                          </div>
+                          {description && <p className="line-clamp-2 text-sm text-slate-500">{description}</p>}
+                          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+                            <span className="inline-flex items-center gap-2"><FontAwesomeIcon icon={faCalendarAlt} className="text-blue-500" />{startDateLabel}</span>
+                            <span className="inline-flex items-center gap-2"><FontAwesomeIcon icon={faCalendarAlt} className="text-blue-500" />{endDateLabel}</span>
+                            <span className="inline-flex items-center gap-2"><FontAwesomeIcon icon={promotion.promotion_type === 'percentage' ? faPercent : faMoneyBillWave} className="text-blue-500" />{valueLabel}</span>
+                            <span className="inline-flex items-center gap-2"><FontAwesomeIcon icon={faTag} className="text-blue-500" />{branchLabel}</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">{imageLabel}</span>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">{languageLabel}</span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 gap-3 lg:flex-col">
+                          <button type="button" className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-500 transition-colors hover:bg-blue-100" title="Edit promotion" onClick={() => handleEdit(promotion)}><FontAwesomeIcon icon={faPenToSquare} /></button>
+                          <button type="button" className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition-colors hover:bg-rose-100" title="Delete promotion" onClick={() => void handleDelete(promotion.id)}><FontAwesomeIcon icon={faTrashCan} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <Table
-          columns={columns}
-          dataSource={promotions}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
+      {editingPromotion && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">{editingPromotion.id ? 'Edit Promotion' : 'Add New Promotion'}</h2>
+                <p className="mt-1 text-sm text-slate-500">Manage promotion details, media, and localized content.</p>
+              </div>
+              <button type="button" onClick={() => setEditingPromotion(null)} className="text-slate-400 transition-colors hover:text-slate-600">
+                <FontAwesomeIcon icon={faTimes} className="text-2xl" />
+              </button>
+            </div>
+
+            <div className="space-y-6 px-6 py-6">
+              <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+                {supportedLanguages.map((locale) => (
+                  <button key={locale} type="button" onClick={() => setCurrentLocale(locale)} className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${currentLocale === locale ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    {getLocaleShortLabel(locale)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Promotion Code</label>
+                  <input type="text" className={FIELD_CLASS} value={editingPromotion.code} onChange={(e) => handleFieldChange('code', e.target.value)} placeholder="e.g. happy_hour_apr" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Promotion Type</label>
+                  <select className={FIELD_CLASS} value={editingPromotion.promotion_type} onChange={(e) => handleFieldChange('promotion_type', e.target.value as PromotionTypeValue)}>
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed_amount">Fixed Amount</option>
+                    <option value="buy_one_get_one">Buy One Get One</option>
+                    <option value="gift">Gift</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Discount Value</label>
+                  <input type="number" className={FIELD_CLASS} value={editingPromotion.discount_value} onChange={(e) => handleFieldChange('discount_value', e.target.value)} placeholder="e.g. 20 or 50000" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Minimum Purchase</label>
+                  <input type="number" className={FIELD_CLASS} value={editingPromotion.min_purchase_amount} onChange={(e) => handleFieldChange('min_purchase_amount', e.target.value)} placeholder="Optional minimum order value" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Start Date</label>
+                  <input type="date" className={FIELD_CLASS} value={editingPromotion.start_date} onChange={(e) => handleFieldChange('start_date', e.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>End Date</label>
+                  <input type="date" className={FIELD_CLASS} value={editingPromotion.end_date} onChange={(e) => handleFieldChange('end_date', e.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Branch</label>
+                  <select className={FIELD_CLASS} value={editingPromotion.branch_id ?? ''} onChange={(e) => handleFieldChange('branch_id', e.target.value ? Number(e.target.value) : undefined)}>
+                    <option value="">All branches / not assigned</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{getBranchName(branch)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Display Order</label>
+                  <input type="number" className={FIELD_CLASS} value={editingPromotion.display_order} onChange={(e) => handleFieldChange('display_order', Number(e.target.value))} />
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Title ({getLocaleShortLabel(currentLocale)})</label>
+                  <input type="text" className={FIELD_CLASS} value={currentTranslation.title} onChange={(e) => handleLocalizedFieldChange('title', e.target.value)} placeholder="Promotion title" />
+                </div>
+                <div className="flex flex-wrap items-center gap-6 pt-8">
+                  <label className="inline-flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={editingPromotion.is_active} onChange={(e) => handleFieldChange('is_active', e.target.checked)} />
+                    Active
+                  </label>
+                  <label className="inline-flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={editingPromotion.is_featured} onChange={(e) => handleFieldChange('is_featured', e.target.checked)} />
+                    Featured Promotion
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Description ({getLocaleShortLabel(currentLocale)})</label>
+                <textarea className={`${FIELD_CLASS} min-h-[120px]`} value={currentTranslation.description} onChange={(e) => handleLocalizedFieldChange('description', e.target.value)} placeholder="Promotion description" />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Terms & Conditions ({getLocaleShortLabel(currentLocale)})</label>
+                <textarea className={`${FIELD_CLASS} min-h-[120px]`} value={currentTranslation.terms_and_conditions} onChange={(e) => handleLocalizedFieldChange('terms_and_conditions', e.target.value)} placeholder="Terms and conditions" />
+              </div>
+
+              <div className="mt-6">
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <FontAwesomeIcon icon={faImages} />
+                  Promotion Images
+                </label>
+                <button type="button" onClick={() => setMediaPickerMode('gallery')} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                  <FontAwesomeIcon icon={faImages} />
+                  Select Images
+                </button>
+
+                {editingPromotion.media_ids.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {editingPromotion.media_ids.map((mediaId) => {
+                      const isPrimary = editingPromotion.primary_image_media_id === mediaId;
+                      return (
+                        <div key={mediaId} className="group relative overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                          <img src={`/api/v1/media/${mediaId}/view`} alt={`Promotion media ${mediaId}`} className="h-24 w-full object-cover" />
+                          {isPrimary && <div className="absolute left-2 top-2 rounded bg-green-600 px-2 py-1 text-xs font-medium text-white">Primary</div>}
+                          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                            {!isPrimary && <button type="button" onClick={() => handleSetPrimaryMedia(mediaId)} className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">Set Primary</button>}
+                            <button type="button" onClick={() => handleRemoveMedia(mediaId)} className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700">Remove</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              <button type="button" onClick={() => setEditingPromotion(null)} className="rounded-md border border-slate-300 px-5 py-2 text-slate-600 transition-colors hover:bg-slate-50">Cancel</button>
+              <button type="button" onClick={() => void handleSavePromotion()} disabled={savingPromotion} className="rounded-md bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">
+                {savingPromotion ? 'Saving...' : editingPromotion.id ? 'Update Promotion' : 'Save Promotion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingPromotion && mediaPickerMode && (
+        <MediaPickerModal
+          isOpen={mediaPickerMode !== null}
+          onClose={() => setMediaPickerMode(null)}
+          title="Select Promotion Images"
+          kind="image"
+          source="cafe"
+          folder="promotions"
+          folderAliases={['promotion', 'cafe/promotions', 'cafe/promotion']}
+          allowMultiple
+          onSelectMultiple={handleGallerySelect}
         />
-      </div>
-
-      {/* Modal */}
-      <Modal
-        title={editingPromotion ? 'Edit Promotion' : 'Add Promotion'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={700}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Form.Item
-            label="Promotion Title"
-            name="title"
-            rules={[{ required: true, message: 'Please enter promotion title' }]}
-          >
-            <Input placeholder="e.g., Happy Hour - 30% Off" />
-          </Form.Item>
-
-          <Form.Item label="Description" name="description">
-            <TextArea rows={2} placeholder="Brief description of the promotion" />
-          </Form.Item>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item
-              label="Promotion Type"
-              name="promotion_type"
-              rules={[{ required: true, message: 'Please select type' }]}
-            >
-              <Select>
-                <Select.Option value="percentage">Percentage Discount</Select.Option>
-                <Select.Option value="fixed_amount">Fixed Amount</Select.Option>
-                <Select.Option value="buy_x_get_y">Buy X Get Y</Select.Option>
-                <Select.Option value="combo">Combo Deal</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Discount Value" name="discount_value">
-              <InputNumber 
-                min={0} 
-                className="w-full" 
-                placeholder="Enter value"
-              />
-            </Form.Item>
-          </div>
-
-          <Form.Item
-            label="Valid Period"
-            name="date_range"
-            rules={[{ required: true, message: 'Please select valid period' }]}
-          >
-            <RangePicker
-              showTime
-              format="YYYY-MM-DD HH:mm"
-              className="w-full"
-            />
-          </Form.Item>
-
-          <Form.Item label="Terms & Conditions" name="terms_conditions">
-            <TextArea rows={3} placeholder="Enter terms and conditions" />
-          </Form.Item>
-
-          <Form.Item label="Usage Limit" name="usage_limit">
-            <InputNumber 
-              min={0} 
-              className="w-full" 
-              placeholder="Leave empty for unlimited"
-            />
-          </Form.Item>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="Show on Website" name="is_displaying" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-
-            <Form.Item label="Featured Promotion" name="is_featured" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </div>
-        </Form>
-      </Modal>
-
-      {/* Translation Modal */}
-      <TranslationModal
-        visible={translationModalVisible}
-        onClose={() => {
-          setTranslationModalVisible(false);
-          setTranslatingPromotion(null);
-        }}
-        onSave={handleSaveTranslations}
-        fields={[
-          { key: 'title', label: 'Promotion Title', type: 'input', required: true },
-          { key: 'description', label: 'Description', type: 'textarea', rows: 3 },
-          { key: 'terms_and_conditions', label: 'Terms & Conditions', type: 'textarea', rows: 4 },
-        ]}
-        initialData={
-          translatingPromotion?.translations?.reduce((acc, t) => {
-            acc[t.locale] = {
-              title: t.title || '',
-              description: t.description || '',
-              terms_and_conditions: t.terms_and_conditions || '',
-            };
-            return acc;
-          }, {} as Record<string, Record<string, string>>)
-        }
-        supportedLanguages={supportedLanguages}
-        title="Edit Promotion Translations"
-      />
+      )}
     </div>
   );
 };

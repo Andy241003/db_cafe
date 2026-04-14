@@ -38,7 +38,6 @@ import CafeLanguages from './pages/cafe/Languages';
 import CafeLayout from './pages/cafe/CafeLayout';
 import CafeMenu from './pages/cafe/Menu';
 import CafePromotions from './pages/cafe/Promotions';
-import CafeServices from './pages/cafe/Services';
 import CafeSettings from './pages/cafe/Settings';
 import CafeSpace from './pages/cafe/Space';
 import CafeUsers from './pages/cafe/Users';
@@ -166,7 +165,6 @@ function App() {
                         <Route path="home-about" element={<CafeHomeAbout />} />
                         <Route path="menu" element={<CafeMenu />} />
                         <Route path="space" element={<CafeSpace />} />
-                        <Route path="services" element={<CafeServices />} />
                         <Route path="branches" element={<CafeBranches />} />
                         <Route path="events" element={<CafeEvents />} />
                         <Route path="careers" element={<CafeCareers />} />

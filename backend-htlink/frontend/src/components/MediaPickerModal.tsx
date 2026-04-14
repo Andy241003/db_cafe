@@ -1,6 +1,6 @@
-﻿import { faCheckCircle, faImage, faPhotoFilm, faSpinner, faTimes, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faImage, faPhotoFilm, faSpinner, faTimes, faUpload } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { mediaApi, type MediaFile } from '../services/mediaApi';
 import { getApiBaseUrl } from '../utils/api';
@@ -40,15 +40,19 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<number>>(new Set());
   const [libraryMessage, setLibraryMessage] = useState('');
+  const loadRequestRef = useRef(0);
+  const normalizedFolderAliasesKey = useMemo(() => folderAliases.map((value) => value?.trim()).filter(Boolean).join('|'), [folderAliases]);
 
   useEffect(() => {
     if (isOpen && activeTab === 'library') {
-      loadMediaFiles();
+      void loadMediaFiles();
       setSelectedMediaIds(new Set()); // Reset selection when opening
     }
-  }, [isOpen, activeTab, source, folder, folderAliases]);
+  }, [isOpen, activeTab, source, folder, normalizedFolderAliasesKey]);
 
   const loadMediaFiles = async () => {
+    const requestId = ++loadRequestRef.current;
+
     try {
       setIsLoading(true);
       setLibraryMessage('');
@@ -110,11 +114,21 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
         }
       }
 
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
       setMediaFiles(files);
     } catch (error: any) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
       console.error('Failed to load media files:', error);
       toast.error('Failed to load media files');
     } finally {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
       setIsLoading(false);
     }
   };
@@ -196,9 +210,15 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
       await loadMediaFiles();
       
     } catch (error: any) {
-      console.error('âŒ Upload failed:', error);
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+      console.error('❌ Upload failed:', error);
       toast.error(`Upload failed: ${error.response?.data?.detail || error.message}`);
     } finally {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
       setIsUploading(false);
     }
   };
@@ -246,7 +266,7 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1050] flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">

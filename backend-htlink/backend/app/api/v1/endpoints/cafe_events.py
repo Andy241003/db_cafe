@@ -267,6 +267,7 @@ def update_event(
             setattr(event, key, value)
             if key == 'attributes_json':
                 flag_modified(event, key)
+                flag_modified(event, key)
     
     db.add(event)
     
@@ -275,6 +276,8 @@ def update_event(
             select(CafeEventTranslation).where(CafeEventTranslation.event_id == event_id)
         ).all():
             db.delete(existing_trans)
+        
+        db.flush()
         
         for trans in event_data.translations:
             translation = CafeEventTranslation(
@@ -291,6 +294,8 @@ def update_event(
             select(CafeEventMedia).where(CafeEventMedia.event_id == event_id)
         ).all():
             db.delete(existing_media)
+        
+        db.flush()
         
         for idx, media_id in enumerate(event_data.media_ids):
             event_media = CafeEventMedia(

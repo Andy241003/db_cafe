@@ -46,6 +46,7 @@ def log_activity(
         db.refresh(activity_log)
         return activity_log
     except Exception as e:
+        db.rollback()
         logger.error(f"Failed to log activity {activity_type.value}: {e}")
         # Don't raise exception to avoid breaking main logic
         return None

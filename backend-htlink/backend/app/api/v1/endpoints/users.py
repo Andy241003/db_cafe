@@ -1,9 +1,9 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, TenantUser, get_tenant_from_header
+from app.api.deps import CurrentUser, SessionDep, TenantUser
 from app.models import AdminUser
 from app.models.activity_log import ActivityType
 from app.utils.activity_logger import log_activity
@@ -79,7 +79,6 @@ def update_password_me_patch(
 def read_users(
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -90,7 +89,7 @@ def read_users(
     if current_user.role.lower() not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    users = crud.admin_user.get_multi(session, skip=skip, limit=limit, tenant_id=tenant_id)
+    users = crud.admin_user.get_multi(session, skip=skip, limit=limit, tenant_id=current_user.tenant_id)
     return users
 
 
@@ -99,7 +98,6 @@ def create_user(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     user_in: AdminUserCreate,
 ) -> Any:
     """
@@ -116,7 +114,7 @@ def create_user(
         raise HTTPException(status_code=403, detail="Admins can only create editors and viewers")
     
     # Ensure the user is being created in the correct tenant
-    user_in.tenant_id = tenant_id
+    user_in.tenant_id = current_user.tenant_id
     
     # Auto-sync service_access: REMOVED - Cafe only system
     # All users have access to Cafe by default
@@ -126,7 +124,7 @@ def create_user(
     # Log activity
     log_activity(
         db=session,
-        tenant_id=tenant_id,
+        tenant_id=current_user.tenant_id,
         activity_type=ActivityType.CREATE_USER,
         details={
             "message": f"User '{user.email}' created by {current_user.email}",
@@ -145,7 +143,6 @@ def update_user(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     user_id: int,
     user_in: AdminUserUpdate,
 ) -> Any:
@@ -161,7 +158,7 @@ def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Ensure user belongs to the same tenant
-    if user.tenant_id != tenant_id:
+    if user.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
     # Permission checks (case-insensitive)
@@ -181,7 +178,7 @@ def update_user(
     # Log activity
     log_activity(
         db=session,
-        tenant_id=tenant_id,
+        tenant_id=current_user.tenant_id,
         activity_type=ActivityType.UPDATE_USER,
         details={
             "message": f"User '{user.email}' updated by {current_user.email}",
@@ -200,7 +197,6 @@ def read_user(
     user_id: int,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
 ) -> Any:
     """
     Get a specific user by id.
@@ -210,7 +206,7 @@ def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Ensure user belongs to the same tenant
-    if user.tenant_id != tenant_id:
+    if user.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
     # Users can only see themselves unless they are admin/owner (case-insensitive)
@@ -225,13 +221,12 @@ def delete_user(
     *,
     session: SessionDep,
     current_user: TenantUser,
-    tenant_id: int = Depends(get_tenant_from_header),
     user_id: int,
 ) -> Any:
     """
     Delete a user. Owners can delete anyone. Admins can delete editors and viewers.
     """
-    print(f"🗑️ DELETE USER: current_user_role={current_user.role.lower()}, current_user_tenant_id={current_user.tenant_id}, header_tenant_id={tenant_id}")
+    print(f"🗑️ DELETE USER: current_user_role={current_user.role.lower()}, current_user_tenant_id={current_user.tenant_id}, current_user_tenant_id={current_user.tenant_id}")
     
     # Get target user first to check their role
     user = crud.admin_user.get(session, id=user_id)
@@ -263,8 +258,8 @@ def delete_user(
         raise HTTPException(status_code=403, detail="Only owners and admins can delete users")
     
     # Ensure user belongs to the same tenant
-    if user.tenant_id != tenant_id:
-        print(f"❌ DELETE USER: Tenant mismatch - target_user_tenant_id={user.tenant_id} != header_tenant_id={tenant_id}")
+    if user.tenant_id != current_user.tenant_id:
+        print(f"❌ DELETE USER: Tenant mismatch - target_user_tenant_id={user.tenant_id} != current_user_tenant_id={current_user.tenant_id}")
         raise HTTPException(status_code=403, detail="User not in this tenant")
     
     # Cannot delete yourself
@@ -276,7 +271,7 @@ def delete_user(
     # Log activity
     log_activity(
         db=session,
-        tenant_id=tenant_id,
+        tenant_id=current_user.tenant_id,
         activity_type=ActivityType.DELETE_USER,
         details={
             "message": f"User '{user_email}' deleted by {current_user.email}",
@@ -288,3 +283,4 @@ def delete_user(
     )
     
     return {"message": "User deleted successfully"}
+
