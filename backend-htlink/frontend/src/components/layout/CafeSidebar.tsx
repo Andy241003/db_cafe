@@ -12,6 +12,7 @@ import {
   faMapMarkerAlt,
   faPhone,
   faRightFromBracket,
+  faShieldAlt,
   faUtensils,
   faWarehouse
 } from '@fortawesome/free-solid-svg-icons';
@@ -44,6 +45,7 @@ const CafeSidebar: React.FC = () => {
     {
       section: 'SYSTEM ADMIN',
       links: [
+        { path: '/cafe/tenants', icon: faShieldAlt, label: 'Tenants', visible: permissions.canManageTenant || permissions.isAdmin },
         { path: '/cafe/users', icon: faBriefcase, label: 'Users', visible: permissions.canManageUsers },
       ],
     },

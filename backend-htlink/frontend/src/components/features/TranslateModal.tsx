@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faCheck, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { translationsApi } from '../../services/translationsApi';
 import { localesApi } from '../../services/localesApi';
+import { getApiBaseUrl } from '../../utils/api';
 
 interface Post {
   id: number;
@@ -81,7 +82,7 @@ const TranslateModal: React.FC<TranslateModalProps> = ({ isOpen, onClose, post, 
         }
 
         // Get property settings
-        const response = await fetch(`/api/v1/properties/${propertyId}`, {
+        const response = await fetch(`${getApiBaseUrl()}/properties/${propertyId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'X-Tenant-Code': localStorage.getItem('tenant_code') || ''

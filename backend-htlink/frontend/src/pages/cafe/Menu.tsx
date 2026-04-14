@@ -1,4 +1,4 @@
-﻿import { faImages, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faImages, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Form, Input, InputNumber, Popconfirm, Select, Tag } from 'antd';
 import { Coffee, Edit, Eye, GripVertical, Info, Play, Plus, Trash2 } from 'lucide-react';
@@ -287,7 +287,6 @@ const CafeMenu: React.FC = () => {
         translations
       };
 
-      console.log('Submitting category:', submitData);
 
       if (editingCategory) {
         await cafeMenuApi.updateCategory(editingCategory.id, submitData);
@@ -301,7 +300,6 @@ const CafeMenu: React.FC = () => {
       loadCategories();
     } catch (error: any) {
       console.error('Category submit error:', error);
-      console.error('Error response:', error.response?.data);
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to save category';
       toast.error(errorMsg);
     }
@@ -453,7 +451,6 @@ const CafeMenu: React.FC = () => {
         })),
       };
 
-      console.log('Submitting menu item:', submitData);
       
       if (editingMenuItem) {
         await cafeMenuApi.updateItem(editingMenuItem.id, submitData);
@@ -467,7 +464,6 @@ const CafeMenu: React.FC = () => {
       loadMenuItems();
     } catch (error: any) {
       console.error('Menu item submit error:', error);
-      console.error('Menu item submit response:', error.response?.data);
       const detail = error.response?.data?.detail;
       const errorMessage = Array.isArray(detail)
         ? detail.map((item: any) => item.msg).join(', ')
@@ -692,7 +688,7 @@ const CafeMenu: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <Info className="mt-0.5 w-4 h-4" />
               <span>
-                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or a YouTube video URL
+                Enter the URL to a 360-degree panorama image (equirectangular JPG, min 4096x2048px) or a YouTube video URL
               </span>
             </p>
           </div>

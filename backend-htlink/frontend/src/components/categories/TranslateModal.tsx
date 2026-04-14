@@ -1,10 +1,11 @@
-﻿// src/components/categories/TranslateModal.tsx
+// src/components/categories/TranslateModal.tsx
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import type { Category, Language } from "../../types/categories";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage, faSync, faChevronDown, faSearch, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { localesApi } from '../../services/localesApi';
+import { getApiBaseUrl } from '../../utils/api';
 import type { Locale } from '../../services/localesApi';
 import { usePropertySettings } from '../../hooks/usePropertySettings';
 
@@ -79,7 +80,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         }
 
         // Get property settings
-        const response = await fetch(`/api/v1/properties/${propertyId}`, {
+        const response = await fetch(`${getApiBaseUrl()}/properties/${propertyId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'X-Tenant-Code': localStorage.getItem('tenant_code') || ''

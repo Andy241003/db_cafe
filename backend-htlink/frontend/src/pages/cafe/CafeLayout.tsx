@@ -41,6 +41,8 @@ const CafeLayout: React.FC = () => {
         return { title: 'Contact', breadcrumb: 'Cafe / Contact' };
       case '/languages':
         return { title: 'Languages', breadcrumb: 'Cafe / Languages' };
+      case '/tenants':
+        return { title: 'Tenant Settings', breadcrumb: 'Cafe / Tenant Settings' };
       case '/settings':
         return { title: 'Settings', breadcrumb: 'Cafe / Settings' };
       case '/activities':

@@ -8,9 +8,7 @@ from app.models.activity_log import ActivityType
 from app.schemas import MediaFileResponse, MediaFileCreate
 from app.crud import media_file
 from app.utils.decorators.track_activity import track_activity
-import sys
 
-print(" MEDIA.PY FILE LOADED!", flush=True, file=sys.stderr)
 router = APIRouter()
 
 UPLOAD_DIR = Path("uploads")
@@ -31,10 +29,6 @@ async def upload_media_file(
     entity_id: Optional[int] = None,
     folder: Optional[str] = None,
 ) -> Any:
-    print(" UPLOAD REACHED!", flush=True, file=sys.stderr)
-    print(f"User: {current_user.email}, Role: {current_user.role}", flush=True, file=sys.stderr)
-    print(f"File: {file.filename if file else 'None'}, Kind: {kind}", flush=True, file=sys.stderr)
-    print(f"Source: {source}, Entity Type: {entity_type}, Entity ID: {entity_id}, Folder: {folder}", flush=True, file=sys.stderr)
 
     valid_kinds = ["image", "video", "file", "icon"]
     if kind and kind not in valid_kinds:
@@ -70,8 +64,6 @@ async def upload_media_file(
     try:
         file_key = f"{uuid.uuid4()}{file_ext}"
         file_path = UPLOAD_DIR / file_key
-
-        print(f"Saving file to: {file_path}", flush=True, file=sys.stderr)
         with open(file_path, "wb") as f:
             f.write(content)
 
@@ -85,8 +77,6 @@ async def upload_media_file(
             tenant_id=effective_tenant_id,
             uploader_id=current_user.id,
         )
-        print(f"Creating DB record for tenant {effective_tenant_id}", flush=True, file=sys.stderr)
-        print(f"Media data: {media_data}", flush=True, file=sys.stderr)
 
         media_obj = MediaFile(
             tenant_id=effective_tenant_id,
@@ -106,8 +96,6 @@ async def upload_media_file(
         session.commit()
         session.refresh(media_obj)
 
-        print(f"Upload successful! File saved to DB with ID: {media_obj.id}", flush=True, file=sys.stderr)
-
         base_url = str(request.base_url).rstrip('/')
         file_url = f"{base_url}/api/v1/media/{media_obj.id}/download"
 
@@ -125,9 +113,6 @@ async def upload_media_file(
             "created_at": media_obj.created_at.isoformat() if media_obj.created_at else datetime.utcnow().isoformat(),
         }
     except Exception as e:
-        import traceback
-        print(f"Upload error: {str(e)}", flush=True, file=sys.stderr)
-        print(f"Full traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
         if 'file_path' in locals() and file_path.exists():
             file_path.unlink()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -160,12 +145,6 @@ def read_media_files(
 
     query = query.offset(skip).limit(limit)
     media_files = session.exec(query).all()
-
-    if media_files:
-        print(
-            f"DEBUG First media file: id={media_files[0].id}, original_filename={media_files[0].original_filename}, file_key={media_files[0].file_key}, source={media_files[0].source}, folder={media_files[0].folder}",
-            flush=True,
-        )
     return media_files
 
 
@@ -274,7 +253,6 @@ async def update_media_file(
             original_ext = Path(media_file_obj.file_key).suffix
             if original_ext:
                 new_filename = f"{new_filename}{original_ext}"
-                print(f"Auto-appending extension: {new_filename}", flush=True, file=sys.stderr)
             else:
                 raise HTTPException(status_code=400, detail="Filename must have a valid extension (e.g., .png, .jpg, .pdf)")
 
@@ -301,7 +279,6 @@ async def update_media_file(
             "created_at": media_file_obj.created_at.isoformat(),
         }
     except Exception as e:
-        print(f"Update error: {str(e)}", flush=True, file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
 
 
@@ -332,5 +309,4 @@ async def delete_media_file(
         media_file.remove(db=session, id=media_id)
         return {"message": "Media file deleted successfully"}
     except Exception as e:
-        print(f"Delete error: {str(e)}", flush=True, file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")

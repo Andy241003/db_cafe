@@ -7,6 +7,7 @@ import { ColorSelector } from './ColorSelector';
 import type { Hotel, HotelFormData } from '../../types/properties';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { getApiBaseUrl } from '../../utils/api';
 
 interface AddHotelModalProps {
   isOpen: boolean;
@@ -55,7 +56,7 @@ export const AddHotelModal: React.FC<AddHotelModalProps> = ({
         const tenantCode = localStorage.getItem('tenant_code') || '';
         const token = localStorage.getItem('access_token') || '';
         
-        const response = await fetch('/api/v1/media/upload', {
+        const response = await fetch(`${getApiBaseUrl()}/media/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

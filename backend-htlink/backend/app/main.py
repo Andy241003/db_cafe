@@ -1,4 +1,4 @@
-﻿import sentry_sdk
+import sentry_sdk
 from copy import deepcopy
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
@@ -25,10 +25,6 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # LOG EVERY REQUEST
-        import sys
-        if request.method == "PUT" and "/categories/" in request.url.path:
-            print(f"ðŸ”´ðŸ”´ðŸ”´ MIDDLEWARE: PUT request to {request.url.path}", flush=True)
-            sys.stdout.flush()
         
         response = await call_next(request)
 
@@ -61,26 +57,23 @@ class ProxyHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class AutoTenantMiddleware(BaseHTTPMiddleware):
-    """Auto-add tenant header for Swagger UI and API docs"""
-    
+    """Auto-add a tenant header only for API docs helpers."""
+
     async def dispatch(self, request: Request, call_next):
-        # Add default tenant header if not present (for API docs testing)
-        if not request.headers.get("X-Tenant-Code"):
-            # For API docs, default to boton_blue since that's what we're testing
+        docs_prefix = f"{settings.API_V1_STR}/docs"
+        docs_request = request.url.path in {
+            "/token-helper",
+            f"{settings.API_V1_STR}/openapi.json",
+            f"{settings.API_V1_STR}/redoc",
+            f"{settings.API_V1_STR}/docs",
+        } or request.url.path.startswith(docs_prefix)
+
+        if docs_request and not request.headers.get("X-Tenant-Code"):
             tenant_code = "boton_blue"
-            
-            # Create new headers dict with tenant code
-            headers = dict(request.headers)
-            headers["X-Tenant-Code"] = tenant_code
-            
-            # Rebuild request with new headers
             request._headers.raw.append((b"x-tenant-code", tenant_code.encode()))
-            
-            print(f"ðŸ”§ AutoTenantMiddleware: Set tenant_code = {tenant_code}")
-        
+
         response = await call_next(request)
         return response
-
 
 if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
     sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
@@ -115,9 +108,6 @@ app.add_middleware(AutoTenantMiddleware)
 
 # Set all CORS enabled origins - Always allow for development
 # Restrict CORS origins for development: allow the local frontend dev server(s)
-print(f"ðŸŒ CORS Origins: {settings.all_cors_origins}", flush=True)
-print(f"ðŸŒ BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
-print(f"ðŸŒ FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,
@@ -186,7 +176,7 @@ async def token_helper():
         </style>
     </head>
     <body>
-        <h1>ðŸ” HotelLink API - Token Helper</h1>
+        <h1>🔐 HotelLink API - Token Helper</h1>
         
         <div>
             <button class="btn" onclick="getToken()">Get New Token</button>
@@ -232,13 +222,13 @@ async def token_helper():
                         localStorage.setItem('access_token', data.access_token);
                         localStorage.setItem('token_type', data.token_type);
                         
-                        document.getElementById('tokenStatus').innerHTML = '<span class="success">âœ… Token obtained and saved!</span>';
+                        document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token obtained and saved!</span>';
                         showToken();
                     } else {
-                        document.getElementById('tokenStatus').innerHTML = 'âŒ Failed to get token';
+                        document.getElementById('tokenStatus').innerHTML = '❌ Failed to get token';
                     }
                 } catch (error) {
-                    document.getElementById('tokenStatus').innerHTML = 'âŒ Error: ' + error.message;
+                    document.getElementById('tokenStatus').innerHTML = '❌ Error: ' + error.message;
                 }
             }
             
@@ -250,10 +240,10 @@ async def token_helper():
                 if (token) {
                     tokenValue.textContent = token;
                     tokenDisplay.style.display = 'block';
-                    document.getElementById('tokenStatus').innerHTML = '<span class="success">âœ… Token found in localStorage</span>';
+                    document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token found in localStorage</span>';
                 } else {
                     tokenDisplay.style.display = 'none';
-                    document.getElementById('tokenStatus').innerHTML = 'âŒ No token found';
+                    document.getElementById('tokenStatus').innerHTML = '❌ No token found';
                 }
             }
             
@@ -281,7 +271,7 @@ async def token_helper():
                             if (data.access_token) {
                                 localStorage.setItem('access_token', data.access_token);
                                 localStorage.setItem('token_type', data.token_type || 'bearer');
-                                console.log('âœ… Token auto-saved from API call');
+                                console.log('✅ Token auto-saved from API call');
                             }
                         }).catch(() => {});
                     }
@@ -312,7 +302,7 @@ async def token_storage():
         </style>
     </head>
     <body>
-        <h1>ðŸ” HotelLink API - Token Storage</h1>
+        <h1>🔐 HotelLink API - Token Storage</h1>
         <p>This page helps external applications get authentication tokens.</p>
         
         <div id="tokenInfo" class="token-box">
@@ -346,10 +336,10 @@ async def token_storage():
                 const tokenStatus = document.getElementById('tokenStatus');
                 
                 if (token) {
-                    tokenStatus.innerHTML = '<span class="success">âœ“ Token Available</span>';
+                    tokenStatus.innerHTML = '<span class="success">✓ Token Available</span>';
                     tokenStatus.innerHTML += '<br><small>Token: ' + token.substring(0, 50) + '...</small>';
                 } else {
-                    tokenStatus.innerHTML = '<span class="error">âœ— No Token Found</span>';
+                    tokenStatus.innerHTML = '<span class="error">✗ No Token Found</span>';
                 }
             }
             
@@ -361,11 +351,11 @@ async def token_storage():
                     if (data.access_token) {
                         localStorage.setItem('access_token', data.access_token);
                         localStorage.setItem('token_type', data.token_type);
-                        alert('âœ“ Token saved successfully!');
+                        alert('✓ Token saved successfully!');
                         checkToken();
                     }
                 } catch (error) {
-                    alert('âœ— Error getting token: ' + error.message);
+                    alert('✗ Error getting token: ' + error.message);
                 }
             }
             

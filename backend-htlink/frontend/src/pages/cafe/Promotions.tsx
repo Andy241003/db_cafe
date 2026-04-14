@@ -475,7 +475,7 @@ const CafePromotions: React.FC = () => {
             <input type="url" className={FIELD_CLASS} value={vr360Link} onChange={(e) => void handleVR360Change('link', e.target.value)} placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..." disabled={savingVR} />
             <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
-              <span>Enter the URL to a 360° panorama image or YouTube video URL.</span>
+              <span>Enter the URL to a 360ï¿½ panorama image or YouTube video URL.</span>
             </p>
           </div>
           <div>
@@ -542,7 +542,7 @@ const CafePromotions: React.FC = () => {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
                     <div className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:w-52">
                       {primaryImageId ? (
-                        <img src={`/api/v1/media/${primaryImageId}/view`} alt={title} className="h-full w-full object-cover" />
+                        <img src={`${getApiBaseUrl()}/media/${primaryImageId}/view`} alt={title} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-600">
                           <FontAwesomeIcon icon={faImage} className="text-2xl" />
@@ -692,7 +692,7 @@ const CafePromotions: React.FC = () => {
                       const isPrimary = editingPromotion.primary_image_media_id === mediaId;
                       return (
                         <div key={mediaId} className="group relative overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-                          <img src={`/api/v1/media/${mediaId}/view`} alt={`Promotion media ${mediaId}`} className="h-24 w-full object-cover" />
+                          <img src={`${getApiBaseUrl()}/media/${mediaId}/view`} alt={`Promotion media ${mediaId}`} className="h-24 w-full object-cover" />
                           {isPrimary && <div className="absolute left-2 top-2 rounded bg-green-600 px-2 py-1 text-xs font-medium text-white">Primary</div>}
                           <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                             {!isPrimary && <button type="button" onClick={() => handleSetPrimaryMedia(mediaId)} className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">Set Primary</button>}

@@ -41,7 +41,7 @@ import CafePromotions from './pages/cafe/Promotions';
 import CafeSettings from './pages/cafe/Settings';
 import CafeSpace from './pages/cafe/Space';
 import CafeUsers from './pages/cafe/Users';
-
+import CafeTenants from './pages/cafe/Tenants';
 import { autoDetectLanguage } from './utils/languageDetection';
 
 // Create a client
@@ -162,6 +162,7 @@ function App() {
                         <Route path="" element={<CafeDashboard />} />
                         <Route path="activities" element={<CafeActivities />} />
                         <Route path="users" element={<CafeUsers />} />
+                        <Route path="tenants" element={<ProtectedRoute requireAdmin><CafeTenants /></ProtectedRoute>} />
                         <Route path="home-about" element={<CafeHomeAbout />} />
                         <Route path="menu" element={<CafeMenu />} />
                         <Route path="space" element={<CafeSpace />} />
