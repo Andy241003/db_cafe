@@ -22,7 +22,7 @@ router = APIRouter()
 # ==========================================
 
 class CafeSettingsResponse(BaseModel):
-    """Cafe Settings Response (Contact fields moved to /cafe/contact)"""
+    """Cafe Settings Response"""
     id: Optional[int] = None
     tenant_id: Optional[int] = None
     cafe_name: str
@@ -30,6 +30,9 @@ class CafeSettingsResponse(BaseModel):
     primary_color: str = "#6f4e37"
     secondary_color: str = "#d4a574"
     background_color: str = "#ffffff"
+    booking_url: Optional[str] = None
+    messenger_url: Optional[str] = None
+    phone_number: Optional[str] = None
     logo_media_id: Optional[int] = None
     favicon_media_id: Optional[int] = None
     cover_image_media_id: Optional[int] = None
@@ -42,7 +45,7 @@ class CafeSettingsResponse(BaseModel):
 
 
 class CafeSettingsUpdate(BaseModel):
-    """Cafe Settings Update (Contact fields moved to /cafe/contact)"""
+    """Cafe Settings Update"""
     cafe_name: Optional[str] = None
     slogan: Optional[str] = None
     primary_color: Optional[str] = None
@@ -50,6 +53,9 @@ class CafeSettingsUpdate(BaseModel):
     background_color: Optional[str] = None
     logo_media_id: Optional[int] = None
     favicon_media_id: Optional[int] = None
+    booking_url: Optional[str] = None
+    messenger_url: Optional[str] = None
+    phone_number: Optional[str] = None
     cover_image_media_id: Optional[int] = None
     meta_image_media_id: Optional[int] = None
     meta_title: Optional[str] = None
@@ -266,3 +272,4 @@ def delete_page_setting(
     db.commit()
     
     return {"success": True, "message": "Page setting deleted"}
+
