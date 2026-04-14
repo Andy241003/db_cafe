@@ -1,137 +1,345 @@
-import { Button, DatePicker, Form, Input, InputNumber, message, Modal, Select, Switch, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import {
+  faBriefcase,
+  faCircleInfo,
+  faEye,
+  faInfoCircle,
+  faPenToSquare,
+  faPhone,
+  faPlus,
+  faStar,
+  faTimes,
+  faTrashCan,
+  faVrCardboard,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
-import { Briefcase, Edit, Eye, EyeOff, Languages, Plus, Trash2, Glasses, Play, Info } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import TranslationModal from '../../components/TranslationModal';
-import { cafeCareersApi, cafeLanguagesApi, cafeSettingsApi, type Career as ApiCareer, type CareerTranslation } from '../../services/cafeApi';
+import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import {
+  cafeBranchesApi,
+  cafeCareersApi,
+  cafeLanguagesApi,
+  cafeSettingsApi,
+  type Branch,
+  type Career,
+  type CareerCreate,
+  type CareerTranslation,
+} from '../../services/cafeApi';
 
-const { TextArea } = Input;
+const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
+const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
+const SECTION_CLASS = 'rounded-lg bg-white p-6 shadow';
 
-interface Career {
-  id: number;
-  position: string;
-  description?: string;
-  requirements?: string;
-  benefits?: string;
-  salary_min?: number;
-  salary_max?: number;
-  location?: string;
-  employment_type: 'full_time' | 'part_time' | 'contract' | 'internship';
-  status: 'open' | 'closed' | 'filled';
+type CareerStatus = 'open' | 'closed' | 'filled';
+
+type CareerLocalizedFields = {
+  title: string;
+  description: string;
+  requirements: string;
+  benefits: string;
+};
+
+type EditableCareer = {
+  id?: number;
+  code: string;
+  job_type: string;
+  experience_required: string;
+  salary_min: string;
+  salary_max: string;
+  salary_text: string;
+  deadline: string;
+  contact_email: string;
+  contact_phone: string;
+  application_url: string;
+  branch_id?: number | null;
+  status: CareerStatus;
+  display_order: number;
   is_urgent: boolean;
-  is_displaying: boolean;
-  deadline?: string;
-}
+  translations: Record<string, CareerLocalizedFields>;
+};
+
+const getLocaleShortLabel = (locale: string) => {
+  const normalized = locale.toLowerCase();
+  const shortLabels: Record<string, string> = {
+    vi: 'VI',
+    en: 'EN',
+    de: 'DE',
+    zh: 'ZH',
+    'zh-tw': 'ZH-TW',
+    yue: 'YUE',
+    ja: 'JA',
+    ko: 'KO',
+    fr: 'FR',
+    ru: 'RU',
+  };
+
+  return shortLabels[normalized] || locale.toUpperCase();
+};
+
+const buildEmptyLocalizedCareerData = (locales: string[]) =>
+  locales.reduce<Record<string, CareerLocalizedFields>>((acc, locale) => {
+    acc[locale] = { title: '', description: '', requirements: '', benefits: '' };
+    return acc;
+  }, {});
+
+const getCareerTranslation = (career: Career, locale: string) =>
+  career.translations?.find((translation) => translation.locale === locale);
+
+const getCareerTitle = (career: Career) =>
+  getCareerTranslation(career, 'vi')?.title ||
+  getCareerTranslation(career, 'en')?.title ||
+  career.translations?.find((translation) => translation.title)?.title ||
+  career.code ||
+  'Untitled job';
+
+const getCareerDescription = (career: Career) =>
+  getCareerTranslation(career, 'vi')?.description ||
+  getCareerTranslation(career, 'en')?.description ||
+  career.translations?.find((translation) => translation.description)?.description ||
+  '';
+
+const getCareerSalaryLabel = (career: Career) => {
+  if (career.salary_text?.trim()) return career.salary_text.trim();
+  if (career.salary_min && career.salary_max) {
+    return `${career.salary_min.toLocaleString('vi-VN')} - ${career.salary_max.toLocaleString('vi-VN')} VND`;
+  }
+  if (career.salary_min) return `From ${career.salary_min.toLocaleString('vi-VN')} VND`;
+  if (career.salary_max) return `Up to ${career.salary_max.toLocaleString('vi-VN')} VND`;
+  return 'Negotiable';
+};
+
+const getCareerLanguageLabel = (career: Career) => {
+  const count = career.translations?.length || 0;
+  return count > 0 ? `${count} languages` : 'No translations';
+};
+
+const getBranchName = (branch: Branch) =>
+  branch.translations?.find((translation) => translation.locale === 'vi')?.name ||
+  branch.translations?.find((translation) => translation.locale === 'en')?.name ||
+  branch.name_vi ||
+  branch.name_en ||
+  branch.code ||
+  'Unknown branch';
+
+const getStatusBadgeClass = (status: CareerStatus) => {
+  switch (status) {
+    case 'closed':
+      return 'bg-slate-200 text-slate-700';
+    case 'filled':
+      return 'bg-emerald-100 text-emerald-700';
+    default:
+      return 'bg-blue-100 text-blue-700';
+  }
+};
+
+const convertToEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+  const match = url.match(youtubeRegex);
+  if (match?.[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return url;
+};
 
 const CafeCareers: React.FC = () => {
+  const [loading, setLoading] = useState(true);
   const [careers, setCareers] = useState<Career[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingCareer, setEditingCareer] = useState<Career | null>(null);
-  const [form] = Form.useForm();
-
-  // Translation state
-  const [translationModalVisible, setTranslationModalVisible] = useState(false);
-  const [translatingCareer, setTranslatingCareer] = useState<ApiCareer | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
-
-  // Display status state
+  const [currentLocale, setCurrentLocale] = useState('vi');
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
   const [vr360Link, setVr360Link] = useState('');
   const [vrTitle, setVrTitle] = useState('');
   const [savingVR, setSavingVR] = useState(false);
+  const [careerFilter, setCareerFilter] = useState<'all' | CareerStatus>('all');
+  const [editingCareer, setEditingCareer] = useState<EditableCareer | null>(null);
+  const [savingCareer, setSavingCareer] = useState(false);
 
   useEffect(() => {
-    loadCareers();
-    loadLanguageSettings();
+    void loadInitialData();
   }, []);
-
-  const loadLanguageSettings = async () => {
+  const loadInitialData = async () => {
     try {
-      const langs = await cafeLanguagesApi.getLanguageCodes();
-      setSupportedLanguages(langs);
-      
-      // Load display status
-      const settings = await cafeSettingsApi.getSettings();
-      const displayStatus = settings.settings_json?.careers_is_displaying ?? true;
-      setIsDisplaying(displayStatus);
+      setLoading(true);
+      const [careerData, languages, settings, branchData] = await Promise.all([
+        cafeCareersApi.getCareers(),
+        cafeLanguagesApi.getLanguages(),
+        cafeSettingsApi.getSettings(),
+        cafeBranchesApi.getBranches(),
+      ]);
+
+      const locales = languages.length > 0 ? languages.map((item) => item.locale) : ['vi', 'en'];
+      setSupportedLanguages(locales);
+      setCurrentLocale((previous) => (locales.includes(previous) ? previous : locales[0]));
+      setCareers(careerData);
+      setBranches(branchData);
+      setIsDisplaying(settings.settings_json?.careers_is_displaying ?? true);
       setVr360Link(settings.settings_json?.careers_vr360_link || '');
       setVrTitle(settings.settings_json?.careers_vr_title || '');
-    } catch (error) {
-      console.error('Error loading languages:', error);
-    }
-  };
-
-  const loadCareers = async () => {
-    setLoading(true);
-    try {
-      // Mock data
-      const mockCareers: Career[] = [
-        {
-          id: 1,
-          position: 'Barista',
-          description: 'We are looking for an experienced barista to join our team',
-          requirements: 'Experience with espresso machines, latte art skills, customer service',
-          benefits: 'Competitive salary, health insurance, training opportunities',
-          salary_min: 8000000,
-          salary_max: 12000000,
-          location: 'Downtown Branch',
-          employment_type: 'full_time',
-          status: 'open',
-          is_urgent: true,
-          is_displaying: true,
-          deadline: '2024-03-31'
-        },
-        {
-          id: 2,
-          position: 'Cafe Manager',
-          description: 'Seeking an experienced manager to oversee operations',
-          requirements: 'Management experience, F&B background, leadership skills',
-          benefits: 'High salary, bonuses, career growth',
-          salary_min: 15000000,
-          salary_max: 20000000,
-          location: 'All Branches',
-          employment_type: 'full_time',
-          status: 'open',
-          is_urgent: false,
-          is_displaying: true,
-          deadline: '2024-04-15'
-        },
-        {
-          id: 3,
-          position: 'Part-time Server',
-          description: 'Part-time position for weekends',
-          requirements: 'Friendly attitude, no experience required',
-          benefits: 'Flexible hours, staff discounts',
-          salary_min: 40000,
-          salary_max: 50000,
-          location: 'Beach Side Branch',
-          employment_type: 'part_time',
-          status: 'closed',
-          is_urgent: false,
-          is_displaying: false
-        },
-      ];
-      
-      setCareers(mockCareers);
-    } catch (error) {
-      message.error('Failed to load career openings');
-      console.error(error);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load careers');
     } finally {
       setLoading(false);
     }
   };
 
-  const convertToEmbedUrl = (url: string): string => {
-    if (!url) return url;
-    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
-    const match = url.match(youtubeRegex);
-    if (match && match[1]) {
-      return `https://www.youtube.com/embed/${match[1]}`;
+  const loadCareers = async () => {
+    try {
+      const careerData = await cafeCareersApi.getCareers();
+      setCareers(careerData);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to refresh careers');
     }
-    return url;
+  };
+
+  const makeTranslations = (career?: Career) => {
+    const result = buildEmptyLocalizedCareerData(supportedLanguages);
+    supportedLanguages.forEach((locale) => {
+      const translation = career?.translations?.find((item) => item.locale === locale);
+      result[locale] = {
+        title: translation?.title || '',
+        description: translation?.description || '',
+        requirements: translation?.requirements || '',
+        benefits: translation?.benefits || '',
+      };
+    });
+    return result;
+  };
+
+  const createDraftCareer = (career?: Career): EditableCareer => ({
+    id: career?.id,
+    code: career?.code || `career_${Date.now()}`,
+    job_type: career?.job_type || '',
+    experience_required: career?.experience_required || '',
+    salary_min: career?.salary_min ? String(career.salary_min) : '',
+    salary_max: career?.salary_max ? String(career.salary_max) : '',
+    salary_text: career?.salary_text || '',
+    deadline: career?.deadline || '',
+    contact_email: career?.contact_email || '',
+    contact_phone: career?.contact_phone || '',
+    application_url: career?.application_url || '',
+    branch_id: career?.branch_id ?? undefined,
+    status: (career?.status as CareerStatus) || 'open',
+    display_order: career?.display_order ?? careers.length,
+    is_urgent: career?.is_urgent ?? false,
+    translations: makeTranslations(career),
+  });
+
+  const filteredCareers = useMemo(() => {
+    if (careerFilter === 'all') return careers;
+    return careers.filter((career) => career.status === careerFilter);
+  }, [careerFilter, careers]);
+
+  const currentTranslation = useMemo(
+    () => editingCareer?.translations[currentLocale] || { title: '', description: '', requirements: '', benefits: '' },
+    [currentLocale, editingCareer]
+  );
+
+  const handleAddNew = () => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingCareer(createDraftCareer());
+  };
+
+  const handleEdit = (career: Career) => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingCareer(createDraftCareer(career));
+  };
+
+  const handleDelete = async (careerId: number) => {
+    const confirmed = window.confirm('Delete this job posting? This action cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await cafeCareersApi.deleteCareer(careerId);
+      toast.success('Career deleted');
+      if (editingCareer?.id === careerId) {
+        setEditingCareer(null);
+      }
+      await loadCareers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete career');
+    }
+  };
+
+  const handleLocalizedFieldChange = (field: keyof CareerLocalizedFields, value: string) => {
+    setEditingCareer((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        translations: {
+          ...previous.translations,
+          [currentLocale]: {
+            ...previous.translations[currentLocale],
+            [field]: value,
+          },
+        },
+      };
+    });
+  };
+
+  const handleFieldChange = <K extends keyof EditableCareer>(field: K, value: EditableCareer[K]) => {
+    setEditingCareer((previous) => (previous ? { ...previous, [field]: value } : previous));
+  };
+  const handleSaveCareer = async () => {
+    if (!editingCareer) return;
+
+    const translations: CareerTranslation[] = supportedLanguages
+      .map((locale) => ({
+        locale,
+        title: editingCareer.translations[locale]?.title?.trim() || '',
+        description: editingCareer.translations[locale]?.description?.trim() || '',
+        requirements: editingCareer.translations[locale]?.requirements?.trim() || '',
+        benefits: editingCareer.translations[locale]?.benefits?.trim() || '',
+      }))
+      .filter((translation) => translation.title || translation.description || translation.requirements || translation.benefits);
+
+    if (translations.length === 0 || !translations.some((translation) => translation.title)) {
+      toast.error('Please add at least one job title');
+      return;
+    }
+
+    if (!editingCareer.code.trim()) {
+      toast.error('Career code is required');
+      return;
+    }
+
+    const payload: CareerCreate = {
+      code: editingCareer.code.trim(),
+      job_type: editingCareer.job_type.trim() || undefined,
+      experience_required: editingCareer.experience_required.trim() || undefined,
+      salary_min: editingCareer.salary_min ? Number(editingCareer.salary_min) : null,
+      salary_max: editingCareer.salary_max ? Number(editingCareer.salary_max) : null,
+      salary_text: editingCareer.salary_text.trim() || undefined,
+      deadline: editingCareer.deadline || undefined,
+      contact_email: editingCareer.contact_email.trim() || undefined,
+      contact_phone: editingCareer.contact_phone.trim() || undefined,
+      application_url: editingCareer.application_url.trim() || undefined,
+      branch_id: editingCareer.branch_id || null,
+      status: editingCareer.status,
+      display_order: Number.isFinite(editingCareer.display_order) ? editingCareer.display_order : careers.length,
+      is_urgent: editingCareer.is_urgent,
+      attributes_json: null,
+      translations,
+    };
+
+    try {
+      setSavingCareer(true);
+      if (editingCareer.id) {
+        await cafeCareersApi.updateCareer(editingCareer.id, payload);
+        toast.success('Career updated');
+      } else {
+        await cafeCareersApi.createCareer(payload);
+        toast.success('Career created');
+      }
+      setEditingCareer(null);
+      await loadCareers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save career');
+    } finally {
+      setSavingCareer(false);
+    }
   };
 
   const handleVR360Change = async (field: 'link' | 'title', value: string) => {
@@ -139,7 +347,7 @@ const CafeCareers: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
-      
+
       if (field === 'link') {
         const embedUrl = convertToEmbedUrl(value);
         updates.careers_vr360_link = embedUrl;
@@ -148,499 +356,414 @@ const CafeCareers: React.FC = () => {
         updates.careers_vr_title = value;
         setVrTitle(value);
       }
-      
+
       await cafeSettingsApi.updateSettings({ settings_json: updates });
-      message.success('VR360 settings saved');
+      toast.success('VR360 settings saved');
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to save VR360 settings');
+      toast.error(error.response?.data?.detail || 'Failed to save VR settings');
     } finally {
       setSavingVR(false);
     }
   };
 
-  const handleAdd = () => {
-    setEditingCareer(null);
-    form.resetFields();
-    form.setFieldsValue({ 
-      employment_type: 'full_time',
-      status: 'open',
-      is_urgent: false,
-      is_displaying: true 
-    });
-    setModalVisible(true);
-  };
-
-  const handleEdit = (career: Career) => {
-    setEditingCareer(career);
-    form.setFieldsValue({
-      ...career,
-      deadline: career.deadline ? dayjs(career.deadline) : null
-    });
-    setModalVisible(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    Modal.confirm({
-      title: 'Delete Job Posting',
-      content: 'Are you sure you want to delete this job posting?',
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          message.success('Job posting deleted successfully');
-          loadCareers();
-        } catch (error) {
-          message.error('Failed to delete job posting');
-        }
-      },
-    });
-  };
-
-  const handleEditCareerTranslations = async (career: Career) => {
+  const handleDisplayStatusChange = async (nextValue: boolean) => {
     try {
-      const fullCareer = await cafeCareersApi.getCareer(career.id);
-      setTranslatingCareer(fullCareer);
-      setTranslationModalVisible(true);
-    } catch (error) {
-      message.error('Failed to load career data');
+      setSavingDisplayStatus(true);
+      const currentSettings = await cafeSettingsApi.getSettings();
+      await cafeSettingsApi.updateSettings({
+        settings_json: {
+          ...currentSettings.settings_json,
+          careers_is_displaying: nextValue,
+        },
+      });
+      setIsDisplaying(nextValue);
+      toast.success(nextValue ? 'Careers section enabled' : 'Careers section hidden');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to update display status');
+    } finally {
+      setSavingDisplayStatus(false);
     }
   };
 
-  const handleSaveTranslations = async (translations: Record<string, Record<string, string>>) => {
-    if (!translatingCareer) return;
-
-    try {
-      const translationArray: CareerTranslation[] = Object.entries(translations).map(([locale, data]) => ({
-        locale,
-        title: data.title || '',
-        description: data.description || '',
-        requirements: data.requirements || '',
-        benefits: data.benefits || '',
-      }));
-
-      await cafeCareersApi.updateCareerTranslations(translatingCareer.id, translationArray);
-      message.success('Translations updated successfully');
-      setTranslationModalVisible(false);
-      setTranslatingCareer(null);
-      loadCareers();
-    } catch (error) {
-      console.error('Error updating translations:', error);
-      message.error('Failed to update translations');
-      throw error;
-    }
+  const getBranchLabelById = (branchId?: number | null) => {
+    if (!branchId) return 'All branches';
+    const branch = branches.find((item) => item.id === branchId);
+    return branch ? getBranchName(branch) : 'Unknown branch';
   };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const payload = {
-        ...values,
-        deadline: values.deadline ? values.deadline.format('YYYY-MM-DD') : null
-      };
-      
-      if (editingCareer) {
-        message.success('Job posting updated successfully');
-      } else {
-        message.success('Job posting created successfully');
-      }
-      setModalVisible(false);
-      loadCareers();
-    } catch (error) {
-      message.error('Failed to save job posting');
-    }
-  };
-
-  const columns: ColumnsType<Career> = [
-    {
-      title: 'Position',
-      dataIndex: 'position',
-      key: 'position',
-      render: (text, record) => (
-        <div>
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-green-600" />
-            <span className="font-semibold">{text}</span>
-            {record.is_urgent && <Tag color="red">Urgent</Tag>}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">{record.location}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Type',
-      dataIndex: 'employment_type',
-      key: 'employment_type',
-      render: (type) => {
-        const labels = {
-          full_time: 'Full Time',
-          part_time: 'Part Time',
-          contract: 'Contract',
-          internship: 'Internship'
-        };
-        return <Tag>{labels[type as keyof typeof labels]}</Tag>;
-      },
-    },
-    {
-      title: 'Salary Range',
-      key: 'salary',
-      render: (_, record) => {
-        if (!record.salary_min && !record.salary_max) return <span className="text-gray-400">Negotiable</span>;
-        
-        const min = record.salary_min?.toLocaleString() || '?';
-        const max = record.salary_max?.toLocaleString() || '?';
-        
-        return (
-          <span className="text-sm font-medium text-green-600">
-            {min} - {max} VND
-          </span>
-        );
-      },
-    },
-    {
-      title: 'Deadline',
-      dataIndex: 'deadline',
-      key: 'deadline',
-      render: (deadline) => {
-        if (!deadline) return <span className="text-gray-400">No deadline</span>;
-        
-        const daysLeft = dayjs(deadline).diff(dayjs(), 'day');
-        const color = daysLeft < 7 ? 'red' : daysLeft < 14 ? 'orange' : 'blue';
-        
-        return (
-          <Tag color={color}>
-            {dayjs(deadline).format('MMM D, YYYY')} ({daysLeft}d left)
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const colors = {
-          open: 'green',
-          closed: 'default',
-          filled: 'blue',
-        };
-        return <Tag color={colors[status as keyof typeof colors]}>{status}</Tag>;
-      },
-    },
-    {
-      title: 'Visible',
-      dataIndex: 'is_displaying',
-      key: 'is_displaying',
-      width: 80,
-      render: (visible) => visible ? <Eye className="w-5 h-5 text-green-600" /> : <EyeOff className="w-5 h-5 text-gray-400" />,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 150,
-      render: (_, record) => (
-        <div className="flex gap-2">
-          <Button
-            type="text"
-            icon={<Languages className="w-4 h-4" />}
-            onClick={() => handleEditCareerTranslations(record)}
-            title="Edit Translations"
-            className="text-blue-600"
-          />
-          <Button
-            type="text"
-            icon={<Edit className="w-4 h-4" />}
-            onClick={() => handleEdit(record)}
-          />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 className="w-4 h-4" />}
-            onClick={() => handleDelete(record.id)}
-          />
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-6">
-      {/* Display Status */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <h2 className="text-xl font-bold text-slate-800">Display Status - Careers Section</h2>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${isDisplaying ? 'text-green-600' : 'text-slate-500'}`}>
+            <span className={`text-sm font-medium ${isDisplaying ? 'text-emerald-600' : 'text-slate-500'}`}>
               {isDisplaying ? 'Displaying' : 'Hidden'}
             </span>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex cursor-pointer items-center">
               <input
                 type="checkbox"
-                className="sr-only peer"
+                className="peer sr-only"
                 checked={isDisplaying}
-                onChange={async (e) => {
-                  const newValue = e.target.checked;
-                  try {
-                    setSavingDisplayStatus(true);
-                    const currentSettings = await cafeSettingsApi.getSettings();
-                    await cafeSettingsApi.updateSettings({
-                      settings_json: {
-                        ...currentSettings.settings_json,
-                        careers_is_displaying: newValue
-                      }
-                    });
-                    setIsDisplaying(newValue);
-                    message.success(newValue ? 'Careers section enabled' : 'Careers section disabled');
-                  } catch (error: any) {
-                    message.error(error.response?.data?.detail || 'Failed to update display status');
-                  } finally {
-                    setSavingDisplayStatus(false);
-                  }
-                }}
+                onChange={(e) => void handleDisplayStatusChange(e.target.checked)}
                 disabled={savingDisplayStatus}
               />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"></div>
+              <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white" />
             </label>
           </div>
         </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-          <Briefcase className="text-blue-600 text-xl mt-0.5" />
-          <span className="text-blue-800 text-sm">
-            When display is turned off, the "Careers" section will not appear on the website. You can still edit and manage career opportunities.
-          </span>
+
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5 text-blue-600" />
+          <span>When display is turned off, the Careers section will not appear on the website, but you can still manage job postings here.</span>
         </div>
       </div>
 
-      {/* VR360 Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center gap-3">
-          <Glasses className="text-purple-600 text-xl" />
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center gap-3 border-b border-slate-200 pb-4">
+          <FontAwesomeIcon icon={faVrCardboard} className="text-xl text-purple-600" />
           <h2 className="text-xl font-bold text-slate-800">VR360 Settings</h2>
         </div>
-        
+
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama / YouTube Video
-            </label>
+            <label className={LABEL_CLASS}>VR360 Link</label>
             <input
               type="url"
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className={FIELD_CLASS}
               value={vr360Link}
-              onChange={(e) => handleVR360Change('link', e.target.value)}
+              onChange={(e) => void handleVR360Change('link', e.target.value)}
+              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
               disabled={savingVR}
             />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <Info className="mt-0.5 w-4 h-4" />
-              <span>
-                Enter the URL to a 360Â° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
-              </span>
+            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
+              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
+              <span>Enter the URL to a 360° panorama image or YouTube video URL.</span>
             </p>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
+            <label className={LABEL_CLASS}>VR360 Title</label>
             <input
               type="text"
-              placeholder="Enter VR tour title"
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className={FIELD_CLASS}
               value={vrTitle}
-              onChange={(e) => handleVR360Change('title', e.target.value)}
+              onChange={(e) => void handleVR360Change('title', e.target.value)}
+              placeholder="Enter VR tour title"
               disabled={savingVR}
             />
           </div>
-          
+
           {vr360Link && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="text-slate-600 w-5 h-5" />
+              <div className="mb-3 flex items-center gap-2">
+                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
                 <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
               </div>
-              
-              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
+              <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
                     src={vr360Link}
-                    className="absolute top-0 left-0 w-full h-full"
+                    className="absolute left-0 top-0 h-full w-full"
                     allowFullScreen
                     title="VR360 Preview"
                     allow="xr-spatial-tracking; gyroscope; accelerometer"
                   />
                 </div>
               </div>
-              
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => window.open(vr360Link, '_blank')}
-                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors inline-flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  View Fullscreen
-                </button>
-              </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Careers Management</h1>
-          <p className="text-gray-600 mt-1">Manage job openings and recruitment</p>
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Careers Management</h2>
+            <p className="mt-1 text-sm text-slate-500">Manage job postings, branches, deadlines, and featured hiring priorities for the cafe site.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              value={careerFilter}
+              onChange={(e) => setCareerFilter(e.target.value as 'all' | CareerStatus)}
+              className="rounded-md border border-slate-300 px-4 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+              <option value="filled">Filled</option>
+            </select>
+            <button
+              type="button"
+              onClick={handleAddNew}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              Add New Position
+            </button>
+          </div>
         </div>
-        <Button
-          type="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          Add Job Posting
-        </Button>
+
+        {loading ? (
+          <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">Loading careers...</div>
+        ) : filteredCareers.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">No job postings found for the current filter.</div>
+        ) : (
+          <div className="space-y-4">
+            {filteredCareers.map((career) => {
+              const title = getCareerTitle(career);
+              const description = getCareerDescription(career);
+              const branchLabel = getBranchLabelById(career.branch_id);
+              const salaryLabel = getCareerSalaryLabel(career);
+              const languageLabel = getCareerLanguageLabel(career);
+
+              return (
+                <div key={career.id} className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                    <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 md:w-40">
+                      <FontAwesomeIcon icon={faBriefcase} className="text-2xl" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-lg font-semibold text-slate-800">{title}</h3>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(career.status as CareerStatus)}`}>
+                          {career.status}
+                        </span>
+                        {career.is_urgent && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+                            <FontAwesomeIcon icon={faStar} />
+                            Urgent
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-6 text-sm text-slate-600">
+                        <span>{career.job_type || 'No type'}</span>
+                        <span>{branchLabel}</span>
+                        <span>{salaryLabel}</span>
+                        <span>{career.deadline ? dayjs(career.deadline).format('YYYY-MM-DD') : 'No deadline'}</span>
+                        <span>{career.contact_phone || career.contact_email || 'No contact info'}</span>
+                      </div>
+
+                      {description && <p className="mt-2 line-clamp-1 text-sm text-slate-500">{description}</p>}
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{languageLabel}</span>
+                        {career.experience_required && (
+                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{career.experience_required}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 gap-3 self-start md:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(career)}
+                        className="flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-slate-600 transition-colors hover:bg-slate-50"
+                        title="Edit career"
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(career.id)}
+                        className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+                        title="Delete career"
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <Table
-          columns={columns}
-          dataSource={careers}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
-      </div>
+      {editingCareer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-6">
+              <h3 className="text-xl font-bold text-slate-800">{editingCareer.id ? 'Edit Career' : 'Add New Career'}</h3>
+              <button
+                type="button"
+                onClick={() => setEditingCareer(null)}
+                className="flex h-10 w-10 items-center justify-center rounded-md text-2xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
 
-      {/* Modal */}
-      <Modal
-        title={editingCareer ? 'Edit Job Posting' : 'Add Job Posting'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={800}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item
-              label="Position Title"
-              name="position"
-              rules={[{ required: true, message: 'Please enter position title' }]}
-            >
-              <Input placeholder="e.g., Barista" />
-            </Form.Item>
+            <div className="p-6">
+              <div className="mb-6 overflow-x-auto border-b border-slate-200 pb-0">
+                <div className="flex w-max min-w-full gap-2 whitespace-nowrap pr-2">
+                  {supportedLanguages.map((locale) => (
+                    <button
+                      key={locale}
+                      type="button"
+                      onClick={() => setCurrentLocale(locale)}
+                      className={`shrink-0 border-b-2 px-3 py-1.5 text-sm font-medium transition-colors ${currentLocale === locale ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-800'}`}
+                    >
+                      {getLocaleShortLabel(locale)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className={LABEL_CLASS}>Job Title *</label>
+                  <input
+                    type="text"
+                    className={FIELD_CLASS}
+                    value={currentTranslation.title}
+                    onChange={(e) => handleLocalizedFieldChange('title', e.target.value)}
+                    placeholder="Enter job title..."
+                  />
+                </div>
 
-            <Form.Item label="Location" name="location">
-              <Input placeholder="e.g., Downtown Branch" />
-            </Form.Item>
+                <div>
+                  <label className={LABEL_CLASS}>Description</label>
+                  <textarea
+                    rows={4}
+                    className={FIELD_CLASS}
+                    value={currentTranslation.description}
+                    onChange={(e) => handleLocalizedFieldChange('description', e.target.value)}
+                    placeholder="Describe the role and responsibilities..."
+                  />
+                </div>
+
+                <div>
+                  <label className={LABEL_CLASS}>Requirements</label>
+                  <textarea
+                    rows={4}
+                    className={FIELD_CLASS}
+                    value={currentTranslation.requirements}
+                    onChange={(e) => handleLocalizedFieldChange('requirements', e.target.value)}
+                    placeholder="List the required skills and qualifications..."
+                  />
+                </div>
+
+                <div>
+                  <label className={LABEL_CLASS}>Benefits</label>
+                  <textarea
+                    rows={3}
+                    className={FIELD_CLASS}
+                    value={currentTranslation.benefits}
+                    onChange={(e) => handleLocalizedFieldChange('benefits', e.target.value)}
+                    placeholder="What benefits do you offer?..."
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Code</label>
+                  <input type="text" className={FIELD_CLASS} value={editingCareer.code} onChange={(e) => handleFieldChange('code', e.target.value)} placeholder="career_code" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Branch</label>
+                  <select
+                    className={FIELD_CLASS}
+                    value={editingCareer.branch_id ?? ''}
+                    onChange={(e) => handleFieldChange('branch_id', e.target.value ? Number(e.target.value) : undefined)}
+                  >
+                    <option value="">All branches / not assigned</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{getBranchName(branch)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Job Type</label>
+                  <input type="text" className={FIELD_CLASS} value={editingCareer.job_type} onChange={(e) => handleFieldChange('job_type', e.target.value)} placeholder="Full-time, Part-time, Internship..." />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Experience Required</label>
+                  <input type="text" className={FIELD_CLASS} value={editingCareer.experience_required} onChange={(e) => handleFieldChange('experience_required', e.target.value)} placeholder="1 year, Senior, Entry level..." />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Salary Min</label>
+                  <input type="number" className={FIELD_CLASS} value={editingCareer.salary_min} onChange={(e) => handleFieldChange('salary_min', e.target.value)} min={0} placeholder="8000000" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Salary Max</label>
+                  <input type="number" className={FIELD_CLASS} value={editingCareer.salary_max} onChange={(e) => handleFieldChange('salary_max', e.target.value)} min={0} placeholder="12000000" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Salary Text</label>
+                  <input type="text" className={FIELD_CLASS} value={editingCareer.salary_text} onChange={(e) => handleFieldChange('salary_text', e.target.value)} placeholder="Negotiable, Up to 15M..." />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Deadline</label>
+                  <input type="date" className={FIELD_CLASS} value={editingCareer.deadline} onChange={(e) => handleFieldChange('deadline', e.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Contact Email</label>
+                  <input type="email" className={FIELD_CLASS} value={editingCareer.contact_email} onChange={(e) => handleFieldChange('contact_email', e.target.value)} placeholder="hr@example.com" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Contact Phone</label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                      <FontAwesomeIcon icon={faPhone} />
+                    </span>
+                    <input type="text" className={`${FIELD_CLASS} pl-10`} value={editingCareer.contact_phone} onChange={(e) => handleFieldChange('contact_phone', e.target.value)} placeholder="0123 456 789" />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Application URL</label>
+                  <input type="url" className={FIELD_CLASS} value={editingCareer.application_url} onChange={(e) => handleFieldChange('application_url', e.target.value)} placeholder="https://..." />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Status</label>
+                  <select className={FIELD_CLASS} value={editingCareer.status} onChange={(e) => handleFieldChange('status', e.target.value as CareerStatus)}>
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                    <option value="filled">Filled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Display Order</label>
+                  <input type="number" className={FIELD_CLASS} value={editingCareer.display_order} onChange={(e) => handleFieldChange('display_order', parseInt(e.target.value, 10) || 0)} min={0} />
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+                <div>
+                  <h3 className="font-semibold text-slate-800">Urgent Hiring</h3>
+                  <p className="text-sm text-slate-500">Highlight this job posting as an urgent opening.</p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" className="peer sr-only" checked={editingCareer.is_urgent} onChange={(e) => handleFieldChange('is_urgent', e.target.checked)} />
+                  <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-500 peer-checked:after:translate-x-full peer-checked:after:border-white" />
+                </label>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 flex justify-end gap-4 border-t border-slate-200 bg-slate-50 p-6">
+              <button
+                type="button"
+                onClick={() => setEditingCareer(null)}
+                disabled={savingCareer}
+                className="rounded-md border border-slate-600 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveCareer()}
+                disabled={savingCareer}
+                className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:bg-blue-300"
+              >
+                {savingCareer ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
-
-          <Form.Item label="Job Description" name="description">
-            <TextArea rows={3} placeholder="Describe the role and responsibilities" />
-          </Form.Item>
-
-          <Form.Item label="Requirements" name="requirements">
-            <TextArea rows={3} placeholder="List the required skills and qualifications" />
-          </Form.Item>
-
-          <Form.Item label="Benefits" name="benefits">
-            <TextArea rows={2} placeholder="What benefits do you offer?" />
-          </Form.Item>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="Minimum Salary (VND/month)" name="salary_min">
-              <InputNumber 
-                min={0} 
-                className="w-full" 
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                placeholder="8,000,000"
-              />
-            </Form.Item>
-
-            <Form.Item label="Maximum Salary (VND/month)" name="salary_max">
-              <InputNumber 
-                min={0} 
-                className="w-full" 
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                placeholder="12,000,000"
-              />
-            </Form.Item>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <Form.Item
-              label="Employment Type"
-              name="employment_type"
-              rules={[{ required: true, message: 'Please select type' }]}
-            >
-              <Select>
-                <Select.Option value="full_time">Full Time</Select.Option>
-                <Select.Option value="part_time">Part Time</Select.Option>
-                <Select.Option value="contract">Contract</Select.Option>
-                <Select.Option value="internship">Internship</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              label="Status"
-              name="status"
-              rules={[{ required: true, message: 'Please select status' }]}
-            >
-              <Select>
-                <Select.Option value="open">Open</Select.Option>
-                <Select.Option value="closed">Closed</Select.Option>
-                <Select.Option value="filled">Filled</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Application Deadline" name="deadline">
-              <DatePicker className="w-full" format="YYYY-MM-DD" />
-            </Form.Item>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="Show on Website" name="is_displaying" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-
-            <Form.Item label="Mark as Urgent" name="is_urgent" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </div>
-        </Form>
-      </Modal>
-
-      {/* Translation Modal */}
-      <TranslationModal
-        visible={translationModalVisible}
-        onClose={() => {
-          setTranslationModalVisible(false);
-          setTranslatingCareer(null);
-        }}
-        onSave={handleSaveTranslations}
-        fields={[
-          { key: 'title', label: 'Position Title', type: 'input', required: true },
-          { key: 'description', label: 'Description', type: 'textarea', rows: 3 },
-          { key: 'requirements', label: 'Requirements', type: 'textarea', rows: 3 },
-          { key: 'benefits', label: 'Benefits', type: 'textarea', rows: 3 },
-        ]}
-        initialData={
-          translatingCareer?.translations?.reduce((acc, t) => {
-            acc[t.locale] = {
-              title: t.title || '',
-              description: t.description || '',
-              requirements: t.requirements || '',
-              benefits: t.benefits || '',
-            };
-            return acc;
-          }, {} as Record<string, Record<string, string>>)
-        }
-        supportedLanguages={supportedLanguages}
-        title="Edit Career Translations"
-      />
+        </div>
+      )}
     </div>
   );
 };

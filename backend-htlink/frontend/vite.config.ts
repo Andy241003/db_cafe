@@ -7,6 +7,11 @@ const normalizeProxyTarget = (rawUrl?: string) => {
     return 'http://localhost:8000';
   }
 
+  // When Vite runs inside Docker, proxy requests must go to the backend service name.
+  if (trimmedUrl.includes('host.docker.internal') || trimmedUrl.includes('backend:8000')) {
+    return 'http://backend:8000';
+  }
+
   if (trimmedUrl.endsWith('/api/v1')) {
     return trimmedUrl.replace(/\/api\/v1$/, '');
   }
@@ -46,3 +51,5 @@ export default defineConfig(({ mode }) => {
     minify: 'esbuild',
   },
 }});
+
+

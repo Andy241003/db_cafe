@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cafe API Service
  * 
  * API calls for Cafe management (Menu, Branches, Events, Careers, Promotions, etc.)
@@ -359,49 +359,53 @@ export interface CafeEventCreate {
 export interface CafeEventUpdate extends Partial<CafeEventCreate> {}
 
 // Career Types
+// ==========================================
+// Career Types
+// ==========================================
+
 export interface Career {
   id: number;
   tenant_id: number;
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  requirements_vi?: string;
-  requirements_en?: string;
-  benefits_vi?: string;
-  benefits_en?: string;
-  location?: string;
-  employment_type?: string;
-  salary_range?: string;
-  application_deadline?: string;
-  contact_email?: string;
-  display_order: number;
+  code: string;
+  job_type?: string | null;
+  experience_required?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_text?: string | null;
+  deadline?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  application_url?: string | null;
+  branch_id?: number | null;
   status: 'open' | 'closed' | 'filled';
-  created_at: string;
+  display_order: number;
+  is_urgent: boolean;
+  attributes_json?: Record<string, unknown> | null;
+  created_at?: string;
   updated_at?: string;
   translations?: CareerTranslation[];
 }
 
 export interface CareerCreate {
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  requirements_vi?: string;
-  requirements_en?: string;
-  benefits_vi?: string;
-  benefits_en?: string;
-  location?: string;
-  employment_type?: string;
-  salary_range?: string;
-  application_deadline?: string;
-  contact_email?: string;
-  display_order?: number;
+  code: string;
+  job_type?: string | null;
+  experience_required?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_text?: string | null;
+  deadline?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  application_url?: string | null;
+  branch_id?: number | null;
   status?: 'open' | 'closed' | 'filled';
+  display_order?: number;
+  is_urgent?: boolean;
+  attributes_json?: Record<string, unknown> | null;
+  translations: CareerTranslation[];
 }
 
 export interface CareerUpdate extends Partial<CareerCreate> {}
-
 // Promotion Types
 export interface Promotion {
   id: number;
@@ -687,7 +691,7 @@ export const cafeMenuApi = {
 
 export const cafeBranchesApi = {
   getBranches: async (): Promise<Branch[]> => {
-    const response = await cafeClient.get('/cafe/branches');
+    const response = await cafeClient.get('/cafe/branches/');
     return response.data;
   },
 
@@ -697,7 +701,7 @@ export const cafeBranchesApi = {
   },
 
   createBranch: async (data: BranchCreate): Promise<Branch> => {
-    const response = await cafeClient.post('/cafe/branches', data);
+    const response = await cafeClient.post('/cafe/branches/', data);
     return response.data;
   },
 
@@ -726,7 +730,7 @@ export const cafeBranchesApi = {
 
 export const cafeEventsApi = {
   getEvents: async (): Promise<CafeEvent[]> => {
-    const response = await cafeClient.get('/cafe/events');
+    const response = await cafeClient.get('/cafe/events/');
     return response.data;
   },
 
@@ -736,7 +740,7 @@ export const cafeEventsApi = {
   },
 
   createEvent: async (data: CafeEventCreate): Promise<CafeEvent> => {
-    const response = await cafeClient.post('/cafe/events', data);
+    const response = await cafeClient.post('/cafe/events/', data);
     return response.data;
   },
 
@@ -761,7 +765,7 @@ export const cafeEventsApi = {
 
 export const cafeCareersApi = {
   getCareers: async (): Promise<Career[]> => {
-    const response = await cafeClient.get('/cafe/careers');
+    const response = await cafeClient.get('/cafe/careers/');
     return response.data;
   },
 
@@ -771,7 +775,7 @@ export const cafeCareersApi = {
   },
 
   createCareer: async (data: CareerCreate): Promise<Career> => {
-    const response = await cafeClient.post('/cafe/careers', data);
+    const response = await cafeClient.post('/cafe/careers/', data);
     return response.data;
   },
 
@@ -1193,5 +1197,7 @@ export default {
   contentSections: cafeContentSectionsApi,
   auditLogs: cafeAuditLogsApi,
 };
+
+
 
 
