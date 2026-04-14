@@ -1,4 +1,4 @@
-﻿import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -41,18 +41,7 @@ const getBranchesHeaders = () => {
   };
 };
 
-const getBranchesRequestBase = () => {
-  if (typeof window !== 'undefined') {
-    const { hostname, protocol } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `${protocol}//${hostname}:8000/api/v1`;
-    }
-
-    return `${window.location.origin}/api/v1`;
-  }
-
-  return getApiBaseUrl();
-};
+const getBranchesRequestBase = () => getApiBaseUrl();
 
 const branchRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${getBranchesRequestBase()}${path}`, {
@@ -877,7 +866,7 @@ const CafeBranches: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
               <span>
-                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
+                Enter the URL to a 360� panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
               </span>
             </p>
           </div>
