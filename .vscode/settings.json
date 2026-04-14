@@ -125,6 +125,8 @@
   "files.associations": {
     "*.tsx": "typescriptreact",
     "*.ts": "typescript",
+    "*.dockerignore": "ignore",
+    ".dockerignore": "ignore",
     "docker-compose*.yml": "dockercompose"
   },
   // Explorer settings

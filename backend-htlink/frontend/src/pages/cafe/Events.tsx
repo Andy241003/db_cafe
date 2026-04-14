@@ -1,19 +1,15 @@
 import {
-  faCalendarAlt,
   faCircleInfo,
   faEye,
   faGlobe,
   faImage,
   faImages,
   faInfoCircle,
-  faLink,
-  faMapMarkerAlt,
   faPenToSquare,
   faPlus,
   faStar,
   faTimes,
   faTrashCan,
-  faUserGroup,
   faVrCardboard,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -224,20 +220,21 @@ const CafeEvents: React.FC = () => {
       ]);
 
       const locales = languageCodes.length > 0 ? languageCodes.map((item) => item.locale) : ['vi', 'en'];
+      const settingsJson = (settings.settings_json ?? {}) as Record<string, unknown>;
+
       setSupportedLanguages(locales);
       setCurrentLocale((previous) => (locales.includes(previous) ? previous : locales[0]));
       setEvents(eventData);
       setBranches(branchData);
-      setIsDisplaying(settings.settings_json?.events_is_displaying ?? true);
-      setVr360Link(settings.settings_json?.events_vr360_link || '');
-      setVrTitle(settings.settings_json?.events_vr_title || '');
+      setIsDisplaying(typeof settingsJson.events_is_displaying === 'boolean' ? settingsJson.events_is_displaying : true);
+      setVr360Link(typeof settingsJson.events_vr360_link === 'string' ? settingsJson.events_vr360_link : '');
+      setVrTitle(typeof settingsJson.events_vr_title === 'string' ? settingsJson.events_vr_title : '');
     } catch (error: any) {
       toast.error(error.message || 'Failed to load events');
     } finally {
       setLoading(false);
     }
   };
-
   const loadEvents = async () => {
     try {
       const eventData = await eventRequest<CafeEvent[]>('/cafe/events/');

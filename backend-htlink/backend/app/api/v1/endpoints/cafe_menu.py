@@ -3,7 +3,7 @@ Cafe Menu API endpoints
 
 Handles cafe menu categories and menu items with multi-language support
 """
-from typing import Optional, List
+from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
@@ -26,6 +26,10 @@ router = APIRouter()
 # ==========================================
 # Pydantic Schemas
 # ==========================================
+
+JsonObject = dict[str, Any]
+JsonArray = list[Any]
+JsonLike = JsonObject | JsonArray
 
 class CategoryTranslationSchema(BaseModel):
     """Category translation schema"""
@@ -85,8 +89,8 @@ class MenuItemResponse(BaseModel):
     price: Optional[float] = None
     original_price: Optional[float] = None
     status: str = "available"
-    sizes: Optional[dict] = None
-    tags: Optional[dict] = None
+    sizes: Optional[JsonLike] = None
+    tags: Optional[JsonLike] = None
     calories: Optional[int] = None
     primary_image_media_id: Optional[int] = None
     is_bestseller: bool = False
@@ -105,8 +109,8 @@ class MenuItemCreate(BaseModel):
     price: Optional[float] = None
     original_price: Optional[float] = None
     status: str = "available"
-    sizes: Optional[dict] = None
-    tags: Optional[dict] = None
+    sizes: Optional[JsonLike] = None
+    tags: Optional[JsonLike] = None
     calories: Optional[int] = None
     primary_image_media_id: Optional[int] = None
     is_bestseller: bool = False
@@ -125,8 +129,8 @@ class MenuItemUpdate(BaseModel):
     price: Optional[float] = None
     original_price: Optional[float] = None
     status: Optional[str] = None
-    sizes: Optional[dict] = None
-    tags: Optional[dict] = None
+    sizes: Optional[JsonLike] = None
+    tags: Optional[JsonLike] = None
     calories: Optional[int] = None
     primary_image_media_id: Optional[int] = None
     is_bestseller: Optional[bool] = None
@@ -572,3 +576,5 @@ def delete_menu_item(
     db.commit()
     
     return {"success": True, "message": "Menu item deleted"}
+
+
