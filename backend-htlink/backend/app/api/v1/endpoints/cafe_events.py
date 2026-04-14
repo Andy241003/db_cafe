@@ -201,7 +201,10 @@ def create_event(
 ):
     """Create new event"""
     existing = db.exec(
-        select(CafeEvent).where(CafeEvent.code == event_data.code)
+        select(CafeEvent).where(
+            CafeEvent.tenant_id == current_user.tenant_id,
+            CafeEvent.code == event_data.code
+        )
     ).first()
     
     if existing:

@@ -1,4 +1,4 @@
-import { faCheckCircle, faImage, faPhotoFilm, faSpinner, faTimes, faUpload } from '@fortawesome/free-solid-svg-icons';
+﻿import { faCheckCircle, faImage, faPhotoFilm, faSpinner, faTimes, faUpload } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ interface MediaPickerModalProps {
   kind?: 'image' | 'video' | 'file';
   source?: string;
   folder?: string;
+  folderAliases?: string[];
   maxFileSize?: number; // in MB
   allowMultiple?: boolean;
 }
@@ -27,6 +28,7 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   kind = 'image',
   source,
   folder,
+  folderAliases = [],
   maxFileSize = 5,
   allowMultiple = false
 }) => {
@@ -37,35 +39,77 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<number>>(new Set());
+  const [libraryMessage, setLibraryMessage] = useState('');
 
   useEffect(() => {
     if (isOpen && activeTab === 'library') {
       loadMediaFiles();
       setSelectedMediaIds(new Set()); // Reset selection when opening
     }
-  }, [isOpen, activeTab, source, folder]);
+  }, [isOpen, activeTab, source, folder, folderAliases]);
 
   const loadMediaFiles = async () => {
     try {
       setIsLoading(true);
-      
-      // Try with folder filter first
-      let files = await mediaApi.getMediaFiles({
-        kind,
-        source,
-        folder,
-        limit: 50
-      });
-      
-      // If no files found with folder filter, try without folder (show all from source)
-      if (files.length === 0 && folder) {
-        files = await mediaApi.getMediaFiles({
+      setLibraryMessage('');
+
+      const dedupeFiles = (files: MediaFile[]) => {
+        const seen = new Set<number>();
+        return files.filter((file) => {
+          if (seen.has(file.id)) {
+            return false;
+          }
+          seen.add(file.id);
+          return true;
+        });
+      };
+
+      const FOLDER_ONLY_THRESHOLD = 8;
+
+      const normalizedFolderCandidates = Array.from(
+        new Set(
+          [folder, ...folderAliases]
+            .map((value) => value?.trim())
+            .filter((value): value is string => Boolean(value))
+        )
+      );
+
+      const folderResults = await Promise.all(
+        normalizedFolderCandidates.map((candidate) =>
+          mediaApi.getMediaFiles({
+            kind,
+            source,
+            folder: candidate,
+            limit: 50
+          })
+        )
+      );
+
+      const folderFiles = dedupeFiles(folderResults.flat());
+
+      let files = folderFiles;
+
+      if (folder) {
+        const sourceFiles = await mediaApi.getMediaFiles({
           kind,
           source,
           limit: 50
         });
+
+        if (folderFiles.length === 0) {
+          files = sourceFiles;
+          setLibraryMessage(`No images found in "${folder}". Showing all images from this library instead.`);
+        } else if (folderFiles.length < FOLDER_ONLY_THRESHOLD) {
+          files = dedupeFiles([...folderFiles, ...sourceFiles]);
+          const aliasMatchCount = folderResults
+            .slice(folder ? 1 : 0)
+            .reduce((total, current) => total + current.length, 0);
+          const aliasMessage =
+            aliasMatchCount > 0 ? ` Included ${aliasMatchCount} image${aliasMatchCount > 1 ? 's' : ''} from related folders.` : '';
+          setLibraryMessage(`Showing ${folderFiles.length} image${folderFiles.length > 1 ? 's' : ''} from "${folder}" first, plus more images from the full library.${aliasMessage}`);
+        }
       }
-      
+
       setMediaFiles(files);
     } catch (error: any) {
       console.error('Failed to load media files:', error);
@@ -152,7 +196,7 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
       await loadMediaFiles();
       
     } catch (error: any) {
-      console.error('❌ Upload failed:', error);
+      console.error('âŒ Upload failed:', error);
       toast.error(`Upload failed: ${error.response?.data?.detail || error.message}`);
     } finally {
       setIsUploading(false);
@@ -262,55 +306,62 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
                   <p className="text-sm mt-2">Upload new images to get started</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {mediaFiles.map((media) => {
-                    const API_BASE_URL = getApiBaseUrl();
-                    const mediaUrl = `${API_BASE_URL}/media/${media.id}/view`;
-                    const isSelected = selectedMediaIds.has(media.id);
-                    
-                    return (
-                      <div
-                        key={media.id}
-                        onClick={() => handleSelectFromLibrary(media)}
-                        className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all aspect-square ${
-                          isSelected 
-                            ? 'border-blue-600 ring-2 ring-blue-300' 
-                            : 'border-slate-200 hover:border-blue-500'
-                        }`}
-                      >
-                        <img
-                          src={mediaUrl}
-                          alt={media.original_filename || `Image ${media.id}`}
-                          className="w-full h-full object-cover"
-                        />
-                        
-                        {/* Multi-select checkbox */}
-                        {allowMultiple && (
-                          <div className="absolute top-2 right-2 z-10">
-                            <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${
-                              isSelected 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-white bg-opacity-70 border-2 border-slate-300'
-                            }`}>
-                              {isSelected && (
-                                <FontAwesomeIcon icon={faCheckCircle} className="text-sm" />
-                              )}
+                <div className="space-y-4">
+                  {libraryMessage && (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                      {libraryMessage}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {mediaFiles.map((media) => {
+                      const API_BASE_URL = getApiBaseUrl();
+                      const mediaUrl = `${API_BASE_URL}/media/${media.id}/view`;
+                      const isSelected = selectedMediaIds.has(media.id);
+                      
+                      return (
+                        <div
+                          key={media.id}
+                          onClick={() => handleSelectFromLibrary(media)}
+                          className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all aspect-square ${
+                            isSelected 
+                              ? 'border-blue-600 ring-2 ring-blue-300' 
+                              : 'border-slate-200 hover:border-blue-500'
+                          }`}
+                        >
+                          <img
+                            src={mediaUrl}
+                            alt={media.original_filename || `Image ${media.id}`}
+                            className="w-full h-full object-cover"
+                          />
+                          
+                          {/* Multi-select checkbox */}
+                          {allowMultiple && (
+                            <div className="absolute top-2 right-2 z-10">
+                              <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${
+                                isSelected 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-white bg-opacity-70 border-2 border-slate-300'
+                              }`}>
+                                {isSelected && (
+                                  <FontAwesomeIcon icon={faCheckCircle} className="text-sm" />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-sm font-medium">
+                              {allowMultiple 
+                                ? (isSelected ? 'Deselect' : 'Select')
+                                : 'Select this image'
+                              }
                             </div>
                           </div>
-                        )}
-                        
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center">
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-sm font-medium">
-                            {allowMultiple 
-                              ? (isSelected ? 'Deselect' : 'Select')
-                              : 'Select this image'
-                            }
-                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -428,3 +479,6 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
 };
 
 export default MediaPickerModal;
+
+
+

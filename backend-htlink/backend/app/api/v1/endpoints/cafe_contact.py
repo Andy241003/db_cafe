@@ -56,6 +56,11 @@ class CafeContactUpdate(BaseModel):
 # API Endpoints
 # ==========================================
 
+def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
+    return db.exec(
+        select(CafeSettings).where(CafeSettings.tenant_id == tenant_id).limit(1)
+    ).first()
+
 @router.get("/", response_model=CafeContactResponse)
 def get_cafe_contact(
     current_user: CurrentUser,
@@ -65,8 +70,7 @@ def get_cafe_contact(
     Get cafe contact information for current tenant
     Contact data is stored in CafeSettings table but accessed separately
     """
-    statement = select(CafeSettings).where(CafeSettings.tenant_id == current_user.tenant_id)
-    settings = db.exec(statement).first()
+    settings = get_cafe_settings_record(db, current_user.tenant_id)
     
     if not settings:
         # Return default empty contact if settings don't exist
@@ -117,8 +121,7 @@ def update_cafe_contact(
     Contact data is stored in CafeSettings table
     """
     # Get or create settings
-    statement = select(CafeSettings).where(CafeSettings.tenant_id == current_user.tenant_id)
-    settings = db.exec(statement).first()
+    settings = get_cafe_settings_record(db, current_user.tenant_id)
     
     if not settings:
         # Create new settings if doesn't exist

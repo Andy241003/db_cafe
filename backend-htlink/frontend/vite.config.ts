@@ -1,9 +1,27 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
+const normalizeProxyTarget = (rawUrl?: string) => {
+  const trimmedUrl = rawUrl?.trim().replace(/\/$/, '');
+  if (!trimmedUrl) {
+    return 'http://localhost:8000';
+  }
+
+  if (trimmedUrl.endsWith('/api/v1')) {
+    return trimmedUrl.replace(/\/api\/v1$/, '');
+  }
+
+  if (trimmedUrl.endsWith('/api')) {
+    return trimmedUrl.replace(/\/api$/, '');
+  }
+
+  return trimmedUrl;
+};
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = normalizeProxyTarget(env.VITE_API_URL);
   
   return {
   plugins: [react()],
@@ -12,12 +30,12 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     watch: {
       usePolling: true,  // Enable polling for Docker on Windows
-      interval: 1000,    // Check for changes every 1 second
+      interval: 2500,    // Poll less often to reduce Docker/WSL overhead
     },
     // API proxy for development
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: apiTarget,
         changeOrigin: true,
       }
     }
@@ -27,8 +45,4 @@ export default defineConfig(({ mode }) => {
     sourcemap: false,
     minify: 'esbuild',
   },
-  define: {
-    // Make environment variables available
-    'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || 'http://localhost:8000'),
-  }
 }});

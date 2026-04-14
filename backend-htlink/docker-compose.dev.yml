@@ -1,30 +1,13 @@
 version: "3.8"
 
 services:
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: hotellink_db
-      MYSQL_USER: hotellink_user
-      MYSQL_PASSWORD: hotellink_pass
-    volumes:
-      - app-db-data:/var/lib/mysql
-    ports:
-      - "3307:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 5s
-      retries: 10
+  # Database removed - using remote server at travel.link360.vn
+  # Connection: pymysql://vrcafe_user:cafe@1234@travel.link360.vn:3306/vrcafe_db
 
   backend:
     build:
       context: ./backend
     restart: always
-    depends_on:
-      db:
-        condition: service_healthy
     env_file:
       - .env
     ports:
@@ -47,16 +30,11 @@ services:
       - ./frontend/tailwind.config.js:/app/tailwind.config.js
       - ./frontend/postcss.config.js:/app/postcss.config.js
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://backend:8000
     command: npm run dev -- --host 0.0.0.0
 
   adminer:
     image: adminer
     restart: always
-    depends_on:
-      - db
     ports:
       - "8081:8080"
-
-volumes:
-  app-db-data:

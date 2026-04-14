@@ -5,7 +5,8 @@ from sqlmodel import select
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, get_tenant_from_header
-from app.models import Locale, LocaleCreate, LocaleUpdate
+from app.models import Locale
+from app.schemas import LocaleCreate, LocaleUpdate
 
 router = APIRouter()
 

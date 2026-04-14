@@ -1,4 +1,5 @@
-import sentry_sdk
+﻿import sentry_sdk
+from copy import deepcopy
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
@@ -26,7 +27,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
         # LOG EVERY REQUEST
         import sys
         if request.method == "PUT" and "/categories/" in request.url.path:
-            print(f"🔴🔴🔴 MIDDLEWARE: PUT request to {request.url.path}", flush=True)
+            print(f"ðŸ”´ðŸ”´ðŸ”´ MIDDLEWARE: PUT request to {request.url.path}", flush=True)
             sys.stdout.flush()
         
         response = await call_next(request)
@@ -75,7 +76,7 @@ class AutoTenantMiddleware(BaseHTTPMiddleware):
             # Rebuild request with new headers
             request._headers.raw.append((b"x-tenant-code", tenant_code.encode()))
             
-            print(f"🔧 AutoTenantMiddleware: Set tenant_code = {tenant_code}")
+            print(f"ðŸ”§ AutoTenantMiddleware: Set tenant_code = {tenant_code}")
         
         response = await call_next(request)
         return response
@@ -100,6 +101,7 @@ app = FastAPI(
 
 # Set max file size to 100MB
 app.router.max_request_size = 100 * 1024 * 1024  # 100MB in bytes
+app.openapi_schema_original = app.openapi
 
 
 # Add no-cache middleware to prevent stale data
@@ -113,9 +115,9 @@ app.add_middleware(AutoTenantMiddleware)
 
 # Set all CORS enabled origins - Always allow for development
 # Restrict CORS origins for development: allow the local frontend dev server(s)
-print(f"🌐 CORS Origins: {settings.all_cors_origins}", flush=True)
-print(f"🌐 BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
-print(f"🌐 FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
+print(f"ðŸŒ CORS Origins: {settings.all_cors_origins}", flush=True)
+print(f"ðŸŒ BACKEND_CORS_ORIGINS: {settings.BACKEND_CORS_ORIGINS}", flush=True)
+print(f"ðŸŒ FRONTEND_HOST: {settings.FRONTEND_HOST}", flush=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.all_cors_origins,
@@ -126,6 +128,39 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+
+CAFE_DOC_TAGS = {"cafe", "auth", "media"}
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = app.openapi_schema_original()
+    filtered_schema = deepcopy(openapi_schema)
+    filtered_paths = {}
+
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        filtered_operations = {}
+        for method, operation in path_item.items():
+            tags = set(operation.get("tags", []))
+            if tags & CAFE_DOC_TAGS:
+                filtered_operations[method] = operation
+
+        if filtered_operations:
+            filtered_paths[path] = filtered_operations
+
+    filtered_schema["paths"] = filtered_paths
+    filtered_schema["tags"] = [
+        tag for tag in openapi_schema.get("tags", [])
+        if tag.get("name") in CAFE_DOC_TAGS
+    ]
+    app.openapi_schema = filtered_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # Mount static files
 try:
@@ -151,7 +186,7 @@ async def token_helper():
         </style>
     </head>
     <body>
-        <h1>🔐 HotelLink API - Token Helper</h1>
+        <h1>ðŸ” HotelLink API - Token Helper</h1>
         
         <div>
             <button class="btn" onclick="getToken()">Get New Token</button>
@@ -197,13 +232,13 @@ async def token_helper():
                         localStorage.setItem('access_token', data.access_token);
                         localStorage.setItem('token_type', data.token_type);
                         
-                        document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token obtained and saved!</span>';
+                        document.getElementById('tokenStatus').innerHTML = '<span class="success">âœ… Token obtained and saved!</span>';
                         showToken();
                     } else {
-                        document.getElementById('tokenStatus').innerHTML = '❌ Failed to get token';
+                        document.getElementById('tokenStatus').innerHTML = 'âŒ Failed to get token';
                     }
                 } catch (error) {
-                    document.getElementById('tokenStatus').innerHTML = '❌ Error: ' + error.message;
+                    document.getElementById('tokenStatus').innerHTML = 'âŒ Error: ' + error.message;
                 }
             }
             
@@ -215,10 +250,10 @@ async def token_helper():
                 if (token) {
                     tokenValue.textContent = token;
                     tokenDisplay.style.display = 'block';
-                    document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token found in localStorage</span>';
+                    document.getElementById('tokenStatus').innerHTML = '<span class="success">âœ… Token found in localStorage</span>';
                 } else {
                     tokenDisplay.style.display = 'none';
-                    document.getElementById('tokenStatus').innerHTML = '❌ No token found';
+                    document.getElementById('tokenStatus').innerHTML = 'âŒ No token found';
                 }
             }
             
@@ -246,7 +281,7 @@ async def token_helper():
                             if (data.access_token) {
                                 localStorage.setItem('access_token', data.access_token);
                                 localStorage.setItem('token_type', data.token_type || 'bearer');
-                                console.log('✅ Token auto-saved from API call');
+                                console.log('âœ… Token auto-saved from API call');
                             }
                         }).catch(() => {});
                     }
@@ -277,7 +312,7 @@ async def token_storage():
         </style>
     </head>
     <body>
-        <h1>🔐 HotelLink API - Token Storage</h1>
+        <h1>ðŸ” HotelLink API - Token Storage</h1>
         <p>This page helps external applications get authentication tokens.</p>
         
         <div id="tokenInfo" class="token-box">
@@ -311,10 +346,10 @@ async def token_storage():
                 const tokenStatus = document.getElementById('tokenStatus');
                 
                 if (token) {
-                    tokenStatus.innerHTML = '<span class="success">✓ Token Available</span>';
+                    tokenStatus.innerHTML = '<span class="success">âœ“ Token Available</span>';
                     tokenStatus.innerHTML += '<br><small>Token: ' + token.substring(0, 50) + '...</small>';
                 } else {
-                    tokenStatus.innerHTML = '<span class="error">✗ No Token Found</span>';
+                    tokenStatus.innerHTML = '<span class="error">âœ— No Token Found</span>';
                 }
             }
             
@@ -326,11 +361,11 @@ async def token_storage():
                     if (data.access_token) {
                         localStorage.setItem('access_token', data.access_token);
                         localStorage.setItem('token_type', data.token_type);
-                        alert('✓ Token saved successfully!');
+                        alert('âœ“ Token saved successfully!');
                         checkToken();
                     }
                 } catch (error) {
-                    alert('✗ Error getting token: ' + error.message);
+                    alert('âœ— Error getting token: ' + error.message);
                 }
             }
             
@@ -367,3 +402,6 @@ def root():
         "docs": "/docs",
         "token_helper": "/token-storage"
     }
+
+
+

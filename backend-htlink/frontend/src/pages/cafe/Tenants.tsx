@@ -1,4 +1,4 @@
-// src/pages/cafe/Tenants.tsx
+﻿// src/pages/cafe/Tenants.tsx
 import {
     faBuilding,
     faCode,
@@ -39,13 +39,13 @@ const CafeTenants: React.FC = () => {
 
   const localeOptions = [
     { code: 'en', name: 'English' },
-    { code: 'vi', name: 'Tiếng Việt' },
-    { code: 'zh', name: '中文' },
-    { code: 'ja', name: '日本語' },
-    { code: 'ko', name: '한국어' },
-    { code: 'fr', name: 'Français' },
+    { code: 'vi', name: 'Vietnamese' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'fr', name: 'French' },
     { code: 'de', name: 'Deutsch' },
-    { code: 'es', name: 'Español' },
+    { code: 'es', name: 'Spanish' },
   ];
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {

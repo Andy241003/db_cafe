@@ -117,11 +117,25 @@ const CafeLanguages: React.FC = () => {
     const isSelected = settings.supported_languages.includes(code);
     
     if (isSelected) {
+      if (settings.supported_languages.length <= 1) {
+        toast.error('At least one language is required');
+        return;
+      }
+
+      const nextLanguages = settings.supported_languages.filter(lang => lang !== code);
+
       // Remove from local state
-      setSettings(prev => ({
-        ...prev,
-        supported_languages: prev.supported_languages.filter(lang => lang !== code)
-      }));
+      setSettings(prev => {
+        const nextDefault = prev.default_language === code ? nextLanguages[0] : prev.default_language;
+        const nextFallback = prev.fallback_language === code ? nextDefault : prev.fallback_language;
+
+        return {
+          ...prev,
+          default_language: nextDefault,
+          fallback_language: nextFallback,
+          supported_languages: nextLanguages,
+        };
+      });
     } else {
       // Add to local state
       setSettings(prev => ({
@@ -180,6 +194,12 @@ const CafeLanguages: React.FC = () => {
 
       setOriginalSettings(settings);
       setHasChanges(false);
+      window.dispatchEvent(new CustomEvent('cafe-languages-updated', {
+        detail: {
+          supportedLanguages: settings.supported_languages,
+          defaultLanguage: settings.default_language,
+        }
+      }));
       toast.success('Settings saved successfully!');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save settings');

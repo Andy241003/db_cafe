@@ -3,7 +3,7 @@ Cafe Spaces API endpoints
 
 Handles cafe spaces/areas management with multi-language support
 """
-from typing import Optional, List
+from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
@@ -44,12 +44,12 @@ class CafeSpaceResponse(BaseModel):
     tenant_id: int
     code: str
     primary_image_media_id: Optional[int] = None
-    amenities_json: Optional[dict] = None
+    amenities_json: Optional[Any] = None
     capacity: Optional[int] = None
     area_size: Optional[str] = None
     is_active: bool = True
     display_order: int = 0
-    attributes_json: Optional[dict] = None
+    attributes_json: Optional[Any] = None
     translations: List[SpaceTranslationSchema] = []
     media: List[SpaceMediaSchema] = []
 
@@ -58,12 +58,12 @@ class CafeSpaceCreate(BaseModel):
     """Cafe Space Create"""
     code: str
     primary_image_media_id: Optional[int] = None
-    amenities_json: Optional[dict] = None
+    amenities_json: Optional[Any] = None
     capacity: Optional[int] = None
     area_size: Optional[str] = None
     is_active: bool = True
     display_order: int = 0
-    attributes_json: Optional[dict] = None
+    attributes_json: Optional[Any] = None
     translations: List[SpaceTranslationSchema]
     media_ids: Optional[List[int]] = None
 
@@ -72,12 +72,12 @@ class CafeSpaceUpdate(BaseModel):
     """Cafe Space Update"""
     code: Optional[str] = None
     primary_image_media_id: Optional[int] = None
-    amenities_json: Optional[dict] = None
+    amenities_json: Optional[Any] = None
     capacity: Optional[int] = None
     area_size: Optional[str] = None
     is_active: Optional[bool] = None
     display_order: Optional[int] = None
-    attributes_json: Optional[dict] = None
+    attributes_json: Optional[Any] = None
     translations: Optional[List[SpaceTranslationSchema]] = None
     media_ids: Optional[List[int]] = None
 
@@ -175,7 +175,10 @@ def create_space(
 ):
     """Create new space"""
     existing = db.exec(
-        select(CafeSpace).where(CafeSpace.code == space_data.code)
+        select(CafeSpace).where(
+            CafeSpace.tenant_id == current_user.tenant_id,
+            CafeSpace.code == space_data.code
+        )
     ).first()
     
     if existing:
@@ -245,6 +248,7 @@ def update_space(
             select(CafeSpaceTranslation).where(CafeSpaceTranslation.space_id == space_id)
         ).all():
             db.delete(existing_trans)
+        db.flush()
         
         for trans in space_data.translations:
             translation = CafeSpaceTranslation(
@@ -260,6 +264,7 @@ def update_space(
             select(CafeSpaceMedia).where(CafeSpaceMedia.space_id == space_id)
         ).all():
             db.delete(existing_media)
+        db.flush()
         
         for idx, media_id in enumerate(space_data.media_ids):
             space_media = CafeSpaceMedia(

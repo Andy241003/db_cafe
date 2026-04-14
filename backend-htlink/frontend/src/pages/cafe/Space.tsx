@@ -1,4 +1,4 @@
-import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
+﻿import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -412,6 +412,16 @@ const CafeSpace: React.FC = () => {
     }
   };
 
+  const convertToEmbedUrl = (url: string): string => {
+    if (!url) return url;
+    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+    const match = url.match(youtubeRegex);
+    if (match && match[1]) {
+      return `https://www.youtube.com/embed/${match[1]}`;
+    }
+    return url;
+  };
+
   const handleVR360Change = async (field: 'link' | 'title', value: string) => {
     try {
       setSavingVR(true);
@@ -419,11 +429,11 @@ const CafeSpace: React.FC = () => {
       await cafeSettingsApi.updateSettings({
         settings_json: {
           ...(currentSettings.settings_json || {}),
-          spaces_vr360_link: field === 'link' ? value : vr360Link,
+          spaces_vr360_link: field === 'link' ? convertToEmbedUrl(value) : vr360Link,
           spaces_vr_title: field === 'title' ? value : vrTitle,
         },
       });
-      if (field === 'link') setVr360Link(value);
+      if (field === 'link') setVr360Link(convertToEmbedUrl(value));
       if (field === 'title') setVrTitle(value);
       toast.success('VR360 settings saved');
     } catch (error: any) {
@@ -489,43 +499,60 @@ const CafeSpace: React.FC = () => {
           <FontAwesomeIcon icon={faVrCardboard} className="text-purple-600" />
           <h2 className="text-xl font-bold text-slate-800">VR360 Settings</h2>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
             <label className={LABEL_CLASS}>VR360 Link</label>
-            <input className={FIELD_CLASS} value={vr360Link} onChange={(e) => void handleVR360Change('link', e.target.value)} placeholder="https://example.com/vr360-tour" disabled={savingVR} />
+            <input
+              type="url"
+              className={FIELD_CLASS}
+              value={vr360Link}
+              onChange={(e) => void handleVR360Change('link', e.target.value)}
+              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
+              disabled={savingVR}
+            />
+            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
+              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
+              <span>Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
+            </p>
           </div>
           <div>
             <label className={LABEL_CLASS}>VR360 Title</label>
-            <input className={FIELD_CLASS} value={vrTitle} onChange={(e) => void handleVR360Change('title', e.target.value)} placeholder="Enter VR tour title" disabled={savingVR} />
+            <input
+              type="text"
+              className={FIELD_CLASS}
+              value={vrTitle}
+              onChange={(e) => void handleVR360Change('title', e.target.value)}
+              placeholder="Enter VR tour title"
+              disabled={savingVR}
+            />
           </div>
           {vr360Link && (
-            <div className="space-y-4">
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-                  <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
-                </div>
-                <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
-                  <div className="relative w-full" style={{ height: '500px' }}>
-                    <iframe
-                      src={vr360Link}
-                      className="absolute left-0 top-0 h-full w-full"
-                      allowFullScreen
-                      title="VR360 Preview"
-                      allow="xr-spatial-tracking; gyroscope; accelerometer"
-                    />
-                  </div>
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
+                <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
+              </div>
+              <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
+                <div className="relative w-full" style={{ height: '500px' }}>
+                  <iframe
+                    src={vr360Link}
+                    className="absolute left-0 top-0 h-full w-full"
+                    allowFullScreen
+                    title="VR360 Preview"
+                    allow="xr-spatial-tracking; gyroscope; accelerometer"
+                  />
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => window.open(vr360Link, '_blank')}
-                className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-4 py-2 text-white hover:bg-slate-700"
-              >
-                <FontAwesomeIcon icon={faPlay} />
-                Open VR Link
-              </button>
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => window.open(vr360Link, '_blank')}
+                  className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-6 py-2 text-white transition-colors hover:bg-slate-700"
+                >
+                  <FontAwesomeIcon icon={faPlay} />
+                  View Fullscreen
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -735,3 +762,5 @@ const CafeSpace: React.FC = () => {
 };
 
 export default CafeSpace;
+
+

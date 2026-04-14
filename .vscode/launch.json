@@ -27,7 +27,7 @@
       "console": "integratedTerminal",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/backend-htlink/backend",
-        "DATABASE_URL": "mysql+pymysql://root:yourpassword@localhost:3306/hotellink360_db"
+        "DATABASE_URL": "pymysql://vrcafe_user:cafe@1234@travel.link360.vn:3306/vrcafe_db"
       },
       "args": []
     },

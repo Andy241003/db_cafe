@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useFeaturePosts } from '../../hooks/useFeaturesPosts';
 import type { UIPost } from '../../services/api';
 
@@ -16,18 +16,18 @@ const getLocaleInfo = (locale?: string) => {
   const code = (locale || 'en').toLowerCase();
   switch (code) {
     case 'vi':
-      return { localeName: 'Tiếng Việt', flagClass: '🇻🇳' };
+      return { localeName: 'Vietnamese', flagClass: 'VN' };
     case 'ja':
-      return { localeName: '日本語', flagClass: '🇯🇵' };
+      return { localeName: 'Japanese', flagClass: 'JP' };
     case 'ko':
-      return { localeName: '한국어', flagClass: '🇰🇷' };
+      return { localeName: 'Korean', flagClass: 'KR' };
     case 'fr':
-      return { localeName: 'Français', flagClass: '🇫🇷' };
+      return { localeName: 'French', flagClass: 'FR' };
     case 'zh':
-      return { localeName: '中文', flagClass: '🇨🇳' };
+      return { localeName: 'Chinese', flagClass: 'CN' };
     case 'en':
     default:
-      return { localeName: 'English', flagClass: '🇬🇧' };
+      return { localeName: 'English', flagClass: 'GB' };
   }
 };
 

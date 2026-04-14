@@ -42,7 +42,6 @@ const UserModal: React.FC<UserModalProps> = ({
     status: 'active',
     password: '',
     permissions: { ...defaultPermissions },
-    service_access: 0,
   });
 
   useEffect(() => {
@@ -58,7 +57,6 @@ const UserModal: React.FC<UserModalProps> = ({
             ...defaultPermissions,
             ...(initialData.permissions ?? {}),
           },
-          service_access: initialData.service_access ?? 0,
         });
       } else {
         // Reset for new user
@@ -70,7 +68,6 @@ const UserModal: React.FC<UserModalProps> = ({
           status: 'active',
           password: '',
           permissions: { ...defaultPermissions },
-          service_access: 0,
         });
       }
     }

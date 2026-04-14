@@ -1,4 +1,4 @@
-import { faImage, faPhotoFilm, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
+﻿import { faImage, faPhotoFilm, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -97,7 +97,7 @@ const CafeSettings: React.FC = () => {
     if (!logoMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ logo_media_id: undefined });
+      await cafeSettingsApi.updateSettings({ logo_media_id: null });
       
       setLogoMediaId(null);
       setLogoUrl('');
@@ -113,7 +113,7 @@ const CafeSettings: React.FC = () => {
     if (!faviconMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ favicon_media_id: undefined });
+      await cafeSettingsApi.updateSettings({ favicon_media_id: null });
       
       setFaviconMediaId(null);
       setFaviconUrl('');
@@ -129,7 +129,7 @@ const CafeSettings: React.FC = () => {
     if (!metaImageMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ meta_image_media_id: undefined });
+      await cafeSettingsApi.updateSettings({ meta_image_media_id: null });
       
       setMetaImageMediaId(null);
       setMetaImageUrl('');
@@ -153,21 +153,21 @@ const CafeSettings: React.FC = () => {
         setLogoMediaId(mediaId);
         setLogoUrl(mediaUrl);
         await cafeSettingsApi.updateSettings({ logo_media_id: mediaId });
-        toast.success('Logo đã được cập nhật');
+        toast.success('Logo updated successfully');
       } else if (currentMediaPicker === 'favicon') {
         setFaviconMediaId(mediaId);
         setFaviconUrl(mediaUrl);
         await cafeSettingsApi.updateSettings({ favicon_media_id: mediaId });
-        toast.success('Favicon đã được cập nhật');
+        toast.success('Favicon updated successfully');
       } else if (currentMediaPicker === 'meta_image') {
         setMetaImageMediaId(mediaId);
         setMetaImageUrl(mediaUrl);
         await cafeSettingsApi.updateSettings({ meta_image_media_id: mediaId });
-        toast.success('Meta image đã được cập nhật');
+        toast.success('Meta image updated successfully');
       }
     } catch (error: any) {
       console.error('Failed to update media:', error);
-      toast.error('Cập nhật ảnh thất bại');
+      toast.error('Failed to update image');
     }
   };
 
@@ -179,15 +179,15 @@ const CafeSettings: React.FC = () => {
       const updateData: Partial<CafeSettings> = {
         primary_color: settings.primaryColor,
         background_color: settings.backgroundColor,
-        booking_url: settings.bookingUrl.trim() === '' ? undefined : settings.bookingUrl,
-        messenger_url: settings.messengerUrl.trim() === '' ? undefined : settings.messengerUrl,
-        phone_number: settings.phoneNumber.trim() === '' ? undefined : settings.phoneNumber,
-        logo_media_id: logoMediaId ?? undefined,
-        favicon_media_id: faviconMediaId ?? undefined,
-        meta_image_media_id: metaImageMediaId ?? undefined,
-        meta_title: settings.metaTitle,
-        meta_description: settings.metaDescription,
-        meta_keywords: settings.keywords,
+        booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
+        messenger_url: settings.messengerUrl.trim() === '' ? null : settings.messengerUrl,
+        phone_number: settings.phoneNumber.trim() === '' ? null : settings.phoneNumber,
+        logo_media_id: logoMediaId,
+        favicon_media_id: faviconMediaId,
+        meta_image_media_id: metaImageMediaId,
+        meta_title: settings.metaTitle.trim() === '' ? null : settings.metaTitle,
+        meta_description: settings.metaDescription.trim() === '' ? null : settings.metaDescription,
+        meta_keywords: settings.keywords.trim() === '' ? null : settings.keywords,
       };
       
       await cafeSettingsApi.updateSettings(updateData);
@@ -208,15 +208,15 @@ const CafeSettings: React.FC = () => {
         const defaultData: Partial<CafeSettings> = {
           primary_color: '#8eb18e',
           background_color: '#ffffff',
-          booking_url: undefined,
-          messenger_url: undefined,
-          phone_number: undefined,
-          logo_media_id: undefined,
-          favicon_media_id: undefined,
-          meta_image_media_id: undefined,
-          meta_title: '',
-          meta_description: '',
-          meta_keywords: '',
+          booking_url: null,
+          messenger_url: null,
+          phone_number: null,
+          logo_media_id: null,
+          favicon_media_id: null,
+          meta_image_media_id: null,
+          meta_title: null,
+          meta_description: null,
+          meta_keywords: null,
         };
         await cafeSettingsApi.updateSettings(defaultData);
         toast.success('Settings restored to defaults');
@@ -275,7 +275,7 @@ const CafeSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Xóa
+                      Remove
                     </button>
                   )}
                 </div>
@@ -316,7 +316,7 @@ const CafeSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Xóa
+                      Remove
                     </button>
                   )}
                 </div>
@@ -418,11 +418,11 @@ const CafeSettings: React.FC = () => {
                   type="text"
                   value={settings.phoneNumber}
                   onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                  placeholder="+84 123 456 789 hoặc Zalo OA ID"
+                  placeholder="+84 123 456 789 or Zalo OA ID"
                   className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="text-sm text-slate-500 mt-1">
-                  Số điện thoại hoặc Zalo Official Account ID
+                  Phone number or Zalo Official Account ID
                 </p>
               </div>
             </div>
@@ -513,7 +513,7 @@ const CafeSettings: React.FC = () => {
                       className="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center gap-2"
                     >
                       <FontAwesomeIcon icon={faTrash} />
-                      Xóa
+                      Remove
                     </button>
                   )}
                 </div>
@@ -570,3 +570,5 @@ const CafeSettings: React.FC = () => {
 };
 
 export default CafeSettings;
+
+

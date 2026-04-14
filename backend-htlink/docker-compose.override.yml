@@ -1,10 +1,9 @@
-version: "3.8"
-
 services:
-  db:
-    restart: always
-    ports:
-      - "3307:3306"
+  # db service removed - using remote MySQL at travel.link360.vn
+  # db:
+  #   restart: always
+  #   ports:
+  #     - "3307:3306"
 
   adminer:
     restart: always
@@ -28,7 +27,9 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=https://travel.link360.vn/api
+        - VITE_API_URL=http://host.docker.internal:8000
         - NODE_ENV=production
     ports:
       - "3001:80"
+    environment:
+      - VITE_API_URL=http://host.docker.internal:8000

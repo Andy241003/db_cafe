@@ -1,4 +1,4 @@
-import { Button, Form, Input, Modal, Select, Switch, Tag, Popconfirm } from 'antd';
+﻿import { Button, Form, Input, Modal, Select, Switch, Tag, Popconfirm } from 'antd';
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { cafeServicesApi, cafeLanguagesApi, type Service, type ServiceCreate, type ServiceUpdate, type ServiceTranslation } from '../../services/cafeApi';
@@ -20,10 +20,16 @@ const SERVICE_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-const LANGUAGE_CONFIG: Record<string, { name: string; flag: string }> = {
-  vi: { name: 'Tiếng Việt', flag: '🇻🇳' },
-  en: { name: 'English', flag: '🇬🇧' },
-  zh: { name: '中文', flag: '🇨🇳' },
+const LANGUAGE_CONFIG: Record<string, { name: string; flag: string; shortLabel: string }> = {
+  vi: { name: 'Vietnamese', flag: 'VN', shortLabel: 'VI' },
+  en: { name: 'English', flag: 'GB', shortLabel: 'EN' },
+  zh: { name: 'Chinese', flag: 'CN', shortLabel: 'ZH' },
+  'zh-TW': { name: 'Traditional Chinese', flag: 'TW', shortLabel: 'ZH-TW' },
+  yue: { name: 'Cantonese', flag: 'HK', shortLabel: 'YUE' },
+};
+
+const getLanguageDisplay = (locale: string) => {
+  return LANGUAGE_CONFIG[locale] || { name: locale.toUpperCase(), flag: locale.toUpperCase(), shortLabel: locale.toUpperCase() };
 };
 
 const CafeServices: React.FC = () => {
@@ -47,6 +53,20 @@ const CafeServices: React.FC = () => {
   useEffect(() => {
     loadLanguages();
     loadServices();
+  }, []);
+
+  useEffect(() => {
+    const handleLanguagesUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ supportedLanguages?: string[] }>;
+      const nextLanguages = customEvent.detail?.supportedLanguages;
+      if (nextLanguages && nextLanguages.length > 0) {
+        setSupportedLanguages(nextLanguages);
+        setCurrentServiceLocale((prev) => nextLanguages.includes(prev) ? prev : nextLanguages[0]);
+      }
+    };
+
+    window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+    return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
   }, []);
 
   const loadLanguages = async () => {
@@ -227,7 +247,7 @@ const CafeServices: React.FC = () => {
                         <Tag color="blue">{serviceTypeLabel}</Tag>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {service.availability || '—'}
+                        {service.availability || '-'}
                       </td>
                       <td className="px-6 py-4">
                         {service.is_active ? (
@@ -297,7 +317,7 @@ const CafeServices: React.FC = () => {
                 onClick={() => setModalVisible(false)}
                 className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -310,20 +330,23 @@ const CafeServices: React.FC = () => {
               >
                 {/* Language Tabs */}
                 <div className="flex gap-2 mb-6 border-b border-slate-200">
-                  {supportedLanguages.map((locale) => (
-                    <button
-                      key={locale}
-                      onClick={() => setCurrentServiceLocale(locale)}
-                      className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-                        currentServiceLocale === locale
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-slate-600 hover:text-slate-800'
-                      }`}
-                    >
-                      <span>{LANGUAGE_CONFIG[locale]?.flag}</span>
-                      {LANGUAGE_CONFIG[locale]?.name || locale.toUpperCase()}
-                    </button>
-                  ))}
+                  {supportedLanguages.map((locale) => {
+                    const languageDisplay = getLanguageDisplay(locale);
+
+                    return (
+                      <button
+                        key={locale}
+                        onClick={() => setCurrentServiceLocale(locale)}
+                        className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                          currentServiceLocale === locale
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-600 hover:text-slate-800'
+                        }`}
+                      >
+                        {languageDisplay.shortLabel}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Translations Section */}
@@ -417,7 +440,7 @@ const CafeServices: React.FC = () => {
 
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                      🔗 VR360 Tour Link
+                      VR360 Tour Link
                     </label>
                     <Input
                       type="url"
@@ -430,7 +453,7 @@ const CafeServices: React.FC = () => {
 
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                      📅 Booking URL
+                      Booking URL
                     </label>
                     <Input
                       type="url"
@@ -440,7 +463,7 @@ const CafeServices: React.FC = () => {
                       className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-                      <span>ℹ️</span>
+                      <span>Info</span>
                       <span>Enter the direct booking/reservation URL for this service</span>
                     </p>
                   </div>
@@ -473,7 +496,7 @@ const CafeServices: React.FC = () => {
                 {/* Image Section */}
                 <div className="mt-6 space-y-4">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    🖼️ Service Image
+                    Service Image
                   </label>
                   <div className="mb-3">
                     <Button 
@@ -506,7 +529,7 @@ const CafeServices: React.FC = () => {
                     </div>
                   )}
                   <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-                    <span>ℹ️</span>
+                    <span>Info</span>
                     <span>Use a professional image for better presentation</span>
                   </p>
                 </div>
@@ -548,3 +571,4 @@ const CafeServices: React.FC = () => {
 };
 
 export default CafeServices;
+

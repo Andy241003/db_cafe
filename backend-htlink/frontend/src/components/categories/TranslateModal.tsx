@@ -1,4 +1,4 @@
-// src/components/categories/TranslateModal.tsx
+﻿// src/components/categories/TranslateModal.tsx
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import type { Category, Language } from "../../types/categories";
@@ -63,17 +63,17 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
     const loadLocales = async () => {
       try {
-        console.log('🔄 [Categories] Loading locales for TranslateModal...');
+        console.log('ðŸ”„ [Categories] Loading locales for TranslateModal...');
 
         // Get property settings to check supported languages
         const propertyId = localStorage.getItem('selected_property_id');
 
         // Always get all locales first
         const allLocales = await localesApi.getLocales();
-        console.log('📋 [Categories] All locales from API:', allLocales.length, allLocales.map(l => l.code));
+        console.log('ðŸ“‹ [Categories] All locales from API:', allLocales.length, allLocales.map(l => l.code));
 
         if (!propertyId) {
-          console.log('⚠️ [Categories] No property selected, using all locales');
+          console.log('âš ï¸ [Categories] No property selected, using all locales');
           setAvailableLocales(allLocales);
           return;
         }
@@ -89,27 +89,27 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
         if (response.ok) {
           const property = await response.json();
           const supportedLanguages = property.settings_json?.localization?.supportedLanguages || ['en', 'vi'];
-          console.log('✅ [Categories] Property supported languages:', supportedLanguages);
+          console.log('âœ… [Categories] Property supported languages:', supportedLanguages);
 
           // Filter by supported languages
           const filtered = allLocales.filter(locale => supportedLanguages.includes(locale.code));
-          console.log('✅ [Categories] Filtered locales:', filtered.length, filtered.map(l => l.code));
+          console.log('âœ… [Categories] Filtered locales:', filtered.length, filtered.map(l => l.code));
 
           setAvailableLocales(filtered.length > 0 ? filtered : allLocales);
         } else {
-          console.log('⚠️ [Categories] Failed to fetch property, using all locales');
+          console.log('âš ï¸ [Categories] Failed to fetch property, using all locales');
           setAvailableLocales(allLocales);
         }
       } catch (error) {
-        console.error('❌ [Categories] Failed to load locales:', error);
+        console.error('âŒ [Categories] Failed to load locales:', error);
         // Fallback to basic locales
         const fallback = [
           { code: 'en', name: 'English', native_name: 'English' },
-          { code: 'vi', name: 'Vietnamese', native_name: 'Tiếng Việt' },
-          { code: 'ja', name: 'Japanese', native_name: '日本語' },
-          { code: 'ko', name: 'Korean', native_name: '한국어' }
+          { code: 'vi', name: 'Vietnamese', native_name: 'Vietnamese' },
+          { code: 'ja', name: 'Japanese', native_name: 'Japanese' },
+          { code: 'ko', name: 'Korean', native_name: 'Korean' }
         ];
-        console.log('⚠️ [Categories] Using fallback locales:', fallback.map(l => l.code));
+        console.log('âš ï¸ [Categories] Using fallback locales:', fallback.map(l => l.code));
         setAvailableLocales(fallback);
       }
     };
@@ -247,7 +247,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
               ref={buttonRef}
               type="button"
               onClick={() => {
-                console.log('🖱️ [Categories] Dropdown clicked! Current:', isDropdownOpen, '→ New:', !isDropdownOpen, 'Locales:', availableLocales.length);
+                console.log('ðŸ–±ï¸ [Categories] Dropdown clicked! Current:', isDropdownOpen, 'â†’ New:', !isDropdownOpen, 'Locales:', availableLocales.length);
 
                 if (!isDropdownOpen && buttonRef.current) {
                   const rect = buttonRef.current.getBoundingClientRect();
@@ -405,7 +405,7 @@ export const TranslateModal: React.FC<TranslateModalProps> = ({
 
           {/* Helper Text */}
           <p className="mt-2 text-xs text-slate-500">
-            💡 <strong>DeepL Translation:</strong> High-quality AI translation with hotel industry glossary
+            ðŸ’¡ <strong>DeepL Translation:</strong> High-quality AI translation with hotel industry glossary
           </p>
         </div>
 

@@ -63,7 +63,11 @@ const CafeGallery: React.FC = () => {
       setIsLoading(true);
       setError(null);
       // Load all media from cafe source
-      const data = await mediaApi.getMediaFiles(undefined, 0, 200, 'cafe');
+      const data = await mediaApi.getMediaFiles({
+        skip: 0,
+        limit: 200,
+        source: 'cafe',
+      });
       setMedia(data);
     } catch (err: any) {
       console.error('Failed to load gallery:', err);
@@ -138,7 +142,7 @@ const CafeGallery: React.FC = () => {
         let kind: 'image' | 'video' | 'file' = 'file';
         if (file.type.startsWith('image/')) kind = 'image';
         else if (file.type.startsWith('video/')) kind = 'video';
-        return await mediaApi.uploadFile(file, kind, undefined, 'cafe');
+        return await mediaApi.uploadFile(file, kind, undefined, 'cafe', undefined, undefined, 'gallery');
       });
 
       const uploadResults = await Promise.all(uploadPromises);

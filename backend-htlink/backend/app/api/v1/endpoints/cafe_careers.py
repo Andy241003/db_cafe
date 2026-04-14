@@ -183,7 +183,10 @@ def create_career(
 ):
     """Create new career posting"""
     existing = db.exec(
-        select(CafeCareer).where(CafeCareer.code == career_data.code)
+        select(CafeCareer).where(
+            CafeCareer.tenant_id == current_user.tenant_id,
+            CafeCareer.code == career_data.code
+        )
     ).first()
     
     if existing:

@@ -1,11 +1,10 @@
 // Login.tsx - Simplified & Modern Login Logic
-import React, { useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { authAPI } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getApiBaseUrl } from '../utils/api';
+import { authAPI } from '../services/api';
 
 // TypeScript interfaces for type safety
 interface LoginFormData {
@@ -55,26 +54,11 @@ const Login: React.FC = () => {
       
       // Save user data to localStorage
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('tenant_id', userData.tenant_id.toString());
+      localStorage.setItem('tenant_id', userData.tenant_id?.toString() || '1');
 
-      // Step 3: Get tenant information
-      const tenantResponse = await fetch(`${getApiBaseUrl()}/tenants/${userData.tenant_id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!tenantResponse.ok) {
-        if (tenantResponse.status === 404) {
-          throw new Error(`Your account is assigned to a tenant that no longer exists (ID: ${userData.tenant_id}). Please contact administrator.`);
-        }
-        throw new Error('Failed to load tenant information. Please try again.');
-      }
-
-      const tenantData = await tenantResponse.json();
-      localStorage.setItem('tenant_code', tenantData.code);
-      localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
+      // Step 3: Set default tenant for single-tenant setup (skip tenant API call)
+      localStorage.setItem('tenant_code', 'boton_blue');
+      localStorage.setItem('tenant_name', 'Boton Blue Cafe');
 
       // Step 4: Get user's service access
       const servicesResponse = await authAPI.getUserServices();

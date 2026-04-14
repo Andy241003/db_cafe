@@ -15,35 +15,23 @@ router = APIRouter()
 def get_activity_logs(
     db: SessionDep,
     current_user: CurrentUser,
-    tenant_id: Optional[int] = Query(None, description="Filter by tenant ID"),
     activity_type: Optional[ActivityType] = Query(None, description="Filter by activity type"),
     limit: int = Query(50, le=200, description="Number of logs to return"),
     days: Optional[int] = Query(None, description="Filter logs from last N days")
 ):
     """
-    Get recent activity logs for the current user's tenant or specified tenant.
+    Get recent activity logs for the current user.
 
     Returns the most recent logs ordered by created_at DESC.
     Supports filtering by activity_type and date range.
     """
-    # Determine tenant_id to filter by
-    if tenant_id is None:
-        tenant_id = current_user.tenant_id
-    else:
-        # Check if user can access this tenant
-        # For now, allow access to own tenant only
-        if tenant_id != current_user.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied to this tenant's activity logs"
-            )
-
-    # Build query
-    query = select(ActivityLog).where(ActivityLog.tenant_id == tenant_id)
+    # The legacy audit table does not store tenant_id/activity_type directly.
+    # Scope activity logs to the current user and adapt rows to the response schema.
+    query = select(ActivityLog).where(ActivityLog.user_id == current_user.id)
 
     # Filter by activity type
     if activity_type:
-        query = query.where(ActivityLog.activity_type == activity_type)
+        query = query.where(ActivityLog.action == activity_type.value)
 
     # Filter by date range
     if days:
@@ -59,7 +47,16 @@ def get_activity_logs(
     # Execute query
     logs = db.exec(query).all()
 
-    return logs
+    return [
+        ActivityLogResponse(
+            id=log.id,
+            tenant_id=current_user.tenant_id,
+            activity_type=log.action,
+            details=log.details_json,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]
 
 
 @router.post("/seed")

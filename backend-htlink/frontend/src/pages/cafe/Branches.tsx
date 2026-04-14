@@ -81,7 +81,6 @@ const branchRequest = async <T,>(path: string, init?: RequestInit): Promise<T> =
   return response.json() as Promise<T>;
 };
 
-const getBranchesMediaBase = () => getBranchesRequestBase().replace(/\/api\/v1$/, '');
 
 const buildBranchTranslationsPayload = (formData: {
   name_vi: string;
@@ -435,12 +434,11 @@ const CafeBranches: React.FC = () => {
       setBranches(data);
       
       // Load images for branches that have them
-      const mediaBase = getBranchesMediaBase();
       const urlMap = new Map<number, string>();
       data.forEach(branch => {
         const imageId = branch.primary_image_media_id ?? branch.image_media_id;
         if (imageId) {
-          urlMap.set(imageId, `${mediaBase}/media/${imageId}/view`);
+          urlMap.set(imageId, `${getApiBaseUrl()}/media/${imageId}/view`);
         }
       });
       setImageUrls(urlMap);
@@ -553,7 +551,7 @@ const CafeBranches: React.FC = () => {
 
     if (imageId) {
       setSelectedImageId(imageId);
-      setPreviewImageUrl(`${getBranchesMediaBase()}/media/${imageId}/view`);
+      setPreviewImageUrl(`${getApiBaseUrl()}/media/${imageId}/view`);
     } else {
       setSelectedImageId(null);
       setPreviewImageUrl('');
@@ -787,7 +785,7 @@ const CafeBranches: React.FC = () => {
 
   const handleMediaSelect = async (mediaId: number, mediaUrl: string) => {
     setSelectedImageId(mediaId);
-    setPreviewImageUrl(mediaUrl);
+    setPreviewImageUrl(`${getApiBaseUrl()}/media/${mediaId}/view`);
     setMediaPickerOpen(false);
   };
 
@@ -1268,9 +1266,12 @@ const CafeBranches: React.FC = () => {
         kind="image"
         source="cafe"
         folder="branches"
+        folderAliases={["branch", "cafe/branches", "cafe/branch"]}
       />
     </div>
   );
 };
 
 export default CafeBranches;
+
+

@@ -98,7 +98,7 @@ class LocaleResponse(LocaleBase):
 
 # AdminUser schemas
 class AdminUserBase(BaseModel):
-    email: EmailStr = Field(max_length=190)
+    email: str = Field(max_length=190)
     full_name: str = Field(max_length=180)
     role: UserRole = UserRole.EDITOR
     # service_access: Removed - Cafe only system
@@ -112,7 +112,7 @@ class AdminUserCreate(AdminUserBase):
 
 
 class AdminUserUpdate(BaseModel):
-    email: Optional[EmailStr] = Field(None, max_length=190)
+    email: Optional[str] = Field(None, max_length=190)
     full_name: Optional[str] = Field(None, max_length=180)
     role: Optional[UserRole] = None
     # service_access: Removed - Cafe only system

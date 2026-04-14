@@ -38,7 +38,7 @@ class LanguageCreate(BaseModel):
 
 def get_or_create_settings(db: SessionDep, tenant_id: int) -> CafeSettings:
     """Get existing settings or create default"""
-    stmt = select(CafeSettings).where(CafeSettings.tenant_id == tenant_id)
+    stmt = select(CafeSettings).where(CafeSettings.tenant_id == tenant_id).limit(1)
     settings = db.exec(stmt).first()
     
     if not settings:
@@ -179,29 +179,27 @@ def remove_cafe_language(
     return {"status": "success", "message": f"Language '{locale}' removed"}
 
 
-@router.put("/languages/{locale}/set-default")
-def set_default_language(
+@router.put("/languages/{locale}/set-default", response_model=LanguageResponse)
+def set_default_cafe_language(
     *,
     db: SessionDep,
     current_user: CurrentUser,
     locale: str
 ):
     """
-    Set a language as default (move to first position)
+    Set the default cafe language by moving it to the first position.
     """
     settings = get_or_create_settings(db, current_user.tenant_id)
     languages = get_supported_languages(settings)
-    
-    # Check if language exists
+
     if locale not in languages:
         raise HTTPException(
             status_code=404,
             detail=f"Language '{locale}' not found"
         )
-    
-    # Move to first position
-    languages.remove(locale)
-    languages.insert(0, locale)
-    save_supported_languages(db, settings, languages)
-    
-    return {"status": "success", "message": f"Language '{locale}' set as default"}
+
+    reordered = [locale] + [lang for lang in languages if lang != locale]
+    save_supported_languages(db, settings, reordered)
+
+    return LanguageResponse(locale=locale, is_default=True)
+

@@ -1,4 +1,4 @@
-// src/components/categories/CategoryModal.tsx
+﻿// src/components/categories/CategoryModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
@@ -335,7 +335,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
             >
-              ×
+              Ã—
             </button>
           </div>
 
@@ -415,7 +415,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                💡 Default: {propertySettings.defaultLanguage.toUpperCase()} | Fallback: {propertySettings.fallbackLanguage.toUpperCase()}
+                ðŸ’¡ Default: {propertySettings.defaultLanguage.toUpperCase()} | Fallback: {propertySettings.fallbackLanguage.toUpperCase()}
               </p>
             </div>
 
@@ -478,7 +478,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Yêu cầu thêm icon
+                  Request New Icon
                 </button>
               </div>
               
@@ -486,7 +486,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               <div className="mb-3">
                 <input
                   type="text"
-                  placeholder="🔍 Search icons... (e.g., wifi, pool, spa)"
+                  placeholder="ðŸ” Search icons... (e.g., wifi, pool, spa)"
                   value={iconSearch}
                   onChange={(e) => setIconSearch(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -6,11 +6,13 @@ from pydantic import BaseModel
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
-from app.models import FeatureTranslation, FeatureTranslationCreate, FeatureTranslationUpdate
-from app.models import PostTranslation, PostTranslationCreate, PostTranslationUpdate
-from app.models import FeatureCategoryTranslation, FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate
-from app.models import PropertyTranslation
-from app.schemas import PropertyTranslationCreate, PropertyTranslationUpdate, PropertyTranslationResponse
+from app.models import FeatureTranslation, PostTranslation, FeatureCategoryTranslation, PropertyTranslation
+from app.schemas import (
+    FeatureTranslationCreate, FeatureTranslationUpdate,
+    PostTranslationCreate, PostTranslationUpdate,
+    FeatureCategoryTranslationCreate, FeatureCategoryTranslationUpdate,
+    PropertyTranslationCreate, PropertyTranslationUpdate, PropertyTranslationResponse
+)
 from app.models.activity_log import ActivityType
 from app.utils.decorators.track_activity import track_activity
 

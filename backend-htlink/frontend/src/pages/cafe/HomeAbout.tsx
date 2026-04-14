@@ -1,4 +1,4 @@
-import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPlay, faPlus, faTrash, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
+﻿import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPlay, faPlus, faTrash, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -85,7 +85,7 @@ const CafeHomeAbout: React.FC = () => {
     const newContent: ContentFormData = {
       section_type: type,
       page_code: 'home',
-      icon: type === 'feature' ? '⭐' : '💎',
+      icon: type === 'feature' ? 'star' : 'gem',
       is_active: true,
       translations: {}
     };
@@ -320,7 +320,7 @@ const CafeHomeAbout: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
               <span>
-                Hỗ trợ: Hình ảnh 360° (JPG, min 4096x2048px) hoặc video YouTube (tự động chuyển đổi sang embed)
+                Supported: 360° image (JPG, min 4096x2048px) or YouTube video (automatically converted to embed)
               </span>
             </p>
           </div>
@@ -405,7 +405,7 @@ const CafeHomeAbout: React.FC = () => {
                   return (
                     <div key={feature.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-3">
-                        <div className="text-3xl">{feature.icon || '⭐'}</div>
+                        <div className="text-3xl">{feature.icon || 'star'}</div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEdit(feature)}
@@ -460,7 +460,7 @@ const CafeHomeAbout: React.FC = () => {
                   return (
                     <div key={value.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-3">
-                        <div className="text-3xl">{value.icon || '💎'}</div>
+                        <div className="text-3xl">{value.icon || 'gem'}</div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEdit(value)}
@@ -508,7 +508,7 @@ const CafeHomeAbout: React.FC = () => {
                   className={INPUT_CLASS}
                   value={editingContent.icon || ''}
                   onChange={(e) => handleFieldChange('icon', e.target.value)}
-                  placeholder="e.g., ☕ 💎 ⭐"
+                  placeholder="e.g., star or gem"
                   maxLength={2}
                 />
               </div>
@@ -614,3 +614,4 @@ const CafeHomeAbout: React.FC = () => {
 };
 
 export default CafeHomeAbout;
+

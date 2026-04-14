@@ -24,7 +24,7 @@ router = APIRouter()
 class CafeSettingsResponse(BaseModel):
     """Cafe Settings Response (Contact fields moved to /cafe/contact)"""
     id: Optional[int] = None
-    tenant_id: int
+    tenant_id: Optional[int] = None
     cafe_name: str
     slogan: Optional[str] = None
     primary_color: str = "#6f4e37"
@@ -62,7 +62,7 @@ class CafeSettingsUpdate(BaseModel):
 class CafePageSettingsResponse(BaseModel):
     """Cafe Page Settings Response"""
     id: Optional[int] = None
-    tenant_id: int
+    tenant_id: Optional[int] = None
     page_code: str
     is_displaying: bool = True
     vr360_link: Optional[str] = None
@@ -83,6 +83,24 @@ class CafePageSettingsUpdate(BaseModel):
 # API Endpoints
 # ==========================================
 
+def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
+    return db.exec(
+        select(CafeSettings).where(CafeSettings.tenant_id == tenant_id).limit(1)
+    ).first()
+
+
+def to_cafe_settings_response(
+    settings: CafeSettings | CafeSettingsResponse,
+    tenant_id: int,
+) -> CafeSettingsResponse:
+    if isinstance(settings, CafeSettingsResponse):
+        payload = settings.model_dump()
+    else:
+        payload = settings.model_dump()
+
+    payload["tenant_id"] = tenant_id
+    return CafeSettingsResponse(**payload)
+
 @router.get("/", response_model=CafeSettingsResponse)
 def get_cafe_settings(
     current_user: CurrentUser,
@@ -91,8 +109,7 @@ def get_cafe_settings(
     """
     Get cafe settings for current tenant
     """
-    statement = select(CafeSettings).where(CafeSettings.tenant_id == current_user.tenant_id)
-    settings = db.exec(statement).first()
+    settings = get_cafe_settings_record(db, current_user.tenant_id)
     
     if not settings:
         # Return default settings if not exists
@@ -104,7 +121,7 @@ def get_cafe_settings(
             background_color="#ffffff"
         )
     
-    return settings
+    return to_cafe_settings_response(settings, current_user.tenant_id)
 
 
 @router.post("/", response_model=CafeSettingsResponse)
@@ -117,8 +134,7 @@ def create_or_update_cafe_settings(
     Create or update cafe settings
     """
     # Check if settings already exist
-    statement = select(CafeSettings).where(CafeSettings.tenant_id == current_user.tenant_id)
-    existing = db.exec(statement).first()
+    existing = get_cafe_settings_record(db, current_user.tenant_id)
     
     if existing:
         # Update existing settings
@@ -132,7 +148,7 @@ def create_or_update_cafe_settings(
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return existing
+        return to_cafe_settings_response(existing, current_user.tenant_id)
     else:
         # Create new settings with defaults for required fields
         settings_dict = settings_data.model_dump(exclude_unset=True)
@@ -143,13 +159,12 @@ def create_or_update_cafe_settings(
         
         new_settings = CafeSettings(
             tenant_id=current_user.tenant_id,
-            **settings_dict
+            **settings_dict,
         )
         db.add(new_settings)
         db.commit()
         db.refresh(new_settings)
-        return new_settings
-
+        return to_cafe_settings_response(new_settings, current_user.tenant_id)
 
 @router.get("/pages", response_model=list[CafePageSettingsResponse])
 def get_cafe_page_settings(
@@ -163,7 +178,10 @@ def get_cafe_page_settings(
         CafePageSettings.tenant_id == current_user.tenant_id
     )
     page_settings = db.exec(statement).all()
-    return page_settings
+    return [
+        CafePageSettingsResponse(**page.model_dump(), tenant_id=current_user.tenant_id)
+        for page in page_settings
+    ]
 
 
 @router.get("/pages/{page_code}", response_model=CafePageSettingsResponse)
@@ -177,14 +195,14 @@ def get_page_setting(
     """
     statement = select(CafePageSettings).where(
         CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_code
+        CafePageSettings.page_code == page_code,
     )
     page_setting = db.exec(statement).first()
     
     if not page_setting:
         raise HTTPException(status_code=404, detail="Page setting not found")
     
-    return page_setting
+    return CafePageSettingsResponse(**page_setting.model_dump(), tenant_id=current_user.tenant_id)
 
 
 @router.post("/pages", response_model=CafePageSettingsResponse)
@@ -198,7 +216,7 @@ def create_or_update_page_setting(
     """
     statement = select(CafePageSettings).where(
         CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_data.page_code
+        CafePageSettings.page_code == page_data.page_code,
     )
     existing = db.exec(statement).first()
     
@@ -213,17 +231,17 @@ def create_or_update_page_setting(
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return existing
+        return CafePageSettingsResponse(**existing.model_dump(), tenant_id=current_user.tenant_id)
     else:
         # Create
         new_page = CafePageSettings(
             tenant_id=current_user.tenant_id,
-            **page_data.model_dump(exclude_unset=True)
+            **page_data.model_dump(exclude_unset=True),
         )
         db.add(new_page)
         db.commit()
         db.refresh(new_page)
-        return new_page
+        return CafePageSettingsResponse(**new_page.model_dump(), tenant_id=current_user.tenant_id)
 
 
 @router.delete("/pages/{page_code}")
@@ -237,7 +255,7 @@ def delete_page_setting(
     """
     statement = select(CafePageSettings).where(
         CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_code
+        CafePageSettings.page_code == page_code,
     )
     page_setting = db.exec(statement).first()
     

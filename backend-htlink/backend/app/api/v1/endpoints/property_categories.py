@@ -5,7 +5,9 @@ from sqlmodel import select
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep, CurrentTenantId
-from app.models import FeatureCategory, FeatureCategoryCreate, FeatureCategoryUpdate, ActivityType
+from app.models import FeatureCategory
+from app.models.activity_log import ActivityType
+from app.schemas import FeatureCategoryCreate, FeatureCategoryUpdate
 from app.utils.activity_logger import log_activity
 
 router = APIRouter()

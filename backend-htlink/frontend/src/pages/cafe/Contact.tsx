@@ -1,4 +1,4 @@
-import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPhone, faPlay, faShareNodes, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
+﻿import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPhone, faPlay, faShareNodes, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -12,26 +12,26 @@ const SECTION_CLASS = 'bg-white rounded-lg shadow p-6';
 
 // Language mapping
 const LANGUAGE_MAP: { [key: string]: { flag: string; name: string } } = {
-  ar: { flag: '🇸🇦', name: 'Arabic' },
-  de: { flag: '🇩🇪', name: 'German' },
-  en: { flag: '🇬🇧', name: 'English' },
-  es: { flag: '🇪🇸', name: 'Spanish' },
-  fr: { flag: '🇫🇷', name: 'French' },
-  hi: { flag: '🇮🇳', name: 'Hindi' },
-  id: { flag: '🇮🇩', name: 'Indonesian' },
-  it: { flag: '🇮🇹', name: 'Italian' },
-  ja: { flag: '🇯🇵', name: 'Japanese' },
-  ko: { flag: '🇰🇷', name: 'Korean' },
-  ms: { flag: '🇲🇾', name: 'Malay' },
-  pt: { flag: '🌐', name: 'Portuguese' },
-  ru: { flag: '🇷🇺', name: 'Russian' },
-  ta: { flag: '🇮🇳', name: 'Tamil' },
-  th: { flag: '🇹🇭', name: 'Thai' },
-  tl: { flag: '🇵🇭', name: 'Filipino' },
-  vi: { flag: '🇻🇳', name: 'Vietnamese' },
-  yue: { flag: '🇭🇰', name: 'Cantonese' },
-  zh: { flag: '🇨🇳', name: 'Chinese (Simplified)' },
-  'zh-TW': { flag: '🇹🇼', name: 'Chinese (Traditional)' }
+  ar: { flag: 'SA', name: 'Arabic' },
+  de: { flag: 'DE', name: 'German' },
+  en: { flag: 'GB', name: 'English' },
+  es: { flag: 'ES', name: 'Spanish' },
+  fr: { flag: 'FR', name: 'French' },
+  hi: { flag: 'IN', name: 'Hindi' },
+  id: { flag: 'ID', name: 'Indonesian' },
+  it: { flag: 'IT', name: 'Italian' },
+  ja: { flag: 'JP', name: 'Japanese' },
+  ko: { flag: 'KR', name: 'Korean' },
+  ms: { flag: 'MY', name: 'Malay' },
+  pt: { flag: 'PT', name: 'Portuguese' },
+  ru: { flag: 'RU', name: 'Russian' },
+  ta: { flag: 'IN', name: 'Tamil' },
+  th: { flag: 'TH', name: 'Thai' },
+  tl: { flag: 'PH', name: 'Filipino' },
+  vi: { flag: 'VN', name: 'Vietnamese' },
+  yue: { flag: 'HK', name: 'Cantonese' },
+  zh: { flag: 'CN', name: 'Chinese (Simplified)' },
+  'zh-TW': { flag: 'TW', name: 'Chinese (Traditional)' }
 };
 
 interface ContactSettings {
@@ -485,7 +485,7 @@ const CafeContact: React.FC = () => {
           <div>
             <label className={LABEL_CLASS}>Working Hours</label>
             <textarea
-              placeholder={currentLocale === 'vi' ? 'Thứ 2-6: 9 giờ sáng - 6 giờ chiều\nThứ 7-CN: 10 giờ sáng - 5 giờ chiều' : 'Mon-Fri: 9AM - 6PM\nSat-Sun: 10AM - 5PM'}
+              placeholder="Mon-Fri: 9AM - 6PM\nSat-Sun: 10AM - 5PM"
               rows={3}
               className={TEXTAREA_CLASS}
               value={currentLocaleData.working_hours}
@@ -530,3 +530,4 @@ const CafeContact: React.FC = () => {
 };
 
 export default CafeContact;
+

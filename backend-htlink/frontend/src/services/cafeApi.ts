@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cafe API Service
  * 
  * API calls for Cafe management (Menu, Branches, Events, Careers, Promotions, etc.)
@@ -308,39 +308,52 @@ export interface BranchCreate {
 export interface BranchUpdate extends Partial<BranchCreate> {}
 
 // Event Types
+export interface EventMedia {
+  media_id: number;
+  is_primary: boolean;
+  sort_order: number;
+}
+
 export interface CafeEvent {
   id: number;
   tenant_id: number;
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  event_date?: string;
+  code: string;
+  start_date?: string;
+  end_date?: string;
   start_time?: string;
   end_time?: string;
-  location?: string;
+  branch_id?: number | null;
+  location_text?: string;
   registration_url?: string;
-  image_media_id?: number;
-  display_order: number;
+  max_participants?: number | null;
+  primary_image_media_id?: number | null;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-  created_at: string;
+  is_featured: boolean;
+  display_order: number;
+  attributes_json?: Record<string, unknown> | null;
+  created_at?: string;
   updated_at?: string;
   translations?: EventTranslation[];
+  media?: EventMedia[];
 }
 
 export interface CafeEventCreate {
-  title_vi: string;
-  title_en?: string;
-  description_vi?: string;
-  description_en?: string;
-  event_date?: string;
+  code: string;
+  start_date?: string;
+  end_date?: string;
   start_time?: string;
   end_time?: string;
-  location?: string;
+  branch_id?: number | null;
+  location_text?: string;
   registration_url?: string;
-  image_media_id?: number;
-  display_order?: number;
+  max_participants?: number | null;
+  primary_image_media_id?: number | null;
   status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  is_featured?: boolean;
+  display_order?: number;
+  attributes_json?: Record<string, unknown> | null;
+  translations: EventTranslation[];
+  media_ids?: number[];
 }
 
 export interface CafeEventUpdate extends Partial<CafeEventCreate> {}
@@ -1180,3 +1193,5 @@ export default {
   contentSections: cafeContentSectionsApi,
   auditLogs: cafeAuditLogsApi,
 };
+
+

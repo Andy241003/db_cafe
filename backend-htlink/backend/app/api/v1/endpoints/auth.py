@@ -48,28 +48,14 @@ def login(
     Backend automatically finds the correct tenant for the user
     Returns access token for external apps to use
     """
-    # Find user across all tenants
-    user = None
-    tenant = None
+    # Find user (single-tenant setup)
+    user = crud.admin_user.authenticate(
+        db=session,
+        email=form_data.username,
+        password=form_data.password
+    )
     
-    # Get all tenants and try to find user in each one
-    all_tenants = session.exec(select(Tenant)).all()
-    
-    for t in all_tenants:
-        # Try to authenticate user in this tenant
-        temp_user = crud.admin_user.authenticate(
-            db=session,
-            email=form_data.username,
-            password=form_data.password,
-            tenant_id=t.id
-        )
-        
-        if temp_user:
-            user = temp_user
-            tenant = t
-            break
-    
-    if not user or not tenant:
+    if not user:
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password"
@@ -94,7 +80,6 @@ def login(
     # Log successful login with IP
     log_activity(
         db=session,
-        tenant_id=tenant.id,
         activity_type=ActivityType.LOGIN,
         details={
             "message": f"User {user.email} logged in from {client_ip}",
@@ -112,12 +97,8 @@ def login(
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "is_active": user.is_active
-        },
-        "tenant_info": {
-            "id": tenant.id,
-            "name": tenant.name,
-            "code": tenant.code
+            "is_active": user.is_active,
+            "tenant_id": user.tenant_id or 1  # Default to 1 if null
         }
     }
 

@@ -52,7 +52,6 @@ class ItemMediaSchema(BaseModel):
 class MenuCategoryResponse(BaseModel):
     """Menu Category Response"""
     id: int
-    tenant_id: int
     code: str
     icon_media_id: Optional[int] = None
     display_order: int = 0
@@ -81,7 +80,6 @@ class MenuCategoryUpdate(BaseModel):
 class MenuItemResponse(BaseModel):
     """Menu Item Response"""
     id: int
-    tenant_id: int
     category_id: int
     code: str
     price: Optional[float] = None
@@ -244,7 +242,10 @@ def create_category(
     """Create new menu category"""
     # Check code uniqueness
     existing = db.exec(
-        select(CafeMenuCategory).where(CafeMenuCategory.code == category_data.code)
+        select(CafeMenuCategory).where(
+            CafeMenuCategory.tenant_id == current_user.tenant_id,
+            CafeMenuCategory.code == category_data.code
+        )
     ).first()
     
     if existing:
@@ -308,6 +309,9 @@ def update_category(
             )
         ).all():
             db.delete(existing_trans)
+
+        # Flush deletions before re-inserting the same locale keys
+        db.flush()
         
         # Add new
         for trans in category_data.translations:
@@ -413,12 +417,19 @@ def create_menu_item(
     """Create new menu item"""
     # Check code uniqueness
     existing = db.exec(
-        select(CafeMenuItem).where(CafeMenuItem.code == item_data.code)
+        select(CafeMenuItem).where(
+            CafeMenuItem.tenant_id == current_user.tenant_id,
+            CafeMenuItem.code == item_data.code
+        )
     ).first()
     
     if existing:
         raise HTTPException(status_code=400, detail="Item code already exists")
     
+    category = db.get(CafeMenuCategory, item_data.category_id)
+    if not category or category.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=404, detail="Category not found")
+
     # Create item
     new_item = CafeMenuItem(
         tenant_id=current_user.tenant_id,
@@ -481,6 +492,11 @@ def update_menu_item(
     
     if not item or item.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Menu item not found")
+
+    if item_data.category_id is not None:
+        category = db.get(CafeMenuCategory, item_data.category_id)
+        if not category or category.tenant_id != current_user.tenant_id:
+            raise HTTPException(status_code=404, detail="Category not found")
     
     # Update fields
     for key, value in item_data.model_dump(
@@ -502,6 +518,9 @@ def update_menu_item(
             )
         ).all():
             db.delete(existing_trans)
+
+        # Flush deletions before re-inserting the same locale keys
+        db.flush()
         
         for trans in item_data.translations:
             translation = CafeMenuItemTranslation(
@@ -519,6 +538,9 @@ def update_menu_item(
             select(CafeMenuItemMedia).where(CafeMenuItemMedia.item_id == item_id)
         ).all():
             db.delete(existing_media)
+
+        # Flush old media rows before inserting replacements
+        db.flush()
         
         for idx, media_id in enumerate(item_data.media_ids):
             item_media = CafeMenuItemMedia(

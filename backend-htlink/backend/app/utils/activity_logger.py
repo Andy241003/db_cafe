@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 def log_activity(
     db: Session,
-    tenant_id: int,
     activity_type: ActivityType,
     details: dict = None,
     ip_address: str = None
@@ -18,7 +17,6 @@ def log_activity(
 
     Args:
         db: Database session
-        tenant_id: Tenant ID
         activity_type: Type of activity
         details: Additional details as dict
         ip_address: Optional IP address for tracking
@@ -28,15 +26,20 @@ def log_activity(
     """
     try:
         activity_details = details or {}
-        
-        # Add IP address to details if provided
-        if ip_address:
-            activity_details['ip_address'] = ip_address
-            
+
+        # Extract user_id from details if provided
+        user_id = activity_details.get('user_id')
+
+        # Create activity log entry matching actual table schema
+        # Note: Using action instead of activity_type, and user_id instead of tenant_id
         activity_log = ActivityLog(
-            tenant_id=tenant_id,
-            activity_type=activity_type,
-            details=activity_details
+            user_id=user_id,
+            action=activity_type.value,  # Convert enum to string
+            resource_type="auth",  # Default for login/logout
+            resource_id=None,
+            details_json=activity_details,
+            ip_address=ip_address,
+            user_agent=None  # Could be added later if needed
         )
         db.add(activity_log)
         db.commit()

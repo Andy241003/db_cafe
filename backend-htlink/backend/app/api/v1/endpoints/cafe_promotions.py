@@ -201,7 +201,10 @@ def create_promotion(
 ):
     """Create new promotion"""
     existing = db.exec(
-        select(CafePromotion).where(CafePromotion.code == promo_data.code)
+        select(CafePromotion).where(
+            CafePromotion.tenant_id == current_user.tenant_id,
+            CafePromotion.code == promo_data.code
+        )
     ).first()
     
     if existing:

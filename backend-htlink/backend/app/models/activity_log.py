@@ -53,9 +53,13 @@ class ActivityLog(SQLModel, table=True):
     __tablename__ = "activity_logs"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id", index=True)
-    activity_type: ActivityType = Field(default=ActivityType.SYSTEM_UPDATE)
-    details: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    user_id: Optional[int] = Field(default=None, foreign_key="admin_users.id", index=True)
+    action: str = Field(max_length=100)
+    resource_type: Optional[str] = Field(default=None, max_length=50)
+    resource_id: Optional[int] = Field(default=None)
+    details_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    user_agent: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 

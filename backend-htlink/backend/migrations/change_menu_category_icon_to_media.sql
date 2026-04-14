@@ -9,7 +9,7 @@ ADD COLUMN icon_media_id INT NULL AFTER code;
 -- Step 2: Add foreign key constraint
 ALTER TABLE cafe_menu_categories
 ADD CONSTRAINT fk_cafe_menu_category_icon_media
-FOREIGN KEY (icon_media_id) REFERENCES media(id) ON DELETE SET NULL;
+FOREIGN KEY (icon_media_id) REFERENCES media_files(id) ON DELETE SET NULL;
 
 -- Step 3: Drop old icon column
 ALTER TABLE cafe_menu_categories

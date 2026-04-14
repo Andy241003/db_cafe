@@ -1,4 +1,4 @@
-// src/components/TranslationModal.tsx
+﻿// src/components/TranslationModal.tsx
 import { faArrowRotateLeft, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -22,13 +22,18 @@ interface TranslationModalProps {
 }
 
 const LANGUAGE_CONFIG = {
-  vi: { name: 'Tiếng Việt', flag: '🇻🇳' },
-  en: { name: 'English', flag: '🇬🇧' },
-  zh: { name: '中文', flag: '🇨🇳' },
-  ja: { name: '日本語', flag: '🇯🇵' },
-  ko: { name: '한국어', flag: '🇰🇷' },
-  th: { name: 'ไทย', flag: '🇹🇭' },
-  yue: { name: '粵語', flag: '🇭🇰' },
+  vi: { name: 'Vietnamese', flag: 'VN', shortLabel: 'VI' },
+  en: { name: 'English', flag: 'GB', shortLabel: 'EN' },
+  zh: { name: 'Chinese', flag: 'CN', shortLabel: 'ZH' },
+  'zh-TW': { name: 'Traditional Chinese', flag: 'TW', shortLabel: 'ZH-TW' },
+  ja: { name: 'Japanese', flag: 'JP', shortLabel: 'JA' },
+  ko: { name: 'Korean', flag: 'KR', shortLabel: 'KO' },
+  th: { name: 'Thai', flag: 'TH', shortLabel: 'TH' },
+  yue: { name: 'Cantonese', flag: 'HK', shortLabel: 'YUE' },
+};
+
+const getLanguageDisplay = (locale: string) => {
+  return LANGUAGE_CONFIG[locale as keyof typeof LANGUAGE_CONFIG] || { name: locale.toUpperCase(), flag: locale.toUpperCase(), shortLabel: locale.toUpperCase() };
 };
 
 const TranslationModal: React.FC<TranslationModalProps> = ({
@@ -103,8 +108,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
         <div className="border-b border-slate-200 bg-slate-50 px-6">
           <div className="flex gap-1 -mb-px">
             {supportedLanguages.map((locale) => {
-              const config = LANGUAGE_CONFIG[locale as keyof typeof LANGUAGE_CONFIG];
-              if (!config) return null;
+              const config = getLanguageDisplay(locale);
               
               const isActive = currentLocale === locale;
               return (
@@ -117,8 +121,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
-                  <span className="mr-2">{config.flag}</span>
-                  {config.name}
+                  {config.shortLabel}
                 </button>
               );
             })}
@@ -144,7 +147,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                       onChange={(e) => handleFieldChange(currentLocale, field.key, e.target.value)}
                       rows={field.rows || 4}
                       className={baseInputClass}
-                      placeholder={`Enter ${field.label.toLowerCase()} in ${LANGUAGE_CONFIG[currentLocale as keyof typeof LANGUAGE_CONFIG]?.name}`}
+                      placeholder={`Enter ${field.label.toLowerCase()} in ${getLanguageDisplay(currentLocale).name}`}
                     />
                   ) : (
                     <input
@@ -152,7 +155,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                       value={value}
                       onChange={(e) => handleFieldChange(currentLocale, field.key, e.target.value)}
                       className={baseInputClass}
-                      placeholder={`Enter ${field.label.toLowerCase()} in ${LANGUAGE_CONFIG[currentLocale as keyof typeof LANGUAGE_CONFIG]?.name}`}
+                      placeholder={`Enter ${field.label.toLowerCase()} in ${getLanguageDisplay(currentLocale).name}`}
                     />
                   )}
                 </div>
@@ -165,8 +168,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
             <p className="text-sm text-slate-600 mb-3">Translation Progress:</p>
             <div className="flex gap-2">
               {supportedLanguages.map((locale) => {
-                const config = LANGUAGE_CONFIG[locale as keyof typeof LANGUAGE_CONFIG];
-                if (!config) return null;
+                const config = getLanguageDisplay(locale);
                 
                 const localeData = translations[locale] || {};
                 const filledFields = fields.filter(f => localeData[f.key]?.trim()).length;
@@ -223,3 +225,4 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
 };
 
 export default TranslationModal;
+

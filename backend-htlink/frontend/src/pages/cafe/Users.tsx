@@ -5,9 +5,9 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import RoleCard from '../../components/users/RoleCard';
 import UserModal from '../../components/users/UserModal';
+import { tenantApi } from '../../services/tenantApi';
 import { usersApi, type ApiUser } from '../../services/usersApi';
 import type { User, UserFormData } from '../../types/users';
-import { getApiBaseUrl } from '../../utils/api';
 
 // Convert API user to frontend format
 const convertApiUser = (apiUser: ApiUser): User => ({
@@ -19,7 +19,6 @@ const convertApiUser = (apiUser: ApiUser): User => ({
   lastLogin: new Date(apiUser.created_at).toLocaleDateString(),
   initials: apiUser.full_name.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase(),
   tenant_id: apiUser.tenant_id,
-  service_access: apiUser.service_access || 0
 });
 
 // Permission checks based on database roles
@@ -97,28 +96,20 @@ const CafeUsers: React.FC = () => {
         const currentUserConverted = convertApiUser(currentUserInfo);
         setCurrentUser(currentUserConverted);
         
-        // IMPORTANT: Get tenant info from API instead of hardcoding
+        // Sync tenant context from backend before loading users
         try {
-          const tenantResponse = await fetch(`${getApiBaseUrl()}/tenants/${currentUserInfo.tenant_id}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (tenantResponse.ok) {
-            const tenantData = await tenantResponse.json();
-            const correctTenantCode = tenantData.code;
-            const currentTenantCode = localStorage.getItem('tenant_code');
-            
-            if (currentTenantCode !== correctTenantCode) {
-              localStorage.setItem('tenant_code', correctTenantCode);
-              localStorage.setItem('tenant_id', currentUserInfo.tenant_id.toString());
-              localStorage.setItem('tenant_name', tenantData.name || correctTenantCode);
-            }
+          const tenantResponse = await tenantApi.getCurrentTenant();
+          const tenantData = tenantResponse.data;
+          const currentTenantCode = localStorage.getItem('tenant_code');
+
+          if (currentTenantCode !== tenantData.code) {
+            localStorage.setItem('tenant_code', tenantData.code);
           }
+
+          localStorage.setItem('tenant_id', tenantData.id.toString());
+          localStorage.setItem('tenant_name', tenantData.name || tenantData.code);
         } catch (error) {
-          console.error('Error fetching tenant data:', error);
+          console.error('Error syncing tenant data:', error);
         }
         
         // Check permissions
@@ -243,11 +234,6 @@ const CafeUsers: React.FC = () => {
           return;
         }
         
-        // Find owner user to get service_access (for ADMIN, EDITOR, VIEWER to inherit)
-        // Note: role is already lowercase in User type
-        const ownerUser = users.find(u => u.role?.toLowerCase() === 'owner');
-        const ownerServiceAccess = ownerUser?.service_access ?? 0;
-        
         const createData = {
           email: data.email,
           password: userPassword,
@@ -255,8 +241,6 @@ const CafeUsers: React.FC = () => {
           role: (data.role?.toUpperCase() || 'VIEWER') as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER',
           is_active: data.status === 'active',
           tenant_id: parseInt(tenantId),
-          // ADMIN/EDITOR/VIEWER inherit service_access from OWNER
-          service_access: data.role?.toUpperCase() === 'OWNER' ? data.service_access ?? 0 : ownerServiceAccess
         };
         
         const newApiUser = await usersApi.createUser(createData);

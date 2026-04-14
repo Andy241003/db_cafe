@@ -25,7 +25,7 @@ from app.models.cafe import (
 )
 from app.api.deps import CurrentUser, SessionDep
 
-router = APIRouter(prefix="/cafe/services", tags=["cafe_services"])
+router = APIRouter()
 
 
 # ==========================================
@@ -234,11 +234,12 @@ def update_service(
     db.commit()
     
     # Update translations
-    db.exec(
+    for existing_translation in db.exec(
         select(CafeServiceTranslation).where(
             CafeServiceTranslation.service_id == service_id
         )
-    ).delete()
+    ).all():
+        db.delete(existing_translation)
     
     for trans_data in service_data.translations:
         translation = CafeServiceTranslation(
@@ -266,17 +267,19 @@ def delete_service(
         raise HTTPException(status_code=404, detail="Service not found")
     
     # Delete related translations and media entries
-    db.exec(
+    for existing_translation in db.exec(
         select(CafeServiceTranslation).where(
             CafeServiceTranslation.service_id == service_id
         )
-    ).delete()
+    ).all():
+        db.delete(existing_translation)
     
-    db.exec(
+    for existing_media in db.exec(
         select(CafeServiceMedia).where(
             CafeServiceMedia.service_id == service_id
         )
-    ).delete()
+    ).all():
+        db.delete(existing_media)
     
     db.delete(service)
     db.commit()
@@ -336,12 +339,13 @@ def add_service_media(
     
     # If marking as primary, unmark other primary media
     if is_primary:
-        db.exec(
+        for existing_media in db.exec(
             select(CafeServiceMedia).where(
                 CafeServiceMedia.service_id == service_id,
                 CafeServiceMedia.is_primary == True
             )
-        ).delete()
+        ).all():
+            db.delete(existing_media)
         service.primary_image_media_id = media_id
     
     media = CafeServiceMedia(

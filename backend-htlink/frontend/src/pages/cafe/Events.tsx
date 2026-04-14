@@ -1,127 +1,368 @@
-import { Button, DatePicker, Form, Input, InputNumber, message, Modal, Select, Switch, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+﻿import {
+  faCalendarAlt,
+  faCircleInfo,
+  faEye,
+  faGlobe,
+  faGripHorizontal,
+  faImage,
+  faInfoCircle,
+  faLink,
+  faMapMarkerAlt,
+  faPlus,
+  faSave,
+  faStar,
+  faTimes,
+  faUserGroup,
+  faVrCardboard,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
-import { Calendar, Edit, Eye, EyeOff, Languages, Plus, Trash2, Glasses, Play, Info } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import TranslationModal from '../../components/TranslationModal';
-import { cafeEventsApi, cafeLanguagesApi, cafeSettingsApi, type CafeEvent as ApiCafeEvent, type EventTranslation } from '../../services/cafeApi';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import MediaPickerModal from '../../components/MediaPickerModal';
+import {
+  cafeBranchesApi,
+  cafeEventsApi,
+  cafeLanguagesApi,
+  cafeSettingsApi,
+  type Branch,
+  type CafeEvent,
+  type CafeEventCreate,
+  type EventTranslation,
+} from '../../services/cafeApi';
+import { getApiBaseUrl } from '../../utils/api';
 
-const { TextArea } = Input;
-const { RangePicker } = DatePicker;
+const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
+const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
+const SECTION_CLASS = 'rounded-lg bg-white p-6 shadow';
 
-interface CafeEvent {
-  id: number;
+type EventStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+
+type EventLocalizedFields = {
   title: string;
-  description?: string;
+  description: string;
+  details: string;
+};
+
+type EditableEvent = {
+  id?: number;
+  code: string;
   start_date: string;
   end_date: string;
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-  max_participants?: number;
-  current_participants?: number;
-  is_displaying: boolean;
+  start_time: string;
+  end_time: string;
+  branch_id?: number | null;
+  location_text: string;
+  registration_url: string;
+  max_participants: string;
+  primary_image_media_id?: number;
+  media_ids: number[];
+  status: EventStatus;
   is_featured: boolean;
-  registration_url?: string;
-}
+  display_order: number;
+  translations: Record<string, EventLocalizedFields>;
+};
+
+const getLocaleShortLabel = (locale: string) => {
+  const normalized = locale.toLowerCase();
+  const shortLabels: Record<string, string> = {
+    vi: 'VI',
+    en: 'EN',
+    de: 'DE',
+    zh: 'ZH',
+    'zh-tw': 'ZH-TW',
+    yue: 'YUE',
+    ja: 'JA',
+    ko: 'KO',
+    fr: 'FR',
+    ru: 'RU',
+  };
+
+  return shortLabels[normalized] || locale.toUpperCase();
+};
+
+const buildEmptyLocalizedEventData = (locales: string[]) =>
+  locales.reduce<Record<string, EventLocalizedFields>>((acc, locale) => {
+    acc[locale] = { title: '', description: '', details: '' };
+    return acc;
+  }, {});
+
+const getEventTranslation = (event: CafeEvent, locale: string) =>
+  event.translations?.find((translation) => translation.locale === locale);
+
+const getEventTitle = (event: CafeEvent) =>
+  getEventTranslation(event, 'vi')?.title ||
+  getEventTranslation(event, 'en')?.title ||
+  event.translations?.find((translation) => translation.title)?.title ||
+  event.code ||
+  'Untitled event';
+
+const getEventDescription = (event: CafeEvent) =>
+  getEventTranslation(event, 'vi')?.description ||
+  getEventTranslation(event, 'en')?.description ||
+  event.translations?.find((translation) => translation.description)?.description ||
+  '';
+
+const getBranchName = (branch: Branch) =>
+  branch.translations?.find((translation) => translation.locale === 'vi')?.name ||
+  branch.translations?.find((translation) => translation.locale === 'en')?.name ||
+  branch.name_vi ||
+  branch.name_en ||
+  branch.code ||
+  'Unknown branch';
+
+const convertToEmbedUrl = (url: string): string => {
+  if (!url) return url;
+  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+  const match = url.match(youtubeRegex);
+  if (match?.[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return url;
+};
+
+const getStatusBadgeClass = (status: EventStatus) => {
+  switch (status) {
+    case 'ongoing':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'completed':
+      return 'bg-slate-200 text-slate-700';
+    case 'cancelled':
+      return 'bg-rose-100 text-rose-700';
+    default:
+      return 'bg-blue-100 text-blue-700';
+  }
+};
 
 const CafeEvents: React.FC = () => {
+  const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<CafeEvent[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<CafeEvent | null>(null);
-  const [form] = Form.useForm();
-
-  // Translation state
-  const [translationModalVisible, setTranslationModalVisible] = useState(false);
-  const [translatingEvent, setTranslatingEvent] = useState<ApiCafeEvent | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
-
-  // Display status state
+  const [currentLocale, setCurrentLocale] = useState('vi');
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
   const [vr360Link, setVr360Link] = useState('');
   const [vrTitle, setVrTitle] = useState('');
   const [savingVR, setSavingVR] = useState(false);
+  const [eventFilter, setEventFilter] = useState<'all' | EventStatus>('all');
+  const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [mediaPickerMode, setMediaPickerMode] = useState<'primary' | 'gallery' | null>(null);
 
   useEffect(() => {
-    loadEvents();
-    loadLanguageSettings();
+    void loadInitialData();
   }, []);
 
-  const loadLanguageSettings = async () => {
+  const loadInitialData = async () => {
     try {
-      const langs = await cafeLanguagesApi.getLanguageCodes();
-      setSupportedLanguages(langs);
-      
-      // Load display status
-      const settings = await cafeSettingsApi.getSettings();
-      const displayStatus = settings.settings_json?.events_is_displaying ?? true;
-      setIsDisplaying(displayStatus);
+      setLoading(true);
+      const [eventData, languageCodes, settings, branchData] = await Promise.all([
+        cafeEventsApi.getEvents(),
+        cafeLanguagesApi.getLanguageCodes(),
+        cafeSettingsApi.getSettings(),
+        cafeBranchesApi.getBranches(),
+      ]);
+
+      const locales = languageCodes.length > 0 ? languageCodes : ['vi', 'en'];
+      setSupportedLanguages(locales);
+      setCurrentLocale((previous) => (locales.includes(previous) ? previous : locales[0]));
+      setEvents(eventData);
+      setBranches(branchData);
+      setIsDisplaying(settings.settings_json?.events_is_displaying ?? true);
       setVr360Link(settings.settings_json?.events_vr360_link || '');
       setVrTitle(settings.settings_json?.events_vr_title || '');
-    } catch (error) {
-      console.error('Error loading languages:', error);
-    }
-  };
-
-  const loadEvents = async () => {
-    setLoading(true);
-    try {
-      // Mock data
-      const mockEvents: CafeEvent[] = [
-        {
-          id: 1,
-          title: 'Coffee Tasting Workshop',
-          description: 'Learn about coffee origins and brewing techniques',
-          start_date: '2024-02-15T14:00:00',
-          end_date: '2024-02-15T17:00:00',
-          status: 'upcoming',
-          max_participants: 20,
-          current_participants: 12,
-          is_displaying: true,
-          is_featured: true,
-          registration_url: 'https://forms.gle/example'
-        },
-        {
-          id: 2,
-          title: 'Live Jazz Night',
-          description: 'Enjoy live jazz music every Friday evening',
-          start_date: '2024-02-16T19:00:00',
-          end_date: '2024-02-16T22:00:00',
-          status: 'upcoming',
-          is_displaying: true,
-          is_featured: false
-        },
-        {
-          id: 3,
-          title: 'Latte Art Competition',
-          description: 'Show off your latte art skills',
-          start_date: '2024-01-20T10:00:00',
-          end_date: '2024-01-20T16:00:00',
-          status: 'completed',
-          max_participants: 15,
-          current_participants: 15,
-          is_displaying: false,
-          is_featured: false
-        },
-      ];
-      
-      setEvents(mockEvents);
-    } catch (error) {
-      message.error('Failed to load events');
-      console.error(error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to load events');
     } finally {
       setLoading(false);
     }
   };
 
-  const convertToEmbedUrl = (url: string): string => {
-    if (!url) return url;
-    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
-    const match = url.match(youtubeRegex);
-    if (match && match[1]) {
-      return `https://www.youtube.com/embed/${match[1]}`;
+  const loadEvents = async () => {
+    try {
+      const eventData = await cafeEventsApi.getEvents();
+      setEvents(eventData);
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to refresh events');
     }
-    return url;
+  };
+
+  const makeTranslations = useCallback(
+    (event?: CafeEvent) => {
+      const result = buildEmptyLocalizedEventData(supportedLanguages);
+      supportedLanguages.forEach((locale) => {
+        const translation = event?.translations?.find((item) => item.locale === locale);
+        result[locale] = {
+          title: translation?.title || '',
+          description: translation?.description || '',
+          details: translation?.details || '',
+        };
+      });
+      return result;
+    },
+    [supportedLanguages]
+  );
+
+  const createDraftEvent = useCallback(
+    (event?: CafeEvent): EditableEvent => ({
+      id: event?.id,
+      code: event?.code || `event_${Date.now()}`,
+      start_date: event?.start_date || '',
+      end_date: event?.end_date || '',
+      start_time: event?.start_time || '',
+      end_time: event?.end_time || '',
+      branch_id: event?.branch_id ?? undefined,
+      location_text: event?.location_text || '',
+      registration_url: event?.registration_url || '',
+      max_participants: event?.max_participants ? String(event.max_participants) : '',
+      primary_image_media_id: event?.primary_image_media_id ?? undefined,
+      media_ids: event?.media?.map((item) => item.media_id) || [],
+      status: (event?.status as EventStatus) || 'upcoming',
+      is_featured: event?.is_featured ?? false,
+      display_order: event?.display_order ?? events.length,
+      translations: makeTranslations(event),
+    }),
+    [events.length, makeTranslations]
+  );
+
+  const filteredEvents = useMemo(() => {
+    if (eventFilter === 'all') {
+      return events;
+    }
+    return events.filter((event) => event.status === eventFilter);
+  }, [eventFilter, events]);
+
+  const currentTranslation = useMemo(
+    () => editingEvent?.translations[currentLocale] || { title: '', description: '', details: '' },
+    [currentLocale, editingEvent]
+  );
+
+  const handleAddNew = () => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingEvent(createDraftEvent());
+  };
+
+  const handleEdit = (event: CafeEvent) => {
+    setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
+    setEditingEvent(createDraftEvent(event));
+  };
+
+  const handleDelete = async (eventId: number) => {
+    const confirmed = window.confirm('Delete this event? This action cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await cafeEventsApi.deleteEvent(eventId);
+      toast.success('Event deleted');
+      if (editingEvent?.id === eventId) {
+        setEditingEvent(null);
+      }
+      await loadEvents();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to delete event');
+    }
+  };
+
+  const handleLocalizedFieldChange = (field: keyof EventLocalizedFields, value: string) => {
+    setEditingEvent((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        translations: {
+          ...previous.translations,
+          [currentLocale]: {
+            ...previous.translations[currentLocale],
+            [field]: value,
+          },
+        },
+      };
+    });
+  };
+
+  const handleFieldChange = <K extends keyof EditableEvent>(field: K, value: EditableEvent[K]) => {
+    setEditingEvent((previous) => (previous ? { ...previous, [field]: value } : previous));
+  };
+
+  const handlePrimaryMediaSelected = (mediaId: number) => {
+    setEditingEvent((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        primary_image_media_id: mediaId,
+      };
+    });
+    setMediaPickerMode(null);
+  };
+
+  const handleGalleryMediaSelected = (mediaIds: number[]) => {
+    setEditingEvent((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        media_ids: mediaIds,
+      };
+    });
+    setMediaPickerMode(null);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!editingEvent) return;
+
+    const translations: EventTranslation[] = supportedLanguages
+      .map((locale) => ({
+        locale,
+        title: editingEvent.translations[locale]?.title?.trim() || '',
+        description: editingEvent.translations[locale]?.description?.trim() || '',
+        details: editingEvent.translations[locale]?.details?.trim() || '',
+      }))
+      .filter((translation) => translation.title || translation.description || translation.details);
+
+    if (translations.length === 0 || !translations.some((translation) => translation.title)) {
+      toast.error('Please add at least one event title');
+      return;
+    }
+
+    if (!editingEvent.code.trim()) {
+      toast.error('Event code is required');
+      return;
+    }
+
+    const payload: CafeEventCreate = {
+      code: editingEvent.code.trim(),
+      start_date: editingEvent.start_date || undefined,
+      end_date: editingEvent.end_date || undefined,
+      start_time: editingEvent.start_time || undefined,
+      end_time: editingEvent.end_time || undefined,
+      branch_id: editingEvent.branch_id || null,
+      location_text: editingEvent.location_text.trim() || undefined,
+      registration_url: editingEvent.registration_url.trim() || undefined,
+      max_participants: editingEvent.max_participants ? Number(editingEvent.max_participants) : null,
+      primary_image_media_id: editingEvent.primary_image_media_id || null,
+      status: editingEvent.status,
+      is_featured: editingEvent.is_featured,
+      display_order: Number.isFinite(editingEvent.display_order) ? editingEvent.display_order : events.length,
+      attributes_json: null,
+      translations,
+      media_ids: editingEvent.media_ids,
+    };
+
+    try {
+      setSavingEvent(true);
+      if (editingEvent.id) {
+        await cafeEventsApi.updateEvent(editingEvent.id, payload);
+        toast.success('Event updated');
+      } else {
+        await cafeEventsApi.createEvent(payload);
+        toast.success('Event created');
+      }
+      setEditingEvent(null);
+      await loadEvents();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to save event');
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   const handleVR360Change = async (field: 'link' | 'title', value: string) => {
@@ -129,7 +370,7 @@ const CafeEvents: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
-      
+
       if (field === 'link') {
         const embedUrl = convertToEmbedUrl(value);
         updates.events_vr360_link = embedUrl;
@@ -138,311 +379,130 @@ const CafeEvents: React.FC = () => {
         updates.events_vr_title = value;
         setVrTitle(value);
       }
-      
+
       await cafeSettingsApi.updateSettings({ settings_json: updates });
-      message.success('VR360 settings saved');
+      toast.success('VR360 settings saved');
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to save VR360 settings');
+      toast.error(error.response?.data?.detail || 'Failed to save VR settings');
     } finally {
       setSavingVR(false);
     }
   };
 
-  const handleAdd = () => {
-    setEditingEvent(null);
-    form.resetFields();
-    form.setFieldsValue({ status: 'upcoming', is_displaying: true, is_featured: false });
-    setModalVisible(true);
-  };
-
-  const handleEdit = (event: CafeEvent) => {
-    setEditingEvent(event);
-    form.setFieldsValue({
-      ...event,
-      date_range: [dayjs(event.start_date), dayjs(event.end_date)]
-    });
-    setModalVisible(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    Modal.confirm({
-      title: 'Delete Event',
-      content: 'Are you sure you want to delete this event?',
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          message.success('Event deleted successfully');
-          loadEvents();
-        } catch (error) {
-          message.error('Failed to delete event');
-        }
-      },
-    });
-  };
-
-  const handleEditEventTranslations = async (event: CafeEvent) => {
+  const handleDisplayStatusChange = async (nextValue: boolean) => {
     try {
-      // Load full event data from API to get translations
-      const fullEvent = await cafeEventsApi.getEvent(event.id);
-      setTranslatingEvent(fullEvent);
-      setTranslationModalVisible(true);
-    } catch (error) {
-      message.error('Failed to load event data');
+      setSavingDisplayStatus(true);
+      const currentSettings = await cafeSettingsApi.getSettings();
+      await cafeSettingsApi.updateSettings({
+        settings_json: {
+          ...currentSettings.settings_json,
+          events_is_displaying: nextValue,
+        },
+      });
+      setIsDisplaying(nextValue);
+      toast.success(nextValue ? 'Events section enabled' : 'Events section hidden');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to update display status');
+    } finally {
+      setSavingDisplayStatus(false);
     }
   };
 
-  const handleSaveTranslations = async (translations: Record<string, Record<string, string>>) => {
-    if (!translatingEvent) return;
-
-    try {
-      const translationArray: EventTranslation[] = Object.entries(translations).map(([locale, data]) => ({
-        locale,
-        title: data.title || '',
-        description: data.description || '',
-        details: data.details || '',
-      }));
-
-      await cafeEventsApi.updateEventTranslations(translatingEvent.id, translationArray);
-      message.success('Translations updated successfully');
-      setTranslationModalVisible(false);
-      setTranslatingEvent(null);
-      loadEvents();
-    } catch (error) {
-      console.error('Error updating translations:', error);
-      message.error('Failed to update translations');
-      throw error;
-    }
+  const getBranchLabelById = (branchId?: number | null) => {
+    if (!branchId) return 'All branches';
+    const branch = branches.find((item) => item.id === branchId);
+    return branch ? getBranchName(branch) : 'Unknown branch';
   };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const { date_range, ...rest } = values;
-      const payload = {
-        ...rest,
-        start_date: date_range[0].toISOString(),
-        end_date: date_range[1].toISOString()
-      };
-      
-      if (editingEvent) {
-        message.success('Event updated successfully');
-      } else {
-        message.success('Event created successfully');
-      }
-      setModalVisible(false);
-      loadEvents();
-    } catch (error) {
-      message.error('Failed to save event');
-    }
-  };
-
-  const columns: ColumnsType<CafeEvent> = [
-    {
-      title: 'Event',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text, record) => (
-        <div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-600" />
-            <span className="font-semibold">{text}</span>
-            {record.is_featured && <Tag color="gold">Featured</Tag>}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">{record.description}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Date & Time',
-      key: 'date',
-      render: (_, record) => (
-        <div className="text-sm">
-          <div>{dayjs(record.start_date).format('MMM D, YYYY HH:mm')}</div>
-          <div className="text-gray-500">to {dayjs(record.end_date).format('MMM D, YYYY HH:mm')}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Participants',
-      key: 'participants',
-      render: (_, record) => {
-        if (!record.max_participants) return <span className="text-gray-400">Unlimited</span>;
-        
-        const percentage = ((record.current_participants || 0) / record.max_participants) * 100;
-        const color = percentage >= 100 ? 'red' : percentage >= 70 ? 'orange' : 'green';
-        
-        return (
-          <Tag color={color}>
-            {record.current_participants || 0} / {record.max_participants}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const colors = {
-          upcoming: 'blue',
-          ongoing: 'green',
-          completed: 'default',
-          cancelled: 'red',
-        };
-        return <Tag color={colors[status as keyof typeof colors]}>{status}</Tag>;
-      },
-    },
-    {
-      title: 'Visible',
-      dataIndex: 'is_displaying',
-      key: 'is_displaying',
-      width: 80,
-      render: (visible) => visible ? <Eye className="w-5 h-5 text-green-600" /> : <EyeOff className="w-5 h-5 text-gray-400" />,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 150,
-      render: (_, record) => (
-        <div className="flex gap-2">
-          <Button
-            type="text"
-            icon={<Languages className="w-4 h-4" />}
-            onClick={() => handleEditEventTranslations(record)}
-            title="Edit Translations"
-            className="text-blue-600"
-          />
-          <Button
-            type="text"
-            icon={<Edit className="w-4 h-4" />}
-            onClick={() => handleEdit(record)}
-          />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 className="w-4 h-4" />}
-            onClick={() => handleDelete(record.id)}
-          />
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-6">
-      {/* Display Status */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <h2 className="text-xl font-bold text-slate-800">Display Status - Events Section</h2>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${isDisplaying ? 'text-green-600' : 'text-slate-500'}`}>
+            <span className={`text-sm font-medium ${isDisplaying ? 'text-emerald-600' : 'text-slate-500'}`}>
               {isDisplaying ? 'Displaying' : 'Hidden'}
             </span>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex cursor-pointer items-center">
               <input
                 type="checkbox"
-                className="sr-only peer"
+                className="peer sr-only"
                 checked={isDisplaying}
-                onChange={async (e) => {
-                  const newValue = e.target.checked;
-                  try {
-                    setSavingDisplayStatus(true);
-                    const currentSettings = await cafeSettingsApi.getSettings();
-                    await cafeSettingsApi.updateSettings({
-                      settings_json: {
-                        ...currentSettings.settings_json,
-                        events_is_displaying: newValue
-                      }
-                    });
-                    setIsDisplaying(newValue);
-                    message.success(newValue ? 'Events section enabled' : 'Events section disabled');
-                  } catch (error: any) {
-                    message.error(error.response?.data?.detail || 'Failed to update display status');
-                  } finally {
-                    setSavingDisplayStatus(false);
-                  }
-                }}
+                onChange={(e) => void handleDisplayStatusChange(e.target.checked)}
                 disabled={savingDisplayStatus}
               />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"></div>
+              <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white" />
             </label>
           </div>
         </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-          <Calendar className="text-blue-600 text-xl mt-0.5" />
-          <span className="text-blue-800 text-sm">
-            When display is turned off, the "Events" section will not appear on the website. You can still edit and manage events.
-          </span>
+
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5 text-blue-600" />
+          <span>When display is turned off, the Events section will not appear on the website, but you can still manage event content here.</span>
         </div>
       </div>
 
-      {/* VR360 Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="border-b border-slate-200 pb-4 mb-6 flex items-center gap-3">
-          <Glasses className="text-purple-600 text-xl" />
+      <div className={SECTION_CLASS}>
+        <div className="mb-6 flex items-center gap-3 border-b border-slate-200 pb-4">
+          <FontAwesomeIcon icon={faVrCardboard} className="text-xl text-purple-600" />
           <h2 className="text-xl font-bold text-slate-800">VR360 Settings</h2>
         </div>
-        
+
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama / YouTube Video
-            </label>
+            <label className={LABEL_CLASS}>VR360 Link</label>
             <input
               type="url"
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className={FIELD_CLASS}
               value={vr360Link}
-              onChange={(e) => handleVR360Change('link', e.target.value)}
+              onChange={(e) => void handleVR360Change('link', e.target.value)}
+              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
               disabled={savingVR}
             />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <Info className="mt-0.5 w-4 h-4" />
-              <span>
-                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
-              </span>
+            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
+              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
+              <span>Enter a 360 panorama image URL or YouTube video URL for the Events landing experience.</span>
             </p>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
+            <label className={LABEL_CLASS}>VR Tour Title</label>
             <input
               type="text"
-              placeholder="Enter VR tour title"
-              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className={FIELD_CLASS}
               value={vrTitle}
-              onChange={(e) => handleVR360Change('title', e.target.value)}
+              onChange={(e) => void handleVR360Change('title', e.target.value)}
+              placeholder="Enter VR tour title"
               disabled={savingVR}
             />
           </div>
-          
+
           {vr360Link && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="text-slate-600 w-5 h-5" />
+              <div className="mb-3 flex items-center gap-2">
+                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
                 <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
               </div>
-              
-              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
+
+              <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
                 <div className="relative w-full" style={{ height: '500px' }}>
                   <iframe
                     src={vr360Link}
-                    className="absolute top-0 left-0 w-full h-full"
+                    className="absolute left-0 top-0 h-full w-full"
                     allowFullScreen
-                    title="VR360 Preview"
+                    title="Events VR360 Preview"
                     allow="xr-spatial-tracking; gyroscope; accelerometer"
                   />
                 </div>
               </div>
-              
+
               <div className="mt-4 text-center">
                 <button
                   type="button"
                   onClick={() => window.open(vr360Link, '_blank')}
-                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors inline-flex items-center gap-2"
+                  className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-6 py-2 text-white transition-colors hover:bg-slate-700"
                 >
-                  <Play className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faGlobe} />
                   View Fullscreen
                 </button>
               </div>
@@ -451,133 +511,401 @@ const CafeEvents: React.FC = () => {
         </div>
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Events Management</h1>
-          <p className="text-gray-600 mt-1">Manage cafe events and activities</p>
+      {!editingEvent && (
+        <div className={SECTION_CLASS}>
+          <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Events Management</h2>
+              <p className="mt-1 text-sm text-slate-500">Manage event content, schedule, branches, and featured highlights for the cafe site.</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <select
+                value={eventFilter}
+                onChange={(e) => setEventFilter(e.target.value as 'all' | EventStatus)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All statuses</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleAddNew}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
+              >
+                <FontAwesomeIcon icon={faPlus} />
+                Add New Event
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">Loading events...</div>
+          ) : filteredEvents.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center text-slate-500">No events found for the current filter.</div>
+          ) : (
+            <div className="space-y-4">
+              {filteredEvents.map((event) => {
+                const imageUrl = event.primary_image_media_id
+                  ? `${getApiBaseUrl()}/media/${event.primary_image_media_id}/view`
+                  : null;
+                const description = getEventDescription(event);
+                const title = getEventTitle(event);
+                const branchLabel = getBranchLabelById(event.branch_id);
+
+                return (
+                  <div key={event.id} className="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+                      <div className="flex h-36 w-full items-center justify-center overflow-hidden rounded-lg bg-slate-100 xl:w-56">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-blue-50 text-blue-600">
+                            <FontAwesomeIcon icon={faImage} className="text-2xl" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${getStatusBadgeClass(event.status as EventStatus)}`}>
+                            {event.status}
+                          </span>
+                          {event.is_featured && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                              <FontAwesomeIcon icon={faStar} />
+                              Featured
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faCalendarAlt} className="text-slate-400" />
+                            <span>
+                              {event.start_date ? dayjs(event.start_date).format('DD/MM/YYYY') : 'No start date'}
+                              {event.end_date ? ` - ${dayjs(event.end_date).format('DD/MM/YYYY')}` : ''}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faGripHorizontal} className="text-slate-400" />
+                            <span>{branchLabel}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faMapMarkerAlt} className="text-slate-400" />
+                            <span>{event.location_text || 'No location yet'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faUserGroup} className="text-slate-400" />
+                            <span>{event.max_participants ? `${event.max_participants} participants` : 'Unlimited'}</span>
+                          </div>
+                        </div>
+
+                        {description && <p className="mt-3 line-clamp-2 text-sm text-slate-500">{description}</p>}
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(event)}
+                            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-blue-400 hover:text-blue-700"
+                          >
+                            Edit event
+                          </button>
+                          {event.registration_url && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(event.registration_url, '_blank')}
+                              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-emerald-400 hover:text-emerald-700"
+                            >
+                              Open registration
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(event.id)}
+                            className="rounded-md border border-rose-200 px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <Button
-          type="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          Add Event
-        </Button>
-      </div>
+      )}
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <Table
-          columns={columns}
-          dataSource={events}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
-      </div>
-
-      {/* Modal */}
-      <Modal
-        title={editingEvent ? 'Edit Event' : 'Add Event'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={700}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Form.Item
-            label="Event Title"
-            name="title"
-            rules={[{ required: true, message: 'Please enter event title' }]}
-          >
-            <Input placeholder="e.g., Coffee Tasting Workshop" />
-          </Form.Item>
-
-          <Form.Item label="Description" name="description">
-            <TextArea rows={3} placeholder="Describe the event" />
-          </Form.Item>
-
-          <Form.Item
-            label="Date & Time"
-            name="date_range"
-            rules={[{ required: true, message: 'Please select date range' }]}
-          >
-            <RangePicker
-              showTime
-              format="YYYY-MM-DD HH:mm"
-              className="w-full"
-            />
-          </Form.Item>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item
-              label="Status"
-              name="status"
-              rules={[{ required: true, message: 'Please select status' }]}
-            >
-              <Select>
-                <Select.Option value="upcoming">Upcoming</Select.Option>
-                <Select.Option value="ongoing">Ongoing</Select.Option>
-                <Select.Option value="completed">Completed</Select.Option>
-                <Select.Option value="cancelled">Cancelled</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Max Participants" name="max_participants">
-              <InputNumber min={1} className="w-full" placeholder="Leave empty for unlimited" />
-            </Form.Item>
+      {editingEvent && (
+        <div className={SECTION_CLASS}>
+          <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">{editingEvent.id ? 'Edit Event' : 'Create Event'}</h2>
+              <p className="mt-1 text-sm text-slate-500">Set event schedule, media, branch, and multilingual content in one place.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingEvent(null)}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-5 py-2 text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveEvent()}
+                disabled={savingEvent}
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FontAwesomeIcon icon={faSave} />
+                {savingEvent ? 'Saving...' : editingEvent.id ? 'Update Event' : 'Create Event'}
+              </button>
+            </div>
           </div>
 
-          <Form.Item label="Registration URL" name="registration_url">
-            <Input placeholder="https://..." />
-          </Form.Item>
+          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="space-y-6">
+              <div>
+                <label className={LABEL_CLASS}>Primary Image</label>
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <div className="flex h-56 items-center justify-center bg-slate-100">
+                    {editingEvent.primary_image_media_id ? (
+                      <img
+                        src={`${getApiBaseUrl()}/media/${editingEvent.primary_image_media_id}/view`}
+                        alt="Primary event"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 text-slate-400">
+                        <FontAwesomeIcon icon={faImage} className="text-3xl" />
+                        <span className="text-sm">No primary image selected</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3 border-t border-slate-200 p-4">
+                    <button
+                      type="button"
+                      onClick={() => setMediaPickerMode('primary')}
+                      className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      Choose Image
+                    </button>
+                    {editingEvent.primary_image_media_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange('primary_image_media_id', undefined)}
+                        className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="Show on Website" name="is_displaying" valuePropName="checked">
-              <Switch />
-            </Form.Item>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className={LABEL_CLASS}>Event Gallery</label>
+                  <span className="text-xs text-slate-500">{editingEvent.media_ids.length} images</span>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  {editingEvent.media_ids.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      {editingEvent.media_ids.map((mediaId) => (
+                        <div key={mediaId} className="relative overflow-hidden rounded-md border border-slate-200 bg-white">
+                          <img src={`${getApiBaseUrl()}/media/${mediaId}/view`} alt={`Gallery ${mediaId}`} className="h-24 w-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
+                      No gallery images selected
+                    </div>
+                  )}
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setMediaPickerMode('gallery')}
+                      className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white"
+                    >
+                      Manage Gallery
+                    </button>
+                    {editingEvent.media_ids.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange('media_ids', [])}
+                        className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <Form.Item label="Featured Event" name="is_featured" valuePropName="checked">
-              <Switch />
-            </Form.Item>
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Event Code *</label>
+                  <input type="text" className={FIELD_CLASS} value={editingEvent.code} onChange={(e) => handleFieldChange('code', e.target.value)} placeholder="coffee_workshop_april" />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Branch</label>
+                  <select className={FIELD_CLASS} value={editingEvent.branch_id ?? ''} onChange={(e) => handleFieldChange('branch_id', e.target.value ? Number(e.target.value) : undefined)}>
+                    <option value="">All branches / not assigned</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{getBranchName(branch)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Start Date</label>
+                  <input type="date" className={FIELD_CLASS} value={editingEvent.start_date} onChange={(e) => handleFieldChange('start_date', e.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>End Date</label>
+                  <input type="date" className={FIELD_CLASS} value={editingEvent.end_date} onChange={(e) => handleFieldChange('end_date', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Start Time</label>
+                  <input type="time" className={FIELD_CLASS} value={editingEvent.start_time} onChange={(e) => handleFieldChange('start_time', e.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>End Time</label>
+                  <input type="time" className={FIELD_CLASS} value={editingEvent.end_time} onChange={(e) => handleFieldChange('end_time', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Status</label>
+                  <select className={FIELD_CLASS} value={editingEvent.status} onChange={(e) => handleFieldChange('status', e.target.value as EventStatus)}>
+                    <option value="upcoming">Upcoming</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Display Order</label>
+                  <input type="number" className={FIELD_CLASS} value={editingEvent.display_order} onChange={(e) => handleFieldChange('display_order', Number(e.target.value) || 0)} min={0} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className={LABEL_CLASS}>Location Text</label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><FontAwesomeIcon icon={faMapMarkerAlt} /></span>
+                    <input type="text" className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-blue-500" value={editingEvent.location_text} onChange={(e) => handleFieldChange('location_text', e.target.value)} placeholder="Main hall, rooftop, branch address..." />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Max Participants</label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><FontAwesomeIcon icon={faUserGroup} /></span>
+                    <input type="number" className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-blue-500" value={editingEvent.max_participants} onChange={(e) => handleFieldChange('max_participants', e.target.value)} min={0} placeholder="Leave empty for unlimited" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Registration URL</label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><FontAwesomeIcon icon={faLink} /></span>
+                  <input type="url" className="w-full rounded-md border border-slate-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-blue-500" value={editingEvent.registration_url} onChange={(e) => handleFieldChange('registration_url', e.target.value)} placeholder="https://..." />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Localized Content</h3>
+                    <p className="text-sm text-slate-500">Each language can have its own title, summary, and detail content.</p>
+                  </div>
+                  <div className="flex overflow-x-auto">
+                    {supportedLanguages.map((locale) => (
+                      <button
+                        key={locale}
+                        type="button"
+                        onClick={() => setCurrentLocale(locale)}
+                        className={`shrink-0 border-b-2 px-3 py-1.5 text-sm font-medium transition-colors ${currentLocale === locale ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-800'}`}
+                      >
+                        {getLocaleShortLabel(locale)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4">
+                  <div>
+                    <label className={LABEL_CLASS}>Event Title *</label>
+                    <input type="text" className={FIELD_CLASS} value={currentTranslation.title} onChange={(e) => handleLocalizedFieldChange('title', e.target.value)} placeholder="Coffee tasting workshop" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Short Description</label>
+                    <textarea className={`${FIELD_CLASS} min-h-[110px]`} value={currentTranslation.description} onChange={(e) => handleLocalizedFieldChange('description', e.target.value)} placeholder="Short summary for event cards and teaser blocks" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Event Details</label>
+                    <textarea className={`${FIELD_CLASS} min-h-[180px]`} value={currentTranslation.details} onChange={(e) => handleLocalizedFieldChange('details', e.target.value)} placeholder="Agenda, guest speaker, requirements, notes..." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+                <div>
+                  <h3 className="font-semibold text-slate-800">Featured Event</h3>
+                  <p className="text-sm text-slate-500">Highlight this event in featured sections on the website.</p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" className="peer sr-only" checked={editingEvent.is_featured} onChange={(e) => handleFieldChange('is_featured', e.target.checked)} />
+                  <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-500 peer-checked:after:translate-x-full peer-checked:after:border-white" />
+                </label>
+              </div>
+            </div>
           </div>
-        </Form>
-      </Modal>
+        </div>
+      )}
 
-      {/* Translation Modal */}
-      <TranslationModal
-        visible={translationModalVisible}
-        onClose={() => {
-          setTranslationModalVisible(false);
-          setTranslatingEvent(null);
-        }}
-        onSave={handleSaveTranslations}
-        fields={[
-          { key: 'title', label: 'Event Title', type: 'input', required: true },
-          { key: 'description', label: 'Description', type: 'textarea', rows: 3 },
-          { key: 'details', label: 'Details', type: 'textarea', rows: 5 },
-        ]}
-        initialData={
-          translatingEvent?.translations?.reduce((acc, t) => {
-            acc[t.locale] = {
-              title: t.title || '',
-              description: t.description || '',
-              details: t.details || '',
-            };
-            return acc;
-          }, {} as Record<string, Record<string, string>>)
-        }
-        supportedLanguages={supportedLanguages}
-        title="Edit Event Translations"
+      <MediaPickerModal
+        isOpen={mediaPickerMode === 'primary'}
+        onClose={() => setMediaPickerMode(null)}
+        onSelect={handlePrimaryMediaSelected}
+        title="Select Event Image"
+        kind="image"
+        source="cafe"
+        folder="events"
+        folderAliases={['event', 'cafe/events', 'cafe/event']}
+      />
+
+      <MediaPickerModal
+        isOpen={mediaPickerMode === 'gallery'}
+        onClose={() => setMediaPickerMode(null)}
+        onSelectMultiple={handleGalleryMediaSelected}
+        title="Select Event Gallery Images"
+        kind="image"
+        source="cafe"
+        folder="events"
+        folderAliases={['event', 'cafe/events', 'cafe/event']}
+        allowMultiple
       />
     </div>
   );
 };
 
 export default CafeEvents;
+

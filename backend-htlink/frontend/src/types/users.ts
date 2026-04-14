@@ -13,7 +13,7 @@ export interface User {
   initials?: string; // hiển thị avatar chữ
   permissions?: Record<string, boolean>; // chỉ dùng nếu role === 'editor'
   tenant_id?: number; // for permission checks and tenant isolation
-  service_access?: number; // 0=Travel Link only, 1=VR Hotel only, 2=Both
+  service_access?: number;
 }
 
 export interface UserFormData {
@@ -24,5 +24,5 @@ export interface UserFormData {
   status: Status;
   password?: string; // for new users only
   permissions?: Record<string, boolean>;
-  service_access?: number; // 0=Travel Link only, 1=VR Hotel only, 2=Both
+  service_access?: number;
 }

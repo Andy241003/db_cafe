@@ -1,10 +1,8 @@
-from sqlmodel import Field, SQLModel, Relationship
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, Boolean, Enum, DECIMAL, BigInteger, SmallInteger
-from sqlalchemy.dialects.mysql import LONGTEXT, MEDIUMTEXT
+﻿from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, String, JSON, Text, BigInteger, Enum, DECIMAL
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from enum import Enum as PythonEnum
-import enum
 
 
 class UserRole(str, PythonEnum):
@@ -40,31 +38,25 @@ class MediaKind(str, PythonEnum):
 
 
 class MediaSource(str, PythonEnum):
-    TRAVEL = "travel"  # Posts, events from Travel module
-    VR_HOTEL = "vr_hotel"  # Rooms, services, facilities, offers from VR Hotel
-    GENERAL = "general"  # General media library uploads
+    TRAVEL = "travel"
+    VR_HOTEL = "vr_hotel"
+    GENERAL = "general"
 
 
-# Plan model
+# Stub models for tables NOT in DB (needed for imports to work)
 class Plan(SQLModel, table=True):
     __tablename__ = "plans"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     code: str = Field(max_length=50, unique=True)
     name: str = Field(max_length=120)
     features_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Relationships
-    tenants: List["Tenant"] = Relationship(back_populates="plan")
 
 
-# Tenant model
 class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    plan_id: Optional[int] = Field(foreign_key="plans.id")
+    plan_id: Optional[int] = Field(default=None, foreign_key="plans.id")
     name: str = Field(max_length=200)
     code: str = Field(max_length=80, unique=True)
     default_locale: str = Field(default="en", max_length=10)
@@ -73,274 +65,72 @@ class Tenant(SQLModel, table=True):
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
-    
-    # Relationships
-    plan: Optional[Plan] = Relationship(back_populates="tenants")
-    admin_users: List["AdminUser"] = Relationship(back_populates="tenant")
-    properties: List["Property"] = Relationship(back_populates="tenant")
-    posts: List["Post"] = Relationship(back_populates="tenant")
-    media_files: List["MediaFile"] = Relationship(back_populates="tenant")
-    events: List["Event"] = Relationship(back_populates="tenant")
 
 
-# Locale model
-class Locale(SQLModel, table=True):
-    __tablename__ = "locales"
-    
-    code: str = Field(primary_key=True, max_length=10)
-    name: str = Field(max_length=100)
-    native_name: str = Field(max_length=100)
-
-
-# AdminUser model
-class AdminUser(SQLModel, table=True):
-    __tablename__ = "admin_users"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    email: str = Field(max_length=190)
-    password_hash: str = Field(max_length=255)
-    full_name: str = Field(max_length=180)
-    role: UserRole = Field(default=UserRole.EDITOR)
-    # service_access: Removed - Cafe only system
-    is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default=None)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="admin_users")
-
-
-# Property model
 class Property(SQLModel, table=True):
     __tablename__ = "properties"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
+    tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id")
     property_name: str = Field(max_length=255)
     code: str = Field(max_length=100)
-    
-    # Basic info
-    slogan: Optional[str] = Field(max_length=255)
-    description: Optional[str] = Field(sa_column=Column(Text))
-    logo_url: Optional[str] = Field(max_length=255)
-    banner_images: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
-    intro_video_url: Optional[str] = Field(max_length=255)
-    vr360_url: Optional[str] = Field(max_length=255)
-    
-    # Contact & Location
-    address: Optional[str] = Field(max_length=255)
-    district: Optional[str] = Field(max_length=100)
-    city: Optional[str] = Field(max_length=100)
-    country: Optional[str] = Field(max_length=100)
-    postal_code: Optional[str] = Field(max_length=20)
-    phone_number: Optional[str] = Field(max_length=50)
-    email: Optional[str] = Field(max_length=100)
-    website_url: Optional[str] = Field(max_length=255)
-    zalo_oa_id: Optional[str] = Field(max_length=50)
-    facebook_url: Optional[str] = Field(max_length=255)
-    youtube_url: Optional[str] = Field(max_length=255)
-    tiktok_url: Optional[str] = Field(max_length=255)
-    instagram_url: Optional[str] = Field(max_length=255)
-    google_map_url: Optional[str] = Field(max_length=512)
-    latitude: Optional[float] = Field(sa_column=Column(DECIMAL(10, 8)))
-    longitude: Optional[float] = Field(sa_column=Column(DECIMAL(11, 8)))
-    
-    # Branding
-    primary_color: Optional[str] = Field(max_length=255)  # Support CSS gradients
-    secondary_color: Optional[str] = Field(max_length=255)
-    
-    # Legal
-    copyright_text: Optional[str] = Field(max_length=255)
-    terms_url: Optional[str] = Field(max_length=255)
-    privacy_url: Optional[str] = Field(max_length=255)
-    
-    # Settings
-    timezone: Optional[str] = Field(max_length=60)
-    default_locale: str = Field(max_length=10)
-    settings_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    tracking_key: Optional[str] = Field(max_length=64, unique=True)  # For analytics tracking
     is_active: bool = Field(default=True)
+    tracking_key: Optional[str] = Field(default=None, max_length=64, unique=True)
+    default_locale: str = Field(default="en", max_length=10)
+    settings_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="properties")
 
 
-# Property Translation model
 class PropertyTranslation(SQLModel, table=True):
-    __tablename__ = "property_translation"
-
+    __tablename__ = "property_translations"
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: int = Field(foreign_key="properties.id")
     locale: str = Field(max_length=10)
-    property_name: Optional[str] = Field(max_length=255)
-    slogan: Optional[str] = Field(max_length=255)
-    description: Optional[str] = Field(sa_column=Column(Text))
-    address: Optional[str] = Field(max_length=255)
-    district: Optional[str] = Field(max_length=100)
-    city: Optional[str] = Field(max_length=100)
-    country: Optional[str] = Field(max_length=100)
-    copyright_text: Optional[str] = Field(max_length=255)
+    property_name: Optional[str] = Field(default=None, max_length=255)
+    slogan: Optional[str] = Field(default=None, max_length=255)
+    description: Optional[str] = Field(default=None)
+    address: Optional[str] = Field(default=None, max_length=255)
+    district: Optional[str] = Field(default=None, max_length=100)
+    city: Optional[str] = Field(default=None, max_length=100)
+    country: Optional[str] = Field(default=None, max_length=100)
+    copyright_text: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None)
 
 
-# Feature Category model
 class FeatureCategory(SQLModel, table=True):
     __tablename__ = "feature_categories"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(default=0)  # 0 means system-wide
+    tenant_id: int = Field(default=0)
     slug: str = Field(max_length=100)
-    icon_key: Optional[str] = Field(max_length=120)
-    priority: int = Field(default=0)  # Higher number = higher priority (for sorting)
+    icon_key: Optional[str] = Field(default=None, max_length=120)
+    priority: int = Field(default=0)
     is_system: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# Feature Category Translation model
-class FeatureCategoryTranslation(SQLModel, table=True):
-    __tablename__ = "feature_category_translations"
-    
-    category_id: int = Field(foreign_key="feature_categories.id", primary_key=True)
-    locale: str = Field(foreign_key="locales.code", primary_key=True, max_length=10)
-    title: str = Field(max_length=200)
-    short_desc: Optional[str] = Field(max_length=500)
-
-
-# Feature model
 class Feature(SQLModel, table=True):
     __tablename__ = "features"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(default=0)  # 0 means system-wide
+    tenant_id: int = Field(default=0)
     category_id: int = Field(foreign_key="feature_categories.id")
     slug: str = Field(max_length=120)
-    icon_key: Optional[str] = Field(max_length=120)
+    icon_key: Optional[str] = Field(default=None, max_length=120)
     is_system: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# Feature Translation model
-class FeatureTranslation(SQLModel, table=True):
-    __tablename__ = "feature_translations"
-    
-    feature_id: int = Field(foreign_key="features.id", primary_key=True)
-    locale: str = Field(foreign_key="locales.code", primary_key=True, max_length=10)
-    title: str = Field(max_length=200)
-    short_desc: Optional[str] = Field(max_length=500)
-
-
-# Property Category (junction table for property -> categories)
-class PropertyCategory(SQLModel, table=True):
-    __tablename__ = "property_categories"
-    
-    property_id: int = Field(foreign_key="properties.id", primary_key=True)
-    category_id: int = Field(foreign_key="feature_categories.id", primary_key=True)
-    is_enabled: bool = Field(default=True)
-    sort_order: int = Field(default=100)
-
-
-# Property Feature (junction table for property -> features)
-class PropertyFeature(SQLModel, table=True):
-    __tablename__ = "property_features"
-    
-    property_id: int = Field(foreign_key="properties.id", primary_key=True)
-    feature_id: int = Field(foreign_key="features.id", primary_key=True)
-    is_enabled: bool = Field(default=True)
-    sort_order: int = Field(default=100)
-
-
-# Post model
-class Post(SQLModel, table=True):
-    __tablename__ = "posts"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    property_id: int = Field(foreign_key="properties.id")
-    vr360_url: Optional[str] = Field(default=None, sa_column=Column(String(255)))  # Explicitly define column
-    feature_id: int = Field(foreign_key="features.id")
-    slug: str = Field(max_length=160)
-    status: PostStatus = Field(default=PostStatus.DRAFT)
-    pinned: bool = Field(default=True)
-    cover_media_id: Optional[int] = Field(foreign_key="media_files.id")
-    published_at: Optional[datetime] = Field(default=None)
-    created_by: Optional[int] = Field(foreign_key="admin_users.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default=None)
-
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="posts")
-    property: Property = Relationship()
-    feature: Feature = Relationship()
-
-
-# Post Translation model
-class PostTranslation(SQLModel, table=True):
-    __tablename__ = "post_translations"
-    
-    post_id: int = Field(foreign_key="posts.id", primary_key=True)
-    locale: str = Field(foreign_key="locales.code", primary_key=True, max_length=10)
-    title: str = Field(max_length=250)
-    subtitle: Optional[str] = Field(max_length=300)
-    content_html: str = Field(sa_column=Column(MEDIUMTEXT))
-    seo_title: Optional[str] = Field(max_length=250)
-    seo_desc: Optional[str] = Field(max_length=300)
-    og_image_id: Optional[int] = Field(foreign_key="media_files.id")
-
-
-# Media File model
-class MediaFile(SQLModel, table=True):
-    __tablename__ = "media_files"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    uploader_id: Optional[int] = Field(foreign_key="admin_users.id")
-    kind: str  # Temporarily use str instead of MediaKind enum
-    mime_type: Optional[str] = Field(max_length=120)
-    file_key: str = Field(max_length=255)
-    original_filename: Optional[str] = Field(default=None, max_length=255)
-    width: Optional[int] = None
-    height: Optional[int] = None
-    size_bytes: Optional[int] = None
-    alt_text: Optional[str] = Field(max_length=300)
-    
-    # Source tracking fields
-    source: Optional[str] = Field(default="general", sa_column=Column(String(20)))
-    entity_type: Optional[str] = Field(default=None, sa_column=Column(String(50)))
-    entity_id: Optional[int] = Field(default=None)
-    folder: Optional[str] = Field(default=None, sa_column=Column(String(100)))
-    
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="media_files")
-
-
-# Post Media (junction table for post -> media)
-class PostMedia(SQLModel, table=True):
-    __tablename__ = "post_media"
-    
-    post_id: int = Field(foreign_key="posts.id", primary_key=True)
-    media_id: int = Field(foreign_key="media_files.id", primary_key=True)
-    sort_order: int = Field(default=100)
-
-
-# Event model
 class Event(SQLModel, table=True):
     __tablename__ = "events"
-    
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
-    tenant_id: int = Field(foreign_key="tenants.id")
-    property_id: int = Field(foreign_key="properties.id")
-    category_id: Optional[int] = Field(default=None, foreign_key="feature_categories.id")
-    feature_id: Optional[int] = Field(default=None, foreign_key="features.id")
-    post_id: Optional[int] = Field(default=None, foreign_key="posts.id")
+    tenant_id: Optional[int] = Field(default=None)
+    property_id: Optional[int] = Field(default=None)
+    category_id: Optional[int] = Field(default=None)
+    feature_id: Optional[int] = Field(default=None)
+    post_id: Optional[int] = Field(default=None)
     locale: Optional[str] = Field(default=None, max_length=10)
-    event_type: EventType = Field(sa_column=Column(Enum("page_view", "click", "share", name="eventtype")))
-    device: Optional[DeviceType] = Field(default=None, sa_column=Column(Enum("desktop", "tablet", "mobile", name="devicetype")))
+    event_type: str = Field(max_length=50)
+    device: Optional[str] = Field(default=None, max_length=20)
     user_agent: Optional[str] = Field(default=None, max_length=255)
     ip_hash: Optional[str] = Field(default=None, max_length=64)
     url: Optional[str] = Field(default=None, max_length=500)
@@ -348,21 +138,148 @@ class Event(SQLModel, table=True):
     session_id: Optional[str] = Field(default=None, max_length=100)
     page_title: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Relationships
-    tenant: Tenant = Relationship(back_populates="events")
-    property: Property = Relationship()
 
 
-# Settings model
+class AnalyticsSummary(SQLModel, table=True):
+    __tablename__ = "analytics_summaries"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: Optional[int] = Field(default=None)
+    property_id: Optional[int] = Field(default=None)
+    date: Optional[str] = Field(default=None, max_length=20)
+    total_views: int = Field(default=0)
+    unique_sessions: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Models that exist in DB
+class Locale(SQLModel, table=True):
+    __tablename__ = "locales"
+    code: str = Field(primary_key=True, max_length=10)
+    name: str = Field(max_length=100)
+    native_name: str = Field(max_length=100)
+
+
+class AdminUser(SQLModel, table=True):
+    __tablename__ = "admin_users"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id")
+    email: str = Field(max_length=190)
+    password_hash: str = Field(max_length=255)
+    full_name: str = Field(max_length=180)
+    role: UserRole = Field(default=UserRole.EDITOR)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class MediaFile(SQLModel, table=True):
+    __tablename__ = "media_files"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
+    uploader_id: Optional[int] = Field(default=None, foreign_key="admin_users.id")
+    kind: str
+    mime_type: Optional[str] = Field(default=None, max_length=120)
+    file_key: str = Field(max_length=255)
+    original_filename: Optional[str] = Field(default=None, max_length=255)
+    width: Optional[int] = None
+    height: Optional[int] = None
+    size_bytes: Optional[int] = None
+    alt_text: Optional[str] = Field(default=None, max_length=300)
+    source: Optional[str] = Field(default="general", sa_column=Column(String(20)))
+    entity_type: Optional[str] = Field(default=None, sa_column=Column(String(50)))
+    entity_id: Optional[int] = Field(default=None)
+    folder: Optional[str] = Field(default=None, sa_column=Column(String(100)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Setting(SQLModel, table=True):
     __tablename__ = "settings"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(default=0)
     property_id: int = Field(default=0)
     key_name: str = Field(max_length=160)
     value_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+
+
+# Translation models for translatable content
+class FeatureCategoryTranslation(SQLModel, table=True):
+    __tablename__ = "feature_category_translations"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    category_id: int = Field(foreign_key="feature_categories.id")
+    locale: str = Field(max_length=10)
+    title: str = Field(max_length=200)
+    short_desc: Optional[str] = Field(default=None, max_length=500)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FeatureTranslation(SQLModel, table=True):
+    __tablename__ = "feature_translations"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    feature_id: int = Field(foreign_key="features.id")
+    locale: str = Field(max_length=10)
+    title: str = Field(max_length=200)
+    short_desc: Optional[str] = Field(default=None, max_length=500)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Junction/relationship models between properties and categories/features
+class PropertyCategory(SQLModel, table=True):
+    __tablename__ = "property_categories"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="properties.id")
+    category_id: int = Field(foreign_key="feature_categories.id")
+    is_enabled: bool = Field(default=True)
+    sort_order: int = Field(default=100)
+
+
+class PropertyFeature(SQLModel, table=True):
+    __tablename__ = "property_features"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="properties.id")
+    feature_id: int = Field(foreign_key="features.id")
+    is_enabled: bool = Field(default=True)
+    sort_order: int = Field(default=100)
+
+
+# Post models
+class Post(SQLModel, table=True):
+    __tablename__ = "posts"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
+    property_id: int = Field(foreign_key="properties.id")
+    feature_id: int = Field(foreign_key="features.id")
+    slug: str = Field(max_length=160)
+    vr360_url: Optional[str] = Field(default=None, max_length=255)
+    status: str = Field(default="DRAFT", max_length=50)
+    pinned: bool = Field(default=True)
+    cover_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
+    published_at: Optional[datetime] = Field(default=None)
+    created_by: Optional[int] = Field(default=None, foreign_key="admin_users.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class PostTranslation(SQLModel, table=True):
+    __tablename__ = "post_translations"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="posts.id")
+    locale: str = Field(max_length=10)
+    title: str = Field(max_length=250)
+    subtitle: Optional[str] = Field(default=None, max_length=300)
+    content_html: str
+    seo_title: Optional[str] = Field(default=None, max_length=250)
+    seo_desc: Optional[str] = Field(default=None, max_length=300)
+    og_image_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default=None)
+
+
+class PostMedia(SQLModel, table=True):
+    __tablename__ = "post_media"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="posts.id")
+    media_id: int = Field(foreign_key="media_files.id")
+    sort_order: int = Field(default=100)
 
 
 # Schema models for API
@@ -371,15 +288,12 @@ class AdminUserCreate(SQLModel):
     password: str
     full_name: str
     role: UserRole = UserRole.EDITOR
-    # service_access: Removed - Cafe only system
-    tenant_id: int
 
 
 class AdminUserUpdate(SQLModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
-    # service_access: Removed - Cafe only system
     is_active: Optional[bool] = None
 
 
@@ -392,173 +306,3 @@ class LocaleCreate(SQLModel):
 class LocaleUpdate(SQLModel):
     name: Optional[str] = None
     native_name: Optional[str] = None
-
-
-class FeatureTranslationCreate(SQLModel):
-    feature_id: int
-    locale: str
-    title: str
-    short_desc: Optional[str] = None
-
-
-class FeatureTranslationUpdate(SQLModel):
-    title: Optional[str] = None
-    short_desc: Optional[str] = None
-
-
-class PostTranslationCreate(SQLModel):
-    post_id: int
-    locale: str
-    title: str
-    subtitle: Optional[str] = None
-    content_html: str
-    seo_title: Optional[str] = None
-    seo_desc: Optional[str] = None
-    og_image_id: Optional[int] = None
-
-
-class PostTranslationUpdate(SQLModel):
-    title: Optional[str] = None
-    subtitle: Optional[str] = None
-    content_html: Optional[str] = None
-    seo_title: Optional[str] = None
-    seo_desc: Optional[str] = None
-    og_image_id: Optional[int] = None
-
-
-class FeatureCategoryTranslationCreate(SQLModel):
-    category_id: int
-    locale: str
-    title: str
-    short_desc: Optional[str] = None
-
-
-class FeatureCategoryTranslationUpdate(SQLModel):
-    title: Optional[str] = None
-    short_desc: Optional[str] = None
-
-
-class FeatureCategoryCreate(SQLModel):
-    slug: str
-    icon_key: Optional[str] = None
-    priority: int = 0
-    is_system: bool = False
-
-
-class FeatureCategoryUpdate(SQLModel):
-    slug: Optional[str] = None
-    icon_key: Optional[str] = None
-    priority: Optional[int] = None
-    is_system: Optional[bool] = None
-
-
-class PropertyCategoryCreate(SQLModel):
-    property_id: int
-    category_id: int
-    is_enabled: bool = True
-    sort_order: int = 100
-
-
-class PropertyCategoryUpdate(SQLModel):
-    is_enabled: Optional[bool] = None
-    sort_order: Optional[int] = None
-
-
-# Analytics & Activity Tracking Models
-from app.models.activity_log import ActivityType, ActivityLog, AnalyticsSummary# Import property posts models
-from app.models.property_posts import (
-    PropertyPost, 
-    PropertyPostTranslation,
-    PropertyPostCreate,
-    PropertyPostUpdate,
-    PropertyPostRead,
-    PropertyPostTranslationRead
-)
-
-# Import VR Hotel models
-from app.models.vr_hotel import (
-    # Enums
-    RoomStatus, OfferDiscountType, OfferStatus, VRContentType,
-    # Settings models
-    VRHotelSettings, VRHotelContact, VRHotelSEO,
-    # Room models
-    VRRoom, VRRoomTranslation, VRRoomMedia,
-    # Dining models
-    VRDining, VRDiningTranslation, VRDiningMedia,
-    # Facility models
-    VRFacility, VRFacilityTranslation, VRFacilityMedia,
-    # Offer models
-    VROffer, VROfferTranslation,
-    # Content models
-    VRContent,
-    # Language model
-    VRLanguage
-)
-
-# Import Cafe models
-from app.models.cafe import (
-    # Enums
-    MenuItemStatus, EventStatus, CareerStatus, PromotionType,
-    # Settings models
-    CafeSettings, CafePageSettings,
-    # Branch models
-    CafeBranch, CafeBranchTranslation, CafeBranchMedia,
-    # Menu models
-    CafeMenuCategory, CafeMenuCategoryTranslation,
-    CafeMenuItem, CafeMenuItemTranslation, CafeMenuItemMedia,
-    # Event models
-    CafeEvent, CafeEventTranslation, CafeEventMedia,
-    # Career models
-    CafeCareer, CafeCareerTranslation, CafeCareerMedia,
-    # Promotion models
-    CafePromotion, CafePromotionTranslation, CafePromotionMedia,
-    # Space models
-    CafeSpace, CafeSpaceTranslation, CafeSpaceMedia,
-    # Content section models
-    CafeContentSection, CafeContentSectionTranslation
-)
-
-# Import all models to ensure they are registered
-__all__ = [
-    "Plan", "Tenant", "Locale", "AdminUser", "Property", "PropertyTranslation",
-    "FeatureCategory", "FeatureCategoryTranslation",
-    "Feature", "FeatureTranslation",
-    "PropertyCategory", "PropertyFeature",
-    "Post", "PostTranslation", "MediaFile", "PostMedia",
-    "Event", "Setting",
-    "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
-    # Analytics models
-    "ActivityType", "ActivityLog", "AnalyticsSummary",
-    # Property posts models
-    "PropertyPost", "PropertyPostTranslation",
-    "PropertyPostCreate", "PropertyPostUpdate", "PropertyPostRead", "PropertyPostTranslationRead",
-    # VR Hotel models
-    "RoomStatus", "OfferDiscountType", "OfferStatus", "VRContentType",
-    "VRHotelSettings", "VRHotelContact", "VRHotelSEO",
-    "VRRoom", "VRRoomTranslation", "VRRoomMedia",
-    "VRDining", "VRDiningTranslation", "VRDiningMedia",
-    "VRFacility", "VRFacilityTranslation", "VRFacilityMedia",
-    "VROffer", "VROfferTranslation",
-    "VRContent", "VRLanguage",
-    # Schema models
-    "AdminUserCreate", "AdminUserUpdate",
-    "LocaleCreate", "LocaleUpdate",
-    "FeatureTranslationCreate", "FeatureTranslationUpdate",
-    "PostTranslationCreate", "PostTranslationUpdate",
-    "FeatureCategoryTranslationCreate", "FeatureCategoryTranslationUpdate",
-    "FeatureCategoryCreate", "FeatureCategoryUpdate",
-    "PropertyCategoryCreate", "PropertyCategoryUpdate",
-    # Analytics models
-    "ActivityLog", "AnalyticsSummary", "ActivityType",
-    # Cafe models
-    "MenuItemStatus", "EventStatus", "CareerStatus", "PromotionType",
-    "CafeSettings", "CafePageSettings",
-    "CafeBranch", "CafeBranchTranslation", "CafeBranchMedia",
-    "CafeMenuCategory", "CafeMenuCategoryTranslation",
-    "CafeMenuItem", "CafeMenuItemTranslation", "CafeMenuItemMedia",
-    "CafeEvent", "CafeEventTranslation", "CafeEventMedia",
-    "CafeCareer", "CafeCareerTranslation", "CafeCareerMedia",
-    "CafePromotion", "CafePromotionTranslation", "CafePromotionMedia",
-    "CafeSpace", "CafeSpaceTranslation", "CafeSpaceMedia",
-    "CafeContentSection", "CafeContentSectionTranslation"
-]
