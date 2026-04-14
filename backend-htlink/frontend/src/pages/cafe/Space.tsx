@@ -1,4 +1,4 @@
-﻿import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -24,18 +24,8 @@ const getSpacesHeaders = () => {
   };
 };
 
-const getSpacesRequestBase = () => {
-  if (typeof window !== 'undefined') {
-    const { hostname, protocol } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `${protocol}//${hostname}:8000/api/v1`;
-    }
+const getSpacesRequestBase = () => getApiBaseUrl();
 
-    return `${window.location.origin}/api/v1`;
-  }
-
-  return getApiBaseUrl();
-};
 
 const spaceRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${getSpacesRequestBase()}${path}`, {
@@ -117,7 +107,7 @@ const CafeSpace: React.FC = () => {
       setVrTitle(settings.settings_json?.spaces_vr_title || '');
       setSpaces(spaceData);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to load spaces');
+      toast.error(error.message || 'Failed to load spaces');
     } finally {
       setLoading(false);
     }
@@ -512,7 +502,7 @@ const CafeSpace: React.FC = () => {
             />
             <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
-              <span>Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
+              <span>Enter the URL to a 360� panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
             </p>
           </div>
           <div>
