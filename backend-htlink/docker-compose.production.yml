@@ -19,6 +19,8 @@ services:
       - RUN_ALEMBIC_MIGRATIONS=false
 
   frontend:
+    depends_on:
+      - backend
     build:
       context: ./frontend
       dockerfile: Dockerfile
