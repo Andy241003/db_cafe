@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     MYSQL_PASSWORD: str = ""
     MYSQL_DATABASE: str = ""
     DATABASE_URL: str | None = None
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_POOL_TIMEOUT: int = 30
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -6,7 +6,14 @@ from app.core.config import settings
 from app.models import AdminUser, AdminUserCreate
 
 # Sync engine for MySQL with pymysql
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI), echo=True)
+engine = create_engine(
+    str(settings.SQLALCHEMY_DATABASE_URI),
+    echo=True,
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_timeout=settings.DATABASE_POOL_TIMEOUT,
+    pool_pre_ping=True,
+)
 
 
 def get_db() -> Session:
