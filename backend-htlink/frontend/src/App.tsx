@@ -33,7 +33,8 @@ import CafeContact from './pages/cafe/Contact';
 import CafeDashboard from './pages/cafe/Dashboard';
 import CafeEvents from './pages/cafe/Events';
 import CafeGallery from './pages/cafe/Gallery';
-import CafeHomeAbout from './pages/cafe/HomeAbout';
+import CafeAbout from './pages/cafe/About';
+import CafeHome from './pages/cafe/Home';
 import CafeLanguages from './pages/cafe/Languages';
 import CafeLayout from './pages/cafe/CafeLayout';
 import CafeMenu from './pages/cafe/Menu';
@@ -163,7 +164,8 @@ function App() {
                         <Route path="activities" element={<CafeActivities />} />
                         <Route path="users" element={<CafeUsers />} />
                         <Route path="tenants" element={<ProtectedRoute requireAdmin><CafeTenants /></ProtectedRoute>} />
-                        <Route path="home-about" element={<CafeHomeAbout />} />
+                        <Route path="home" element={<CafeHome />} />
+                        <Route path="about" element={<CafeAbout />} />
                         <Route path="menu" element={<CafeMenu />} />
                         <Route path="space" element={<CafeSpace />} />
                         <Route path="branches" element={<CafeBranches />} />
@@ -225,3 +227,4 @@ function App() {
 }
 
 export default App;
+

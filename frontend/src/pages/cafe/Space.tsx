@@ -3,8 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import type { Space, SpaceTranslation } from '../../services/cafeApi';
 import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi } from '../../services/cafeApi';
+import type { Space, SpaceTranslation } from '../../services/cafeApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'block text-sm font-medium text-slate-700 mb-2';

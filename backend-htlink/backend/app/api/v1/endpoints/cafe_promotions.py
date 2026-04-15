@@ -277,7 +277,10 @@ def update_promotion(
             )
         ).all():
             db.delete(existing_trans)
-        
+
+        db.flush()
+
+
         for trans in promo_data.translations:
             translation = CafePromotionTranslation(
                 promotion_id=promotion_id,
@@ -293,7 +296,10 @@ def update_promotion(
             select(CafePromotionMedia).where(CafePromotionMedia.promotion_id == promotion_id)
         ).all():
             db.delete(existing_media)
-        
+
+        db.flush()
+
+
         for idx, media_id in enumerate(promo_data.media_ids):
             promo_media = CafePromotionMedia(
                 promotion_id=promotion_id,

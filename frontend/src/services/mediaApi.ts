@@ -91,6 +91,8 @@ class MediaApiService {
     entityId?: number,
     folder?: string
   ): Promise<UploadResponse> {
+    console.log('📤 uploadFile: Starting upload of', file.name, '- size:', file.size);
+    
     const formData = new FormData();
     formData.append('file', file);
     
@@ -108,21 +110,32 @@ class MediaApiService {
     if (entityId) queryParams += `&entity_id=${entityId}`;
     if (folder) queryParams += `&folder=${folder}`;
 
-    // Kind goes in query params, not form data - BACK TO ORIGINAL
-    const response = await mediaApiClient.post(`/media/upload?${queryParams}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    console.log('📤 uploadFile: Query params:', queryParams);
 
-    // Return backend response directly - backend already provides correct URL format
-    const mediaFile = response.data;
-    
-    return {
-      ...mediaFile,
-      // Use backend URL if provided, otherwise construct new format with ID
-      url: mediaFile.url || `${API_BASE_URL}/media/${mediaFile.id}/download`
-    };
+    // Kind goes in query params, not form data - BACK TO ORIGINAL
+    try {
+      console.log('📤 uploadFile: Sending POST request to /media/upload');
+      const response = await mediaApiClient.post(`/media/upload?${queryParams}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000, // 60 second timeout for file uploads
+      });
+
+      console.log('✅ uploadFile: Response received:', response.data);
+
+      // Return backend response directly - backend already provides correct URL format
+      const mediaFile = response.data;
+      
+      return {
+        ...mediaFile,
+        // Use backend URL if provided, otherwise construct new format with ID
+        url: mediaFile.url || `${API_BASE_URL}/media/${mediaFile.id}/download`
+      };
+    } catch (error: any) {
+      console.error('❌ uploadFile: Error:', error.message, error.response?.data);
+      throw error;
+    }
   }
 
   /**

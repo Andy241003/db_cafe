@@ -29,6 +29,7 @@ async def upload_media_file(
     entity_id: Optional[int] = None,
     folder: Optional[str] = None,
 ) -> Any:
+    print(f"📝 [MEDIA.UPLOAD] Starting upload - file: {file.filename if file else 'None'}, kind: {kind}")
 
     valid_kinds = ["image", "video", "file", "icon"]
     if kind and kind not in valid_kinds:
@@ -42,6 +43,8 @@ async def upload_media_file(
         raise HTTPException(status_code=400, detail="No file provided")
 
     content = await file.read()
+    print(f"📝 [MEDIA.UPLOAD] File read - size: {len(content)} bytes")
+    
     max_size = 100 * 1024 * 1024
     if len(content) > max_size:
         raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 100MB, got {len(content)/1024/1024:.1f}MB")
@@ -64,8 +67,11 @@ async def upload_media_file(
     try:
         file_key = f"{uuid.uuid4()}{file_ext}"
         file_path = UPLOAD_DIR / file_key
+        print(f"📝 [MEDIA.UPLOAD] Saving file to disk - path: {file_path}")
+        
         with open(file_path, "wb") as f:
             f.write(content)
+        print(f"✅ [MEDIA.UPLOAD] File saved successfully")
 
         kind_value = kind
         media_data = MediaFileCreate(
@@ -92,15 +98,18 @@ async def upload_media_file(
             entity_id=entity_id,
             folder=folder,
         )
+        print(f"📝 [MEDIA.UPLOAD] Creating media record in database")
+        
         session.add(media_obj)
         session.commit()
         session.refresh(media_obj)
+        print(f"✅ [MEDIA.UPLOAD] Media record created - ID: {media_obj.id}")
 
         base_url = str(request.base_url).rstrip('/')
         file_url = f"{base_url}/api/v1/media/{media_obj.id}/download"
 
         from datetime import datetime
-        return {
+        result = {
             "id": media_obj.id,
             "tenant_id": effective_tenant_id,
             "uploader_id": current_user.id,
@@ -112,7 +121,10 @@ async def upload_media_file(
             "alt_text": alt_text,
             "created_at": media_obj.created_at.isoformat() if media_obj.created_at else datetime.utcnow().isoformat(),
         }
+        print(f"✅ [MEDIA.UPLOAD] Upload completed successfully - returning response")
+        return result
     except Exception as e:
+        print(f"❌ [MEDIA.UPLOAD] Error occurred: {str(e)}", exc_info=True)
         if 'file_path' in locals() and file_path.exists():
             file_path.unlink()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")

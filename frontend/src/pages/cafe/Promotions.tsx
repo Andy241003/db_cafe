@@ -1,36 +1,36 @@
 
 import {
-    faCalendarAlt,
-    faCircleInfo,
-    faEye,
-    faImage,
-    faImages,
-    faInfoCircle,
-    faMoneyBillWave,
-    faPenToSquare,
-    faPercent,
-    faPlus,
-    faTag,
-    faTimes,
-    faTrashCan,
-    faVrCardboard,
+  faCalendarAlt,
+  faCircleInfo,
+  faEye,
+  faImage,
+  faImages,
+  faInfoCircle,
+  faMoneyBillWave,
+  faPenToSquare,
+  faPercent,
+  faPlus,
+  faTag,
+  faTimes,
+  faTrashCan,
+  faVrCardboard,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { getApiBaseUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import {
-    cafeBranchesApi,
-    cafeLanguagesApi,
-    cafePromotionsApi,
-    cafeSettingsApi,
-    type Branch,
-    type Promotion,
-    type PromotionCreate,
-    type PromotionTranslation,
+  cafeBranchesApi,
+  cafeLanguagesApi,
+  cafePromotionsApi,
+  cafeSettingsApi,
+  type Branch,
+  type Promotion,
+  type PromotionCreate,
+  type PromotionTranslation,
 } from '../../services/cafeApi';
-import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
 const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';

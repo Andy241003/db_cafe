@@ -1,16 +1,16 @@
 import {
-    faCircleInfo,
-    faEye,
-    faGlobe,
-    faImage,
-    faImages,
-    faInfoCircle,
-    faPenToSquare,
-    faPlus,
-    faStar,
-    faTimes,
-    faTrashCan,
-    faVrCardboard,
+  faCircleInfo,
+  faEye,
+  faGlobe,
+  faImage,
+  faImages,
+  faInfoCircle,
+  faPenToSquare,
+  faPlus,
+  faStar,
+  faTimes,
+  faTrashCan,
+  faVrCardboard,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
@@ -18,14 +18,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import {
-    cafeBranchesApi,
-    cafeEventsApi,
-    cafeLanguagesApi,
-    cafeSettingsApi,
-    type Branch,
-    type CafeEvent,
-    type CafeEventCreate,
-    type EventTranslation,
+  cafeBranchesApi,
+  cafeEventsApi,
+  cafeLanguagesApi,
+  cafeSettingsApi,
+  type Branch,
+  type CafeEvent,
+  type CafeEventCreate,
+  type EventTranslation,
 } from '../../services/cafeApi';
 import { getApiBaseUrl } from '../../utils/api';
 

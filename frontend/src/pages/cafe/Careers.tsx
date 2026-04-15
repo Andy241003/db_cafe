@@ -27,7 +27,6 @@ import {
     type CareerCreate,
     type CareerTranslation,
 } from '../../services/cafeApi';
-import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
 const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
@@ -227,7 +226,7 @@ const CafeCareers: React.FC = () => {
     contact_phone: career?.contact_phone || '',
     application_url: career?.application_url || '',
     primary_image_media_id: career?.primary_image_media_id ?? undefined,
-    media_ids: career?.media_ids || [],
+    media_ids: career?.media?.map((item) => item.media_id) || [],
     branch_id: career?.branch_id ?? undefined,
     status: (career?.status as CareerStatus) || 'open',
     display_order: career?.display_order ?? careers.length,
@@ -352,7 +351,7 @@ const CafeCareers: React.FC = () => {
     }
   };
 
-  const handleGallerySelect = (mediaIds: number[]) => {
+  const handleGallerySelect = (mediaIds: number[], mediaUrls: string[]) => {
     setEditingCareer((previous) => {
       if (!previous) return previous;
       const dedupedMediaIds = Array.from(new Set(mediaIds));
@@ -558,20 +557,12 @@ const CafeCareers: React.FC = () => {
               const branchLabel = getBranchLabelById(career.branch_id);
               const salaryLabel = getCareerSalaryLabel(career);
               const languageLabel = getCareerLanguageLabel(career);
-              const imageId = career.primary_image_media_id ?? career.media_ids?.[0];
-              const imageUrl = imageId ? `${getApiBaseUrl()}/media/${imageId}/view` : null;
 
               return (
                 <div key={career.id} className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                    <div className={`flex h-28 w-full shrink-0 overflow-hidden rounded-lg md:w-40 ${imageUrl ? 'bg-slate-100' : 'bg-blue-50 text-blue-600'}`}>
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-blue-600">
-                          <FontAwesomeIcon icon={faBriefcase} className="text-2xl" />
-                        </div>
-                      )}
+                    <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 md:w-40">
+                      <FontAwesomeIcon icon={faBriefcase} className="text-2xl" />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -845,18 +836,14 @@ const CafeCareers: React.FC = () => {
         </div>
       )}
 
-      {editingCareer && mediaPickerMode && (
+      {mediaPickerMode && (
         <MediaPickerModal
-          isOpen={mediaPickerMode !== null}
+          isOpen={!!mediaPickerMode}
           onClose={() => setMediaPickerMode(null)}
-          title="Select Career Images"
-          kind="image"
-          source="cafe"
-          folder="careers"
-          folderAliases={['career', 'cafe/careers', 'cafe/career']}
-          allowMultiple
-          initialSelectedIds={editingCareer?.media_ids || []}
           onSelectMultiple={handleGallerySelect}
+          allowMultiple={true}
+          initialSelectedIds={editingCareer?.media_ids || []}
+          title="Select Career Images"
         />
       )}
     </div>

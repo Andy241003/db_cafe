@@ -50,7 +50,7 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
       void loadMediaFiles();
       setSelectedMediaIds(new Set(initialSelectedIds)); // Set initial selection
     }
-  }, [isOpen, activeTab, source, folder, normalizedFolderAliasesKey, initialSelectedIds]);
+  }, [isOpen, activeTab, source, folder, normalizedFolderAliasesKey]);
 
   const loadMediaFiles = async () => {
     const requestId = ++loadRequestRef.current;
@@ -236,12 +236,10 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
     }
 
     try {
-      console.log('🔵 handleUpload: Starting upload of', selectedFiles.length, 'files');
       setIsUploading(true);
       
       const loadingToast = toast.loading(`Uploading ${selectedFiles.length} image(s)...`);
       
-      console.log('🔵 handleUpload: Calling mediaApi.uploadFiles');
       const uploadedFiles = await mediaApi.uploadFiles(
         selectedFiles,
         kind,
@@ -251,7 +249,6 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
         folder
       );
 
-      console.log('🟢 handleUpload: Upload successful', uploadedFiles);
       toast.success(`Successfully uploaded ${uploadedFiles.length} image(s)!`, { id: loadingToast });
       
       // Reset upload form
@@ -259,16 +256,13 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
       setPreviewUrls([]);
       
       // Switch to library tab and reload to show new images
-      console.log('🔵 handleUpload: Switching to library tab and loading media files');
       setActiveTab('library');
       await loadMediaFiles();
-      console.log('🟢 handleUpload: Media files loaded');
       
     } catch (error: any) {
-      console.error('🔴 handleUpload: Upload failed:', error);
+      console.error('❌ Upload failed:', error);
       toast.error(`Upload failed: ${error.response?.data?.detail || error.message}`);
     } finally {
-      console.log('🔵 handleUpload: Setting isUploading = false');
       setIsUploading(false);
     }
   };

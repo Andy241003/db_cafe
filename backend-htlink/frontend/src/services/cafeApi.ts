@@ -7,7 +7,25 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 const resolveCafeBaseUrl = (): string => {
-  return getApiBaseUrl();
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${origin}/api/v1`;
+    }
+  }
+
+  const resolvedBaseUrl = getApiBaseUrl();
+
+  if (
+    typeof window !== 'undefined' &&
+    resolvedBaseUrl.includes('backend:8000') &&
+    window.location.hostname !== 'backend'
+  ) {
+    return `${window.location.origin}/api/v1`;
+  }
+
+  return resolvedBaseUrl;
 };
 
 const buildCafeDirectConfig = () => {
@@ -26,39 +44,48 @@ const buildCafeDirectConfig = () => {
   };
 };
 
-// Create axios instance for Cafe
 const cafeClient = axios.create({
-  baseURL: resolveCafeBaseUrl(),
+  baseURL: '',
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
-  }
+    Pragma: 'no-cache',
+    Expires: '0',
+  },
 });
 
-// Request interceptor
-// Cafe system only needs tenant and user authentication, no property_id
 cafeClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = localStorage.getItem('tenant_code') || 'demo';
+    const resolvedBaseUrl = resolveCafeBaseUrl();
 
-    // Resolve the base URL on every request so the browser never keeps a stale
-    // Docker-internal hostname like http://backend:8000.
-    config.baseURL = resolveCafeBaseUrl();
-    
+    if (typeof window !== 'undefined') {
+      const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const shouldUseRelativeProxy = isLocalBrowser || (resolvedBaseUrl.includes('backend:8000') && window.location.hostname !== 'backend');
+
+      if (shouldUseRelativeProxy) {
+        config.baseURL = '';
+        if (config.url) {
+          const normalizedUrl = config.url.startsWith('/') ? config.url : `/${config.url}`;
+          config.url = normalizedUrl.startsWith('/api/v1/') ? normalizedUrl : `/api/v1${normalizedUrl}`;
+        }
+      } else {
+        config.baseURL = resolvedBaseUrl;
+      }
+    } else {
+      config.baseURL = resolvedBaseUrl;
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     config.headers['X-Tenant-Code'] = tenantCode;
-    
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Setup interceptors for auth and permission handling
@@ -119,6 +146,23 @@ export interface CafeSettings {
 }
 
 export interface CafeSettingsUpdate extends Partial<CafeSettings> {}
+export interface CafePageSettings {
+  id?: number;
+  tenant_id?: number;
+  page_code: string;
+  is_displaying: boolean;
+  vr360_link?: string | null;
+  vr_title?: string | null;
+  settings_json?: Record<string, any> | null;
+}
+
+export interface CafePageSettingsUpdate {
+  page_code: string;
+  is_displaying?: boolean;
+  vr360_link?: string | null;
+  vr_title?: string | null;
+  settings_json?: Record<string, any> | null;
+}
 
 // Translation Types
 export interface Translation {
@@ -301,7 +345,10 @@ export interface BranchCreate {
   is_active?: boolean;
 }
 
-export interface BranchUpdate extends Partial<BranchCreate> {}
+export interface BranchUpdate extends Partial<BranchCreate> {
+  translations?: BranchTranslation[];
+  media_ids?: number[];
+}
 
 // Event Types
 export interface EventMedia {
@@ -377,6 +424,8 @@ export interface Career {
   display_order: number;
   is_urgent: boolean;
   attributes_json?: Record<string, unknown> | null;
+  primary_image_media_id?: number | null;
+  media_ids?: number[];
   created_at?: string;
   updated_at?: string;
   translations?: CareerTranslation[];
@@ -393,6 +442,8 @@ export interface CareerCreate {
   contact_email?: string | null;
   contact_phone?: string | null;
   application_url?: string | null;
+  primary_image_media_id?: number | null;
+  media_ids?: number[];
   branch_id?: number | null;
   status?: 'open' | 'closed' | 'filled';
   display_order?: number;
@@ -574,6 +625,26 @@ export interface CafeContact {
 
 export interface CafeContactUpdate extends Partial<CafeContact> {}
 
+export const cafePageSettingsApi = {
+  getPageSettings: async (): Promise<CafePageSettings[]> => {
+    const response = await cafeClient.get('/cafe/settings/pages');
+    return response.data;
+  },
+
+  getPageSetting: async (pageCode: string): Promise<CafePageSettings> => {
+    const response = await cafeClient.get(`/cafe/settings/pages/${pageCode}`);
+    return response.data;
+  },
+
+  createOrUpdatePageSetting: async (data: CafePageSettingsUpdate): Promise<CafePageSettings> => {
+    const response = await cafeClient.post('/cafe/settings/pages', data);
+    return response.data;
+  },
+
+  deletePageSetting: async (pageCode: string): Promise<void> => {
+    await cafeClient.delete(`/cafe/settings/pages/${pageCode}`);
+  },
+};
 export const cafeContactApi = {
   getContact: async (): Promise<CafeContact> => {
     const response = await cafeClient.get('/cafe/contact/');
@@ -719,6 +790,10 @@ export const cafeBranchesApi = {
 
   deleteBranch: async (id: number): Promise<void> => {
     await cafeClient.delete(`/cafe/branches/${id}`);
+  },
+
+  reorderBranch: async (id: number, newOrder: number): Promise<void> => {
+    await cafeClient.post(`/cafe/branches/${id}/reorder?new_order=${newOrder}`);
   },
 
   reorderBranches: async (branchIds: number[]): Promise<void> => {
@@ -1108,43 +1183,35 @@ export const cafeAuditLogsApi = {
 
 export const cafeSpacesApi = {
   getSpaces: async (): Promise<Space[]> => {
-    const response = await axios.get(`${resolveCafeBaseUrl()}/cafe/spaces`, buildCafeDirectConfig());
+    const response = await cafeClient.get('/cafe/spaces/');
     return response.data;
   },
 
   getSpace: async (id: number): Promise<Space> => {
-    const response = await axios.get(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, buildCafeDirectConfig());
+    const response = await cafeClient.get(`/cafe/spaces/${id}/`);
     return response.data;
   },
 
   createSpace: async (data: SpaceCreate): Promise<Space> => {
-    const response = await axios.post(`${resolveCafeBaseUrl()}/cafe/spaces`, data, buildCafeDirectConfig());
+    const response = await cafeClient.post('/cafe/spaces/', data);
     return response.data;
   },
 
   updateSpace: async (id: number, data: SpaceUpdate): Promise<Space> => {
-    const response = await axios.put(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, data, buildCafeDirectConfig());
+    const response = await cafeClient.put(`/cafe/spaces/${id}/`, data);
     return response.data;
   },
 
   deleteSpace: async (id: number): Promise<void> => {
-    await axios.delete(`${resolveCafeBaseUrl()}/cafe/spaces/${id}`, buildCafeDirectConfig());
+    await cafeClient.delete(`/cafe/spaces/${id}/`);
   },
 
   reorderSpaces: async (spaceIds: number[]): Promise<void> => {
-    await axios.post(
-      `${resolveCafeBaseUrl()}/cafe/spaces/reorder`,
-      { space_ids: spaceIds },
-      buildCafeDirectConfig()
-    );
+    await cafeClient.post('/cafe/spaces/reorder', { space_ids: spaceIds });
   },
 
   updateSpaceTranslations: async (id: number, translations: SpaceTranslation[]): Promise<Space> => {
-    const response = await axios.put(
-      `${resolveCafeBaseUrl()}/cafe/spaces/${id}`,
-      { translations },
-      buildCafeDirectConfig()
-    );
+    const response = await cafeClient.put(`/cafe/spaces/${id}/`, { translations });
     return response.data;
   },
 };
@@ -1194,6 +1261,7 @@ export const cafeContentSectionsApi = {
 export default {
   settings: cafeSettingsApi,
   contact: cafeContactApi,
+  pageSettings: cafePageSettingsApi,
   menu: cafeMenuApi,
   branches: cafeBranchesApi,
   events: cafeEventsApi,
@@ -1204,6 +1272,11 @@ export default {
   contentSections: cafeContentSectionsApi,
   auditLogs: cafeAuditLogsApi,
 };
+
+
+
+
+
 
 
 

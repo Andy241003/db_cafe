@@ -21,8 +21,10 @@ const CafeLayout: React.FC = () => {
         return { title: 'Dashboard', breadcrumb: 'Cafe / Dashboard' };
       case '/users':
         return { title: 'User Management', breadcrumb: 'Cafe / User Management' };
-      case '/home-about':
-        return { title: 'Home & About', breadcrumb: 'Cafe / Home & About' };
+      case '/home':
+        return { title: 'Home', breadcrumb: 'Cafe / Home' };
+      case '/about':
+        return { title: 'About', breadcrumb: 'Cafe / About' };
       case '/menu':
         return { title: 'Menu Management', breadcrumb: 'Cafe / Menu' };
        case '/space':
@@ -81,3 +83,5 @@ const CafeLayout: React.FC = () => {
 };
 
 export default CafeLayout;
+
+

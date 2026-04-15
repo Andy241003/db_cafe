@@ -422,6 +422,9 @@ class CafeCareer(SQLModel, table=True):
     # Location
     branch_id: Optional[int] = Field(default=None, foreign_key="cafe_branches.id")
     
+    # Media
+    primary_image_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
+    
     # Status
     status: str = "open"  # CareerStatus enum
     display_order: int = 0

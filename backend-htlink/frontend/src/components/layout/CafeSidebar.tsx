@@ -53,7 +53,8 @@ const CafeSidebar: React.FC = () => {
       section: 'CONTENT MANAGEMENT',
       links: [
         { path: '/cafe', icon: faHome, label: 'Dashboard', visible: true },
-        { path: '/cafe/home-about', icon: faInfo, label: 'Home & About', visible: true },
+        { path: '/cafe/home', icon: faHome, label: 'Home', visible: true },
+        { path: '/cafe/about', icon: faInfo, label: 'About', visible: true },
         { path: '/cafe/menu', icon: faUtensils, label: 'Menu', visible: true },
         { path: '/cafe/space', icon: faWarehouse, label: 'Spaces', visible: true },
         { path: '/cafe/branches', icon: faMapMarkerAlt, label: 'Branches', visible: true },
@@ -144,3 +145,4 @@ const CafeSidebar: React.FC = () => {
 };
 
 export default CafeSidebar;
+

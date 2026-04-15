@@ -3,101 +3,45 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  faCircleCheck,
-  faClock,
-  faEdit,
-  faFlag,
-  faGripVertical,
-  faImage,
-  faInfoCircle,
-  faMapMarkerAlt,
-  faPhone,
-  faPlus,
-  faSave,
-  faTimes,
-  faTrash,
-  faVrCardboard,
-  faEye,
-  faPlay,
-  faCircleInfo
+    faCircleCheck,
+    faCircleInfo,
+    faEdit,
+    faEye,
+    faFlag,
+    faGripVertical,
+    faImage,
+    faInfoCircle,
+    faMapMarkerAlt,
+    faPlay,
+    faPlus,
+    faSave,
+    faTimes,
+    faTrash,
+    faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { cafeLanguagesApi, cafeSettingsApi, type Branch, type BranchTranslation } from '../../services/cafeApi';
+import { cafeBranchesApi, cafeLanguagesApi, cafeSettingsApi, type Branch, type BranchTranslation } from '../../services/cafeApi';
 import { getApiBaseUrl } from '../../utils/api';
 
-const getBranchesHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  const tenantCode = localStorage.getItem('tenant_code') || 'demo';
 
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    'X-Tenant-Code': tenantCode,
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
-  };
-};
-
-const getBranchesRequestBase = () => getApiBaseUrl();
-
-const branchRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${getBranchesRequestBase()}${path}`, {
-    ...init,
-    headers: {
-      ...getBranchesHeaders(),
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    let detail = 'Request failed';
-    try {
-      const data = await response.json();
-      detail = data?.detail || detail;
-    } catch {
-      // Ignore JSON parsing errors and use fallback message.
-    }
-    throw new Error(detail);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
-};
-
-
-const buildBranchTranslationsPayload = (formData: {
-  name_vi: string;
-  name_en: string;
-  address_vi: string;
-  address_en: string;
-}): BranchTranslation[] => {
+const buildBranchTranslationsPayload = (localizedData: Record<string, BranchLocalizedFields>): BranchTranslation[] => {
   const translations: BranchTranslation[] = [];
 
-  if (formData.name_vi.trim()) {
-        translations.push({
-          locale: 'vi',
-          name: formData.name_vi.trim(),
-          address: formData.address_vi.trim() || undefined,
-          description: undefined,
-          amenities_text: undefined,
-        });
-  }
-
-  if (formData.name_en.trim() || formData.address_en.trim()) {
-        translations.push({
-          locale: 'en',
-          name: formData.name_en.trim(),
-          address: formData.address_en.trim() || undefined,
-          description: undefined,
-          amenities_text: undefined,
-        });
-  }
+  Object.entries(localizedData).forEach(([locale, data]) => {
+    const name = data?.name?.trim() || '';
+    if (name) {
+      translations.push({
+        locale,
+        name,
+        address: data?.address?.trim() || undefined,
+        description: data?.description?.trim() || undefined,
+        amenities_text: data?.amenities_text?.trim() || undefined,
+      });
+    }
+  });
 
   return translations;
 };
@@ -176,13 +120,14 @@ const getLocaleShortLabel = (locale: string) => {
 type BranchLocalizedFields = {
   name: string;
   address: string;
+  description: string;
   opening_hours: string;
   amenities_text: string;
 };
 
 const buildEmptyLocalizedBranchData = (locales: string[]) =>
   locales.reduce<Record<string, BranchLocalizedFields>>((acc, locale) => {
-    acc[locale] = { name: '', address: '', opening_hours: '', amenities_text: '' };
+    acc[locale] = { name: '', address: '', description: '', opening_hours: '', amenities_text: '' };
     return acc;
   }, {});
 
@@ -419,7 +364,7 @@ const CafeBranches: React.FC = () => {
   const loadBranches = async () => {
     try {
       setIsLoading(true);
-      const data = await branchRequest<Branch[]>('/cafe/branches/');
+      const data = await cafeBranchesApi.getBranches();
       setBranches(data);
       
       // Load images for branches that have them
@@ -509,6 +454,7 @@ const CafeBranches: React.FC = () => {
       nextLocalizedData[locale] = {
         name: translation?.name || (locale === 'vi' ? branch.name_vi || '' : locale === 'en' ? branch.name_en || '' : ''),
         address: translation?.address || (locale === 'vi' ? branch.address_vi || '' : locale === 'en' ? branch.address_en || '' : ''),
+        description: translation?.description || '',
         opening_hours:
           openingHoursByLocale?.[locale] ||
           (locale === 'vi' ? branch.opening_hours_vi || '' : locale === 'en' ? branch.opening_hours_en || '' : ''),
@@ -604,7 +550,7 @@ const CafeBranches: React.FC = () => {
     if (!confirm('Are you sure you want to delete this branch?')) return;
     
     try {
-      await branchRequest(`/cafe/branches/${id}`, { method: 'DELETE' });
+      await cafeBranchesApi.deleteBranch(id);
       toast.success('Branch deleted successfully');
       await loadBranches();
     } catch (error) {
@@ -613,13 +559,13 @@ const CafeBranches: React.FC = () => {
     }
   };
 
-  const currentLocalizedBranch = localizedBranchData[currentLang] || { name: '', address: '', opening_hours: '', amenities_text: '' };
+  const currentLocalizedBranch = localizedBranchData[currentLang] || { name: '', address: '', description: '', opening_hours: '', amenities_text: '' };
 
   const handleLocalizedBranchChange = (locale: string, field: keyof BranchLocalizedFields, value: string) => {
     setLocalizedBranchData((prev) => ({
       ...prev,
       [locale]: {
-        ...(prev[locale] || { name: '', address: '', opening_hours: '', amenities_text: '' }),
+        ...(prev[locale] || { name: '', address: '', description: '', opening_hours: '', amenities_text: '' }),
         [field]: value,
       },
     }));
@@ -679,48 +625,15 @@ const CafeBranches: React.FC = () => {
         is_active: formData.is_active,
         display_order: editingBranch?.display_order ?? branches.length,
         attributes_json: Object.keys(nextAttributes).length > 0 ? nextAttributes : undefined,
-        translations: buildBranchTranslationsPayload({
-          name_vi: localizedBranchData.vi?.name || '',
-          name_en: localizedBranchData.en?.name || '',
-          address_vi: localizedBranchData.vi?.address || '',
-          address_en: localizedBranchData.en?.address || '',
-        })
-          .map((translation) => ({
-            ...translation,
-            amenities_text: localizedBranchData[translation.locale]?.amenities_text?.trim() || undefined,
-          }))
-          .concat(
-          supportedLanguages
-            .filter((locale) => locale !== 'vi' && locale !== 'en')
-            .map((locale) => ({
-              locale,
-              name: localizedBranchData[locale]?.name?.trim() || '',
-              address: localizedBranchData[locale]?.address?.trim() || undefined,
-              description: undefined,
-              amenities_text: localizedBranchData[locale]?.amenities_text?.trim() || undefined,
-            }))
-            .filter((translation) => translation.name)
-        ),
+        translations: buildBranchTranslationsPayload(localizedBranchData),
         media_ids: selectedImageId ? [selectedImageId] : [],
       };
 
       if (editingBranch) {
-        await branchRequest(`/cafe/branches/${editingBranch.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        await cafeBranchesApi.updateBranch(editingBranch.id, payload);
         toast.success('Branch updated successfully');
       } else {
-        await branchRequest('/cafe/branches/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        await cafeBranchesApi.createBranch(payload);
         toast.success('Branch created successfully');
       }
 
@@ -759,9 +672,7 @@ const CafeBranches: React.FC = () => {
     try {
       await Promise.all(
         updatedBranches.map((branch, index) =>
-          branchRequest(`/cafe/branches/${branch.id}/reorder?new_order=${index + 1}`, {
-            method: 'POST',
-          })
+          cafeBranchesApi.reorderBranch(branch.id, index + 1)
         )
       );
       toast.success('Branch order updated');
@@ -866,7 +777,7 @@ const CafeBranches: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
               <span>
-                Enter the URL to a 360° panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
+                Enter the URL to a 360ï¿½ panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
               </span>
             </p>
           </div>
@@ -1024,6 +935,19 @@ const CafeBranches: React.FC = () => {
                       className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
                       rows={3}
                       placeholder="123 Nguyen Hue Street, District 1, Ho Chi Minh City"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Description ({getLocaleShortLabel(currentLang)})
+                    </label>
+                    <textarea
+                      value={currentLocalizedBranch.description}
+                      onChange={(e) => handleLocalizedBranchChange(currentLang, 'description', e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      rows={4}
+                      placeholder="Describe this branch location, atmosphere, and unique features..."
                       disabled={isSaving}
                     />
                   </div>

@@ -14,6 +14,7 @@ from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.cafe import (
     CafeCareer,
+    CafeCareerMedia,
     CafeCareerTranslation,
     CareerStatus
 )
@@ -49,11 +50,13 @@ class CafeCareerResponse(BaseModel):
     contact_phone: Optional[str] = None
     application_url: Optional[str] = None
     branch_id: Optional[int] = None
+    primary_image_media_id: Optional[int] = None
     status: str = "open"
     display_order: int = 0
     is_urgent: bool = False
     attributes_json: Optional[dict] = None
     translations: List[CareerTranslationSchema] = []
+    media_ids: List[int] = []
 
 
 class CafeCareerCreate(BaseModel):
@@ -69,11 +72,13 @@ class CafeCareerCreate(BaseModel):
     contact_phone: Optional[str] = None
     application_url: Optional[str] = None
     branch_id: Optional[int] = None
+    primary_image_media_id: Optional[int] = None
     status: str = "open"
     display_order: int = 0
     is_urgent: bool = False
     attributes_json: Optional[dict] = None
     translations: List[CareerTranslationSchema]
+    media_ids: Optional[List[int]] = None
 
 
 class CafeCareerUpdate(BaseModel):
@@ -89,11 +94,13 @@ class CafeCareerUpdate(BaseModel):
     contact_phone: Optional[str] = None
     application_url: Optional[str] = None
     branch_id: Optional[int] = None
+    primary_image_media_id: Optional[int] = None
     status: Optional[str] = None
     display_order: Optional[int] = None
     is_urgent: Optional[bool] = None
     attributes_json: Optional[dict] = None
     translations: Optional[List[CareerTranslationSchema]] = None
+    media_ids: Optional[List[int]] = None
 
 
 # ==========================================
@@ -111,8 +118,32 @@ def get_career_with_translations(career_id: int, db: Session) -> dict:
     )
     translations = db.exec(trans_stmt).all()
     
+    # Load career media objects and map to IDs.
+    media_stmt = select(CafeCareerMedia).where(
+        CafeCareerMedia.career_id == career_id
+    ).order_by(CafeCareerMedia.sort_order)
+    media_objects = db.exec(media_stmt).all()
+    media_ids = [m.media_id for m in media_objects]
+    
     return {
-        **career.model_dump(),
+        "id": career.id,
+        "tenant_id": career.tenant_id,
+        "code": career.code,
+        "job_type": career.job_type,
+        "experience_required": career.experience_required,
+        "salary_min": career.salary_min,
+        "salary_max": career.salary_max,
+        "salary_text": career.salary_text,
+        "deadline": career.deadline,
+        "contact_email": career.contact_email,
+        "contact_phone": career.contact_phone,
+        "application_url": career.application_url,
+        "branch_id": career.branch_id,
+        "primary_image_media_id": career.primary_image_media_id,
+        "status": career.status,
+        "display_order": career.display_order,
+        "is_urgent": career.is_urgent,
+        "attributes_json": career.attributes_json,
         "translations": [
             CareerTranslationSchema(
                 locale=t.locale,
@@ -121,7 +152,8 @@ def get_career_with_translations(career_id: int, db: Session) -> dict:
                 requirements=t.requirements,
                 benefits=t.benefits
             ) for t in translations
-        ]
+        ],
+        "media_ids": media_ids
     }
 
 
@@ -194,8 +226,13 @@ def create_career(
     
     new_career = CafeCareer(
         tenant_id=current_user.tenant_id,
-        **career_data.model_dump(exclude={'translations'})
+        **career_data.model_dump(exclude={'translations', 'media_ids'})
     )
+    
+    # Convert empty strings to None for optional string fields
+    for key, value in career_data.model_dump(exclude={'translations', 'media_ids'}).items():
+        if isinstance(value, str) and value.strip() == "":
+            setattr(new_career, key, None)
     
     db.add(new_career)
     db.commit()
@@ -212,6 +249,17 @@ def create_career(
             benefits=trans.benefits
         )
         db.add(translation)
+    
+    # Add media
+    if career_data.media_ids:
+        for idx, media_id in enumerate(career_data.media_ids):
+            career_media = CafeCareerMedia(
+                career_id=new_career.id,
+                media_id=media_id,
+                is_primary=(media_id == career_data.primary_image_media_id),
+                sort_order=idx
+            )
+            db.add(career_media)
     
     db.commit()
     
@@ -234,9 +282,12 @@ def update_career(
     
     for key, value in career_data.model_dump(
         exclude_unset=True,
-        exclude={'translations'}
+        exclude={'translations', 'media_ids'}
     ).items():
         if value is not None:
+            # Convert empty strings to None for optional string fields
+            if isinstance(value, str) and value.strip() == "":
+                value = None
             setattr(career, key, value)
             if key == 'attributes_json':
                 flag_modified(career, key)
@@ -261,6 +312,25 @@ def update_career(
                 benefits=trans.benefits
             )
             db.add(translation)
+    
+    if career_data.media_ids is not None:
+        # Delete existing media
+        for existing_media in db.exec(
+            select(CafeCareerMedia).where(CafeCareerMedia.career_id == career_id)
+        ).all():
+            db.delete(existing_media)
+
+        db.flush()
+        
+        # Add new media
+        for idx, media_id in enumerate(career_data.media_ids):
+            career_media = CafeCareerMedia(
+                career_id=career_id,
+                media_id=media_id,
+                is_primary=(media_id == career_data.primary_image_media_id),
+                sort_order=idx
+            )
+            db.add(career_media)
     
     db.commit()
     

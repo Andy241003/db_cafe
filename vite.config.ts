@@ -7,9 +7,9 @@ const normalizeProxyTarget = (rawUrl?: string) => {
     return 'http://localhost:8000';
   }
 
-  // Keep the configured Docker/host target as-is so local Windows Docker setups can
+  // When Vite runs inside Docker, proxy requests must go to the backend service name.
   if (trimmedUrl.includes('host.docker.internal') || trimmedUrl.includes('backend:8000')) {
-    return trimmedUrl;
+    return 'http://backend:8000';
   }
 
   if (trimmedUrl.endsWith('/api/v1')) {
@@ -51,6 +51,5 @@ export default defineConfig(({ mode }) => {
     minify: 'esbuild',
   },
 }});
-
 
 

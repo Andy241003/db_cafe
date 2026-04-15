@@ -4,14 +4,12 @@ Cafe Settings API endpoints
 Handles cafe settings, contact, branding, and page configurations
 """
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, HTTPException
+from sqlmodel import select
 from sqlalchemy.orm.attributes import flag_modified
 from pydantic import BaseModel
 
-from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
-from app.models import UserRole
 from app.models.cafe import CafeSettings, CafePageSettings
 
 router = APIRouter()
@@ -86,7 +84,7 @@ class CafePageSettingsUpdate(BaseModel):
 
 
 # ==========================================
-# API Endpoints
+# Helper Functions
 # ==========================================
 
 def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
@@ -99,13 +97,32 @@ def to_cafe_settings_response(
     settings: CafeSettings | CafeSettingsResponse,
     tenant_id: int,
 ) -> CafeSettingsResponse:
-    if isinstance(settings, CafeSettingsResponse):
-        payload = settings.model_dump()
-    else:
-        payload = settings.model_dump()
-
+    payload = settings.model_dump()
     payload["tenant_id"] = tenant_id
     return CafeSettingsResponse(**payload)
+
+
+def to_page_settings_response(
+    page_settings: CafePageSettings | CafePageSettingsResponse,
+    tenant_id: int,
+) -> CafePageSettingsResponse:
+    payload = page_settings.model_dump()
+    payload["tenant_id"] = tenant_id
+    return CafePageSettingsResponse(**payload)
+
+
+def get_page_settings_record(db: SessionDep, tenant_id: int, page_code: str) -> Optional[CafePageSettings]:
+    return db.exec(
+        select(CafePageSettings).where(
+            CafePageSettings.tenant_id == tenant_id,
+            CafePageSettings.page_code == page_code,
+        )
+    ).first()
+
+
+# ==========================================
+# API Endpoints
+# ==========================================
 
 @router.get("/", response_model=CafeSettingsResponse)
 def get_cafe_settings(
@@ -116,9 +133,8 @@ def get_cafe_settings(
     Get cafe settings for current tenant
     """
     settings = get_cafe_settings_record(db, current_user.tenant_id)
-    
+
     if not settings:
-        # Return default settings if not exists
         return CafeSettingsResponse(
             tenant_id=current_user.tenant_id,
             cafe_name="My Cafe",
@@ -126,7 +142,7 @@ def get_cafe_settings(
             secondary_color="#d4a574",
             background_color="#ffffff"
         )
-    
+
     return to_cafe_settings_response(settings, current_user.tenant_id)
 
 
@@ -139,38 +155,33 @@ def create_or_update_cafe_settings(
     """
     Create or update cafe settings
     """
-    # Check if settings already exist
     existing = get_cafe_settings_record(db, current_user.tenant_id)
-    
+
     if existing:
-        # Update existing settings
         for key, value in settings_data.model_dump(exclude_unset=True).items():
             if hasattr(existing, key):
                 setattr(existing, key, value)
-                # Mark JSON fields as modified
                 if key in ['business_hours', 'settings_json']:
                     flag_modified(existing, key)
-        
+
         db.add(existing)
         db.commit()
         db.refresh(existing)
         return to_cafe_settings_response(existing, current_user.tenant_id)
-    else:
-        # Create new settings with defaults for required fields
-        settings_dict = settings_data.model_dump(exclude_unset=True)
-        
-        # Ensure cafe_name has a default value if not provided
-        if 'cafe_name' not in settings_dict or settings_dict.get('cafe_name') is None:
-            settings_dict['cafe_name'] = 'My Cafe'
-        
-        new_settings = CafeSettings(
-            tenant_id=current_user.tenant_id,
-            **settings_dict,
-        )
-        db.add(new_settings)
-        db.commit()
-        db.refresh(new_settings)
-        return to_cafe_settings_response(new_settings, current_user.tenant_id)
+
+    settings_dict = settings_data.model_dump(exclude_unset=True)
+    if 'cafe_name' not in settings_dict or settings_dict.get('cafe_name') is None:
+        settings_dict['cafe_name'] = 'My Cafe'
+
+    new_settings = CafeSettings(
+        tenant_id=current_user.tenant_id,
+        **settings_dict,
+    )
+    db.add(new_settings)
+    db.commit()
+    db.refresh(new_settings)
+    return to_cafe_settings_response(new_settings, current_user.tenant_id)
+
 
 @router.get("/pages", response_model=list[CafePageSettingsResponse])
 def get_cafe_page_settings(
@@ -185,7 +196,7 @@ def get_cafe_page_settings(
     )
     page_settings = db.exec(statement).all()
     return [
-        CafePageSettingsResponse(**page.model_dump(), tenant_id=current_user.tenant_id)
+        to_page_settings_response(page, current_user.tenant_id)
         for page in page_settings
     ]
 
@@ -199,16 +210,19 @@ def get_page_setting(
     """
     Get specific page setting
     """
-    statement = select(CafePageSettings).where(
-        CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_code,
-    )
-    page_setting = db.exec(statement).first()
-    
+    page_setting = get_page_settings_record(db, current_user.tenant_id, page_code)
+
     if not page_setting:
-        raise HTTPException(status_code=404, detail="Page setting not found")
-    
-    return CafePageSettingsResponse(**page_setting.model_dump(), tenant_id=current_user.tenant_id)
+        return CafePageSettingsResponse(
+            tenant_id=current_user.tenant_id,
+            page_code=page_code,
+            is_displaying=True,
+            vr360_link=None,
+            vr_title=None,
+            settings_json=None,
+        )
+
+    return to_page_settings_response(page_setting, current_user.tenant_id)
 
 
 @router.post("/pages", response_model=CafePageSettingsResponse)
@@ -220,34 +234,28 @@ def create_or_update_page_setting(
     """
     Create or update page setting
     """
-    statement = select(CafePageSettings).where(
-        CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_data.page_code,
-    )
-    existing = db.exec(statement).first()
-    
+    existing = get_page_settings_record(db, current_user.tenant_id, page_data.page_code)
+
     if existing:
-        # Update
         for key, value in page_data.model_dump(exclude_unset=True).items():
             if hasattr(existing, key) and key != 'page_code':
                 setattr(existing, key, value)
                 if key == 'settings_json':
                     flag_modified(existing, key)
-        
+
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return CafePageSettingsResponse(**existing.model_dump(), tenant_id=current_user.tenant_id)
-    else:
-        # Create
-        new_page = CafePageSettings(
-            tenant_id=current_user.tenant_id,
-            **page_data.model_dump(exclude_unset=True),
-        )
-        db.add(new_page)
-        db.commit()
-        db.refresh(new_page)
-        return CafePageSettingsResponse(**new_page.model_dump(), tenant_id=current_user.tenant_id)
+        return to_page_settings_response(existing, current_user.tenant_id)
+
+    new_page = CafePageSettings(
+        tenant_id=current_user.tenant_id,
+        **page_data.model_dump(exclude_unset=True),
+    )
+    db.add(new_page)
+    db.commit()
+    db.refresh(new_page)
+    return to_page_settings_response(new_page, current_user.tenant_id)
 
 
 @router.delete("/pages/{page_code}")
@@ -259,17 +267,12 @@ def delete_page_setting(
     """
     Delete page setting
     """
-    statement = select(CafePageSettings).where(
-        CafePageSettings.tenant_id == current_user.tenant_id,
-        CafePageSettings.page_code == page_code,
-    )
-    page_setting = db.exec(statement).first()
-    
+    page_setting = get_page_settings_record(db, current_user.tenant_id, page_code)
+
     if not page_setting:
         raise HTTPException(status_code=404, detail="Page setting not found")
-    
+
     db.delete(page_setting)
     db.commit()
-    
-    return {"success": True, "message": "Page setting deleted"}
 
+    return {"success": True, "message": "Page setting deleted"}
