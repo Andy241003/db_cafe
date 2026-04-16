@@ -733,6 +733,7 @@ const CafePromotions: React.FC = () => {
           folder="promotions"
           folderAliases={['promotion', 'cafe/promotions', 'cafe/promotion']}
           allowMultiple
+          initialSelectedIds={editingPromotion.media_ids}
           onSelectMultiple={handleGallerySelect}
         />
       )}

@@ -44,13 +44,18 @@ const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   const [libraryMessage, setLibraryMessage] = useState('');
   const loadRequestRef = useRef(0);
   const normalizedFolderAliasesKey = useMemo(() => folderAliases.map((value) => value?.trim()).filter(Boolean).join('|'), [folderAliases]);
+  const initialSelectedIdsRef = useRef(initialSelectedIds);
 
   useEffect(() => {
     if (isOpen && activeTab === 'library') {
       void loadMediaFiles();
-      setSelectedMediaIds(new Set(initialSelectedIds)); // Set initial selection
+      // Only set initial selection once when modal opens
+      if (initialSelectedIdsRef.current !== initialSelectedIds) {
+        initialSelectedIdsRef.current = initialSelectedIds;
+        setSelectedMediaIds(new Set(initialSelectedIds));
+      }
     }
-  }, [isOpen, activeTab, source, folder, normalizedFolderAliasesKey, initialSelectedIds]);
+  }, [isOpen, activeTab, source, folder, normalizedFolderAliasesKey]);
 
   const loadMediaFiles = async () => {
     const requestId = ++loadRequestRef.current;

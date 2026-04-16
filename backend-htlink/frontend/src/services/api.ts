@@ -3,7 +3,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
 // API Base Configuration
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = import.meta.env.DEV ? '/api/v1' : getApiBaseUrl();
 
 // Create axios instance
 const apiClient = axios.create({

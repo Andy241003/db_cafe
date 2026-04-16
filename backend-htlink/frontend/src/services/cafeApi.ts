@@ -4,48 +4,9 @@
  * API calls for Cafe management (Menu, Branches, Events, Careers, Promotions, etc.)
  */
 import axios from 'axios';
-import { getApiBaseUrl } from '../utils/api';
-
-const resolveCafeBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    const { hostname, origin } = window.location;
-
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `${origin}/api/v1`;
-    }
-  }
-
-  const resolvedBaseUrl = getApiBaseUrl();
-
-  if (
-    typeof window !== 'undefined' &&
-    resolvedBaseUrl.includes('backend:8000') &&
-    window.location.hostname !== 'backend'
-  ) {
-    return `${window.location.origin}/api/v1`;
-  }
-
-  return resolvedBaseUrl;
-};
-
-const buildCafeDirectConfig = () => {
-  const token = localStorage.getItem('access_token');
-  const tenantCode = localStorage.getItem('tenant_code') || 'demo';
-
-  return {
-    timeout: 10000,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Tenant-Code': tenantCode,
-    },
-  };
-};
 
 const cafeClient = axios.create({
-  baseURL: '',
+  baseURL: '',  // Always empty - force relative proxy URLs
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -58,23 +19,11 @@ cafeClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = localStorage.getItem('tenant_code') || 'demo';
-    const resolvedBaseUrl = resolveCafeBaseUrl();
 
-    if (typeof window !== 'undefined') {
-      const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const shouldUseRelativeProxy = isLocalBrowser || (resolvedBaseUrl.includes('backend:8000') && window.location.hostname !== 'backend');
-
-      if (shouldUseRelativeProxy) {
-        config.baseURL = '';
-        if (config.url) {
-          const normalizedUrl = config.url.startsWith('/') ? config.url : `/${config.url}`;
-          config.url = normalizedUrl.startsWith('/api/v1/') ? normalizedUrl : `/api/v1${normalizedUrl}`;
-        }
-      } else {
-        config.baseURL = resolvedBaseUrl;
-      }
-    } else {
-      config.baseURL = resolvedBaseUrl;
+    // ALWAYS use relative proxy URLs through Vite - never resolve to backend:8000
+    config.baseURL = '';
+    if (config.url && !config.url.startsWith('/api/v1/')) {
+      config.url = `/api/v1${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
     }
 
     if (token) {
@@ -1225,27 +1174,27 @@ export const cafeContentSectionsApi = {
     const params = new URLSearchParams();
     if (pageCode) params.append('page_code', pageCode);
     if (sectionType) params.append('section_type', sectionType);
-    const response = await cafeClient.get(`/cafe/content-sections?${params.toString()}`);
+    const response = await cafeClient.get(`/cafe/content-sections/?${params.toString()}`);
     return response.data;
   },
 
   getContentSection: async (id: number): Promise<ContentSection> => {
-    const response = await cafeClient.get(`/cafe/content-sections/${id}`);
+    const response = await cafeClient.get(`/cafe/content-sections/${id}/`);
     return response.data;
   },
 
   createContentSection: async (data: ContentSectionCreate): Promise<ContentSection> => {
-    const response = await cafeClient.post('/cafe/content-sections', data);
+    const response = await cafeClient.post('/cafe/content-sections/', data);
     return response.data;
   },
 
   updateContentSection: async (id: number, data: ContentSectionUpdate): Promise<ContentSection> => {
-    const response = await cafeClient.put(`/cafe/content-sections/${id}`, data);
+    const response = await cafeClient.put(`/cafe/content-sections/${id}/`, data);
     return response.data;
   },
 
   deleteContentSection: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/content-sections/${id}`);
+    await cafeClient.delete(`/cafe/content-sections/${id}/`);
   },
 
   reorderContentSections: async (sectionIds: number[]): Promise<void> => {
@@ -1253,7 +1202,7 @@ export const cafeContentSectionsApi = {
   },
 
   updateContentSectionTranslations: async (id: number, translations: ContentSectionTranslation[]): Promise<ContentSection> => {
-    const response = await cafeClient.put(`/cafe/content-sections/${id}`, { translations });
+    const response = await cafeClient.put(`/cafe/content-sections/${id}/`, { translations });
     return response.data;
   },
 };

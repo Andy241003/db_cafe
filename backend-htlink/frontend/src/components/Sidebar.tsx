@@ -30,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Main',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-home', path: '/' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-gauge-high', path: '/' },
         { id: 'categories', label: 'Categories', icon: 'fas fa-layer-group', path: '/categories' },
         { id: 'features', label: 'Features', icon: 'fas fa-puzzle-piece', path: '/features', badge: 12 },
         { id: 'properties', label: 'Properties', icon: 'fas fa-building', path: '/properties' },
