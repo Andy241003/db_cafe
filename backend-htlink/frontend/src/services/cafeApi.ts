@@ -6,11 +6,7 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
-// Get API base URL - handles both dev and production
-const apiBaseUrl = getApiBaseUrl();
-
 const cafeClient = axios.create({
-  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -19,8 +15,14 @@ const cafeClient = axios.create({
   },
 });
 
+// Set baseURL dynamically to handle both dev and production
 cafeClient.interceptors.request.use(
   (config) => {
+    // Set baseURL on each request to ensure VITE_API_URL is available
+    if (!config.baseURL) {
+      config.baseURL = getApiBaseUrl();
+    }
+
     const token = localStorage.getItem('access_token');
     const tenantCode = localStorage.getItem('tenant_code') || 'demo';
 
