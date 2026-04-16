@@ -7,7 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
@@ -197,10 +197,10 @@ def get_branches(
     if is_active is not None:
         statement = statement.where(CafeBranch.is_active == is_active)
     
-    # Use joinedload to fetch translations and media in single query
+    # Use selectinload to avoid duplicate branch rows when loading collections
     statement = statement.options(
-        joinedload(CafeBranch.translations),
-        joinedload(CafeBranch.media)
+        selectinload(CafeBranch.translations),
+        selectinload(CafeBranch.media)
     )
     statement = statement.order_by(CafeBranch.display_order)
     branches = db.exec(statement).all()

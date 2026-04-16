@@ -7,7 +7,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
@@ -226,8 +226,8 @@ def get_categories(
     if is_active is not None:
         statement = statement.where(CafeMenuCategory.is_active == is_active)
     
-    # Use joinedload to fetch translations in single query
-    statement = statement.options(joinedload(CafeMenuCategory.translations))
+    # Use selectinload to avoid duplicate parent rows when loading collections
+    statement = statement.options(selectinload(CafeMenuCategory.translations))
     statement = statement.order_by(CafeMenuCategory.display_order)
     categories = db.exec(statement).all()
     
