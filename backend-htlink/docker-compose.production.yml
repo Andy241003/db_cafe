@@ -25,7 +25,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=https://travel.link360.vn/api
+        - VITE_API_URL=http://cafe-api.157.10.199.22.sslip.io/api
         - NODE_ENV=production
     restart: always
     ports:

@@ -4,9 +4,13 @@
  * API calls for Cafe management (Menu, Branches, Events, Careers, Promotions, etc.)
  */
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/api';
+
+// Get API base URL - handles both dev and production
+const apiBaseUrl = getApiBaseUrl();
 
 const cafeClient = axios.create({
-  baseURL: '',  // Always empty - force relative proxy URLs
+  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -19,22 +23,6 @@ cafeClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     const tenantCode = localStorage.getItem('tenant_code') || 'demo';
-
-    // ALWAYS use relative proxy URLs through Vite - never resolve to backend:8000
-    config.baseURL = '';
-    
-    if (config.url) {
-      // Ensure URL is always relative and starts with /api/v1
-      const url = config.url;
-      if (url.includes('http://') || url.includes('https://')) {
-        // Strip protocol/host if present
-        config.url = url.replace(/^https?:\/\/[^/]+/, '');
-      }
-      // Ensure /api/v1 prefix
-      if (!config.url.startsWith('/api/v1/')) {
-        config.url = `/api/v1${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
-      }
-    }
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
