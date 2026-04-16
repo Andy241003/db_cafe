@@ -1,25 +1,25 @@
 import {
-  faArrowRotateLeft,
-  faCircleInfo,
-  faEye,
-  faFlag,
-  faFloppyDisk,
-  faPlay,
-  faVrCardboard,
+    faArrowRotateLeft,
+    faCircleInfo,
+    faEye,
+    faFlag,
+    faFloppyDisk,
+    faPlay,
+    faVrCardboard,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import {
-  cafeContentSectionsApi,
-  cafeLanguagesApi,
-  cafePageSettingsApi,
-} from '../../services/cafeApi';
 import type {
-  CafePageSettings,
-  ContentSection,
-  ContentSectionTranslation,
+    CafePageSettings,
+    ContentSection,
+    ContentSectionTranslation,
+} from '../../services/cafeApi';
+import {
+    cafeContentSectionsApi,
+    cafeLanguagesApi,
+    cafePageSettingsApi,
 } from '../../services/cafeApi';
 
 const INPUT_CLASS = 'w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed';
@@ -265,7 +265,8 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
     );
   }
 
-  const fieldsDisabled = saving || !pageSettings.is_displaying;
+  // Only disable fields while saving - display status shouldn't prevent editing
+  const fieldsDisabled = saving;
 
   return (
     <div className="space-y-6">
@@ -291,7 +292,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
           <FontAwesomeIcon icon={faCircleInfo} className="text-blue-600 text-xl mt-0.5" />
           <span className="text-blue-800 text-sm">
-            When display is turned off, the &quot;Introduction&quot; section will not appear on the website and all input fields will be disabled.
+            When display is turned off, the &quot;Introduction&quot; section will not appear on the website, but you can still edit and manage the content here.
           </span>
         </div>
       </div>
@@ -378,7 +379,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
             />
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
-              <span>Enter the URL to a 360° panorama image or YouTube video URL</span>
+              <span>Enter the URL to a 360ï¿½ panorama image or YouTube video URL</span>
             </p>
           </div>
 

@@ -7,6 +7,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import joinedload
 from pydantic import BaseModel
 
 from app.core.db import get_db
@@ -217,7 +218,7 @@ def get_categories(
     db: SessionDep,
     is_active: Optional[bool] = None
 ):
-    """Get all menu categories"""
+    """Get all menu categories with translations in single query"""
     statement = select(CafeMenuCategory).where(
         CafeMenuCategory.tenant_id == current_user.tenant_id
     )
@@ -225,14 +226,27 @@ def get_categories(
     if is_active is not None:
         statement = statement.where(CafeMenuCategory.is_active == is_active)
     
+    # Use joinedload to fetch translations in single query
+    statement = statement.options(joinedload(CafeMenuCategory.translations))
     statement = statement.order_by(CafeMenuCategory.display_order)
     categories = db.exec(statement).all()
     
     result = []
     for cat in categories:
-        cat_data = get_category_with_translations(cat.id, db)
-        if cat_data:
-            result.append(MenuCategoryResponse(**cat_data))
+        result.append(MenuCategoryResponse(
+            id=cat.id,
+            code=cat.code,
+            icon_media_id=cat.icon_media_id,
+            display_order=cat.display_order,
+            is_active=cat.is_active,
+            translations=[
+                CategoryTranslationSchema(
+                    locale=t.locale,
+                    name=t.name,
+                    description=t.description
+                ) for t in cat.translations
+            ]
+        ))
     
     return result
 

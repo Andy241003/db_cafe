@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
         target: apiTarget,
         changeOrigin: true,
         rewrite: (path) => path, // preserve /api/v1 path when proxying
+        followRedirects: true,   // Follow 307 redirects
+        ws: false,
       }
     }
   },

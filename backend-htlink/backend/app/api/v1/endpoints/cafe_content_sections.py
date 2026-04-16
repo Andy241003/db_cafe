@@ -209,20 +209,25 @@ def update_content_section(
     db.add(section)
     
     if section_data.translations is not None:
-        for existing_trans in db.exec(
-            select(CafeContentSectionTranslation).where(
-                CafeContentSectionTranslation.section_id == section_id
-            )
-        ).all():
-            db.delete(existing_trans)
+        # Delete all existing translations for this section
+        delete_stmt = select(CafeContentSectionTranslation).where(
+            CafeContentSectionTranslation.section_id == section_id
+        )
+        existing_translations = db.exec(delete_stmt).all()
+        for trans in existing_translations:
+            db.delete(trans)
         
-        for trans in section_data.translations:
+        # Commit the deletes to avoid unique constraint conflicts
+        db.commit()
+        
+        # Insert all translations fresh
+        for trans_data in section_data.translations:
             translation = CafeContentSectionTranslation(
                 section_id=section_id,
-                locale=trans.locale,
-                title=trans.title,
-                description=trans.description,
-                content=trans.content
+                locale=trans_data.locale,
+                title=trans_data.title,
+                description=trans_data.description,
+                content=trans_data.content
             )
             db.add(translation)
     

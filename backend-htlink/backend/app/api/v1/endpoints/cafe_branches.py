@@ -7,6 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import joinedload
 from pydantic import BaseModel
 
 from app.core.db import get_db
@@ -187,7 +188,7 @@ def get_branches(
     is_active: Optional[bool] = None
 ):
     """
-    Get all branches for current tenant
+    Get all branches for current tenant with translations and media in single query
     """
     statement = select(CafeBranch).where(
         CafeBranch.tenant_id == current_user.tenant_id
@@ -196,14 +197,51 @@ def get_branches(
     if is_active is not None:
         statement = statement.where(CafeBranch.is_active == is_active)
     
+    # Use joinedload to fetch translations and media in single query
+    statement = statement.options(
+        joinedload(CafeBranch.translations),
+        joinedload(CafeBranch.media)
+    )
     statement = statement.order_by(CafeBranch.display_order)
     branches = db.exec(statement).all()
     
     result = []
     for branch in branches:
-        branch_data = get_branch_with_relations(branch.id, db)
-        if branch_data:
-            result.append(CafeBranchResponse(**branch_data))
+        result.append(CafeBranchResponse(
+            id=branch.id,
+            tenant_id=branch.tenant_id,
+            code=branch.code,
+            name=branch.name,
+            address=branch.address,
+            opening_hours=branch.opening_hours,
+            phone=branch.phone,
+            email=branch.email,
+            latitude=branch.latitude,
+            longitude=branch.longitude,
+            google_maps_url=branch.google_maps_url,
+            primary_image_media_id=branch.primary_image_media_id,
+            vr360_link=branch.vr360_link,
+            is_active=branch.is_active,
+            is_primary=branch.is_primary,
+            display_order=branch.display_order,
+            attributes_json=branch.attributes_json,
+            translations=[
+                BranchTranslationSchema(
+                    locale=t.locale,
+                    name=t.name,
+                    address=t.address,
+                    description=t.description,
+                    amenities_text=t.amenities_text
+                ) for t in branch.translations
+            ],
+            media=[
+                BranchMediaSchema(
+                    media_id=m.media_id,
+                    is_primary=m.is_primary,
+                    sort_order=m.sort_order
+                ) for m in branch.media
+            ]
+        ))
     
     return result
 

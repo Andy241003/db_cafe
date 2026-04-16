@@ -22,8 +22,18 @@ cafeClient.interceptors.request.use(
 
     // ALWAYS use relative proxy URLs through Vite - never resolve to backend:8000
     config.baseURL = '';
-    if (config.url && !config.url.startsWith('/api/v1/')) {
-      config.url = `/api/v1${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
+    
+    if (config.url) {
+      // Ensure URL is always relative and starts with /api/v1
+      const url = config.url;
+      if (url.includes('http://') || url.includes('https://')) {
+        // Strip protocol/host if present
+        config.url = url.replace(/^https?:\/\/[^/]+/, '');
+      }
+      // Ensure /api/v1 prefix
+      if (!config.url.startsWith('/api/v1/')) {
+        config.url = `/api/v1${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
+      }
     }
 
     if (token) {
