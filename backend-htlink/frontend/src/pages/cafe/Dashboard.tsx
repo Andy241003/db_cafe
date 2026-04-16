@@ -251,6 +251,12 @@ const CafeDashboard: React.FC = () => {
                     <span>{activity.user_name}</span>
                     <span>•</span>
                     <span>{activity.time}</span>
+                    {activity.ip_address && (
+                      <>
+                        <span>•</span>
+                        <span>IP {activity.ip_address}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

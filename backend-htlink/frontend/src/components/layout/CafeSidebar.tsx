@@ -3,6 +3,7 @@ import {
   faBriefcase,
   faBullhorn,
   faCalendarAlt,
+  faChartLine,
   faCoffee,
   faGear,
   faGlobe,
@@ -52,7 +53,7 @@ const CafeSidebar: React.FC = () => {
     {
       section: 'CONTENT MANAGEMENT',
       links: [
-        { path: '/cafe', icon: faHome, label: 'Dashboard', visible: true },
+        { path: '/cafe', icon: faChartLine, label: 'Dashboard', visible: true },
         { path: '/cafe/home', icon: faHome, label: 'Home', visible: true },
         { path: '/cafe/about', icon: faInfo, label: 'About', visible: true },
         { path: '/cafe/menu', icon: faUtensils, label: 'Menu', visible: true },

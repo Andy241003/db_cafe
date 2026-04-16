@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -11,7 +11,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.security import get_client_ip
 from app.models import AdminUser, Tenant
-from app.models.activity_log import ActivityType
+from app.models.activity_log import ActivityLog, ActivityType
 from app.utils.activity_logger import log_activity
 from app import crud
 
@@ -29,6 +29,41 @@ class Token(BaseModel):
 
 
 router = APIRouter()
+
+
+def _log_auth_activity_if_new(
+    session: SessionDep,
+    user_id: int,
+    activity_type: ActivityType,
+    username: str,
+    client_ip: str,
+) -> None:
+    """Avoid duplicate login/logout audit rows created within a short burst."""
+    action_label = "logged in" if activity_type == ActivityType.LOGIN else "logged out"
+    dedupe_window_start = datetime.utcnow() - timedelta(seconds=10)
+    recent_entry = session.exec(
+        select(ActivityLog).where(
+            ActivityLog.user_id == user_id,
+            ActivityLog.action == activity_type.value,
+            ActivityLog.ip_address == client_ip,
+            ActivityLog.created_at >= dedupe_window_start,
+        ).order_by(ActivityLog.created_at.desc())
+    ).first()
+
+    if recent_entry:
+        return
+
+    log_activity(
+        db=session,
+        activity_type=activity_type,
+        details={
+            "message": f"User {username} {action_label} from {client_ip}",
+            "user_id": user_id,
+            "username": username,
+            "ip_address": client_ip,
+        },
+        ip_address=client_ip,
+    )
 
 
 @router.post("/login")
@@ -77,16 +112,12 @@ def login(
     # Get client IP
     client_ip = get_client_ip(request)
     
-    # Log successful login with IP
-    log_activity(
-        db=session,
+    _log_auth_activity_if_new(
+        session=session,
+        user_id=user.id,
         activity_type=ActivityType.LOGIN,
-        details={
-            "message": f"User {user.email} logged in from {client_ip}",
-            "user_id": user.id,
-            "username": user.email
-        },
-        ip_address=client_ip
+        username=user.email,
+        client_ip=client_ip,
     )
     
     # Return token with user info
@@ -157,17 +188,12 @@ def logout(
     # Get client IP
     client_ip = get_client_ip(request)
     
-    # Log logout activity with IP
-    log_activity(
-        db=session,
-        tenant_id=current_user.tenant_id,
+    _log_auth_activity_if_new(
+        session=session,
+        user_id=current_user.id,
         activity_type=ActivityType.LOGOUT,
-        details={
-            "message": f"User {current_user.email} logged out from {client_ip}",
-            "user_id": current_user.id,
-            "username": current_user.email
-        },
-        ip_address=client_ip
+        username=current_user.email,
+        client_ip=client_ip,
     )
     
     # In a stateless JWT system, logout is handled client-side by discarding the token

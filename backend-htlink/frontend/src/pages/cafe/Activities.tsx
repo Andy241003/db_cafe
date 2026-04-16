@@ -162,6 +162,12 @@ const CafeActivities: React.FC = () => {
                           </span>
                           <span>•</span>
                           <span>{activity.time}</span>
+                          {activity.ip_address && (
+                            <>
+                              <span>•</span>
+                              <span>IP {activity.ip_address}</span>
+                            </>
+                          )}
                           <span>•</span>
                           <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-600">
                             {activity.type.replace(/_/g, ' ').split(' ').map(word => 

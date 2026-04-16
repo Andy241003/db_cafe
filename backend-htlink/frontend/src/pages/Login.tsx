@@ -1,6 +1,6 @@
 // Login.tsx - Simplified & Modern Login Logic
 import type { FormEvent } from 'react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -24,6 +24,7 @@ const Login: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const loginInFlightRef = useRef(false);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +40,10 @@ const Login: React.FC = () => {
   // Main login handler - Simplified and cleaner
   const doLogin = async (e: FormEvent) => {
     e.preventDefault();
+    if (loginInFlightRef.current || isLoading) {
+      return;
+    }
+    loginInFlightRef.current = true;
     setIsLoading(true);
     setError('');
     
@@ -95,6 +100,7 @@ const Login: React.FC = () => {
       localStorage.removeItem('isAuthenticated');
       
     } finally {
+      loginInFlightRef.current = false;
       setIsLoading(false);
     }
   };

@@ -51,6 +51,7 @@ export interface CafeActivityItem {
   text: string;
   time: string;
   user_name: string;
+  ip_address?: string;
   icon: string;
   iconBg: string;
   iconColor: string;
@@ -61,6 +62,7 @@ export interface CafeActivityLogResponse {
   tenant_id: number;
   activity_type: string;
   details: any;
+  ip_address?: string;
   created_at: string;
 }
 
@@ -998,6 +1000,7 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
       const details = log.details || {};
       const activityType = log.activity_type;
       const username = details.username || details.user_email || 'System User';
+      const ipAddress = details.ip_address || log.ip_address || undefined;
 
       // Parse created_at
       let createdAtStr = log.created_at;
@@ -1087,7 +1090,7 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
           break;
 
         case 'login':
-          text = `User ${username} logged in from ${details.ip_address || 'unknown IP'}`;
+          text = `User ${username} logged in from ${ipAddress || 'unknown IP'}`;
           icon = 'fas fa-sign-in-alt';
           iconBg = '#f0fdf4';
           iconColor = '#16a34a';
@@ -1111,6 +1114,7 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
         text,
         time: timeAgo,
         user_name: username,
+        ip_address: ipAddress,
         icon,
         iconBg,
         iconColor

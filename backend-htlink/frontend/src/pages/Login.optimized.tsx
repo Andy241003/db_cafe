@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { authAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -37,6 +37,7 @@ const useLoginProcess = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<LoginError | null>(null);
   const { login } = useAuth();
+  const loginInFlightRef = useRef(false);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -144,6 +145,10 @@ const useLoginProcess = () => {
   }, [login]);
 
   const executeLogin = useCallback(async (formData: LoginFormData) => {
+    if (loginInFlightRef.current || isLoading) {
+      return;
+    }
+    loginInFlightRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -167,12 +172,13 @@ const useLoginProcess = () => {
       console.error('Login error:', err);
       setLoginError(err.message, err.type);
     } finally {
+      loginInFlightRef.current = false;
       setIsLoading(false);
     }
   }, [
     performLogin, fetchTenantData, fetchServiceAccess,
     saveUserData, saveTenantData, saveServiceData,
-    redirectToDashboard, setLoginError
+    redirectToDashboard, setLoginError, isLoading
   ]);
 
   return {

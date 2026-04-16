@@ -53,6 +53,7 @@ def get_activity_logs(
             tenant_id=current_user.tenant_id,
             activity_type=log.action,
             details=log.details_json,
+            ip_address=log.ip_address,
             created_at=log.created_at,
         )
         for log in logs

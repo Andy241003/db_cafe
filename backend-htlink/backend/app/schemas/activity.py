@@ -8,6 +8,7 @@ class ActivityLogBase(BaseModel):
     tenant_id: int
     activity_type: ActivityType
     details: Optional[Dict[str, Any]] = None
+    ip_address: Optional[str] = None
     created_at: datetime
 
 
