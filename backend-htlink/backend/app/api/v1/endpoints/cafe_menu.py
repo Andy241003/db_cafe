@@ -149,6 +149,16 @@ class MenuItemUpdate(BaseModel):
 # Helper Functions
 # ==========================================
 
+def _ensure_unique_locales(translations: List[BaseModel], entity_name: str) -> None:
+    locales = [translation.locale for translation in translations]
+    duplicate_locales = sorted({locale for locale in locales if locales.count(locale) > 1})
+    if duplicate_locales:
+        duplicate_text = ", ".join(duplicate_locales)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Duplicate translation locales for {entity_name}: {duplicate_text}",
+        )
+
 def get_category_with_translations(category_id: int, db: Session) -> dict:
     """Get category with translations"""
     category = db.get(CafeMenuCategory, category_id)
@@ -256,6 +266,8 @@ def create_category(
     db: SessionDep
 ):
     """Create new menu category"""
+    _ensure_unique_locales(category_data.translations, "category")
+
     # Check code uniqueness
     existing = db.exec(
         select(CafeMenuCategory).where(
@@ -329,6 +341,8 @@ def update_category(
     
     # Update translations
     if category_data.translations is not None:
+        _ensure_unique_locales(category_data.translations, "category")
+
         # Delete existing
         for existing_trans in db.exec(
             select(CafeMenuCategoryTranslation).where(
@@ -501,6 +515,8 @@ def create_menu_item(
     db: SessionDep
 ):
     """Create new menu item"""
+    _ensure_unique_locales(item_data.translations, "menu item")
+
     # Check code uniqueness
     existing = db.exec(
         select(CafeMenuItem).where(
@@ -609,6 +625,8 @@ def update_menu_item(
     
     # Update translations
     if item_data.translations is not None:
+        _ensure_unique_locales(item_data.translations, "menu item")
+
         for existing_trans in db.exec(
             select(CafeMenuItemTranslation).where(
                 CafeMenuItemTranslation.item_id == item_id
