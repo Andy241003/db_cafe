@@ -292,6 +292,9 @@ class CafeMenuItem(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeMenuItemTranslation"] = Relationship(back_populates="item")
+    media: List["CafeMenuItemMedia"] = Relationship(back_populates="item")
+
 
 class CafeMenuItemTranslation(SQLModel, table=True):
     """
@@ -309,6 +312,8 @@ class CafeMenuItemTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    item: Optional[CafeMenuItem] = Relationship(back_populates="translations")
+
 
 class CafeMenuItemMedia(SQLModel, table=True):
     """
@@ -324,6 +329,8 @@ class CafeMenuItemMedia(SQLModel, table=True):
     sort_order: int = 0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    item: Optional[CafeMenuItem] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -367,6 +374,9 @@ class CafeEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeEventTranslation"] = Relationship(back_populates="event")
+    media: List["CafeEventMedia"] = Relationship(back_populates="event")
+
 
 class CafeEventTranslation(SQLModel, table=True):
     """
@@ -384,6 +394,8 @@ class CafeEventTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    event: Optional[CafeEvent] = Relationship(back_populates="translations")
+
 
 class CafeEventMedia(SQLModel, table=True):
     """
@@ -399,6 +411,8 @@ class CafeEventMedia(SQLModel, table=True):
     sort_order: int = 0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    event: Optional[CafeEvent] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -446,6 +460,9 @@ class CafeCareer(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeCareerTranslation"] = Relationship(back_populates="career")
+    media: List["CafeCareerMedia"] = Relationship(back_populates="career")
+
 
 class CafeCareerTranslation(SQLModel, table=True):
     """
@@ -464,6 +481,8 @@ class CafeCareerTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    career: Optional[CafeCareer] = Relationship(back_populates="translations")
+
 
 class CafeCareerMedia(SQLModel, table=True):
     """
@@ -479,6 +498,8 @@ class CafeCareerMedia(SQLModel, table=True):
     sort_order: int = 0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    career: Optional[CafeCareer] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -522,6 +543,9 @@ class CafePromotion(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafePromotionTranslation"] = Relationship(back_populates="promotion")
+    media: List["CafePromotionMedia"] = Relationship(back_populates="promotion")
+
 
 class CafePromotionTranslation(SQLModel, table=True):
     """
@@ -539,6 +563,8 @@ class CafePromotionTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    promotion: Optional[CafePromotion] = Relationship(back_populates="translations")
+
 
 class CafePromotionMedia(SQLModel, table=True):
     """
@@ -554,6 +580,8 @@ class CafePromotionMedia(SQLModel, table=True):
     sort_order: int = 0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    promotion: Optional[CafePromotion] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -582,6 +610,9 @@ class CafeSpace(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeSpaceTranslation"] = Relationship(back_populates="space")
+    media: List["CafeSpaceMedia"] = Relationship(back_populates="space")
+
 
 class CafeSpaceTranslation(SQLModel, table=True):
     """
@@ -598,6 +629,8 @@ class CafeSpaceTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    space: Optional[CafeSpace] = Relationship(back_populates="translations")
+
 
 class CafeSpaceMedia(SQLModel, table=True):
     """
@@ -613,6 +646,8 @@ class CafeSpaceMedia(SQLModel, table=True):
     sort_order: int = 0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    space: Optional[CafeSpace] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -648,6 +683,9 @@ class CafeService(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeServiceTranslation"] = Relationship(back_populates="service")
+    media: List["CafeServiceMedia"] = Relationship(back_populates="service")
+
 
 class CafeServiceTranslation(SQLModel, table=True):
     """
@@ -664,6 +702,8 @@ class CafeServiceTranslation(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    service: Optional[CafeService] = Relationship(back_populates="translations")
+
 
 class CafeServiceMedia(SQLModel, table=True):
     """
@@ -679,6 +719,8 @@ class CafeServiceMedia(SQLModel, table=True):
     is_primary: bool = False
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    service: Optional[CafeService] = Relationship(back_populates="media")
 
 
 # ==========================================
@@ -706,6 +748,8 @@ class CafeContentSection(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    translations: List["CafeContentSectionTranslation"] = Relationship(back_populates="section")
+
 
 class CafeContentSectionTranslation(SQLModel, table=True):
     """
@@ -722,3 +766,5 @@ class CafeContentSectionTranslation(SQLModel, table=True):
     content: Optional[str] = None  # longtext for rich content
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    section: Optional[CafeContentSection] = Relationship(back_populates="translations")

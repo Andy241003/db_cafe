@@ -14,20 +14,16 @@ const getTenantCode = (): string => {
   // First try tenant_code (used by login), then tenant_domain (backup)
   const savedTenant = localStorage.getItem('tenant_code') || localStorage.getItem('tenant_domain');
   if (savedTenant) {
-    console.log('MediaAPI using tenant from localStorage:', savedTenant);
     return savedTenant;
   }
   
   const hostname = window.location.hostname;
-  console.log('MediaAPI hostname:', hostname);
   
   if (hostname.includes('zalominiapp.vtlink.vn')) {
-    console.log('MediaAPI using hardcoded tenant: premier_admin');
     return 'premier_admin';
   }
   
   // Try 'boton_blue' instead of 'demo' as default
-  console.log('MediaAPI using default tenant: boton_blue');
   return 'boton_blue';
 };
 

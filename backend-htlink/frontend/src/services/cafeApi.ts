@@ -1069,21 +1069,63 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
           break;
 
         case 'create_post':
-          text = `Created new item "${details.title || 'Unknown'}"`;
+          text = details.message || `Created "${details.title || 'Unknown'}"`;
           icon = 'fas fa-file-alt';
           iconBg = '#dbeafe';
           iconColor = '#3b82f6';
           break;
 
         case 'update_post':
-          text = `Updated item "${details.title || 'Unknown'}"`;
+          text = details.message || `Updated "${details.title || 'Unknown'}"`;
           icon = 'fas fa-edit';
           iconBg = '#fef3c7';
           iconColor = '#d97706';
           break;
 
         case 'delete_post':
-          text = `Deleted item "${details.title || 'Unknown'}"`;
+          text = details.message || `Deleted "${details.title || 'Unknown'}"`;
+          icon = 'fas fa-trash-alt';
+          iconBg = '#fee2e2';
+          iconColor = '#dc2626';
+          break;
+
+        case 'create_property':
+          text = details.message || `Created "${details.title || 'Unknown'}"`;
+          icon = 'fas fa-map-marked-alt';
+          iconBg = '#dcfce7';
+          iconColor = '#15803d';
+          break;
+
+        case 'update_property':
+          text = details.message || `Updated "${details.title || 'Unknown'}"`;
+          icon = 'fas fa-map-marker-alt';
+          iconBg = '#fef3c7';
+          iconColor = '#d97706';
+          break;
+
+        case 'delete_property':
+          text = details.message || `Deleted "${details.title || 'Unknown'}"`;
+          icon = 'fas fa-trash-alt';
+          iconBg = '#fee2e2';
+          iconColor = '#dc2626';
+          break;
+
+        case 'create_feature':
+          text = details.message || `Created feature "${details.name || 'Unknown'}"`;
+          icon = 'fas fa-plus-circle';
+          iconBg = '#ecfeff';
+          iconColor = '#0891b2';
+          break;
+
+        case 'update_feature':
+          text = details.message || `Updated feature "${details.name || 'Unknown'}"`;
+          icon = 'fas fa-sliders-h';
+          iconBg = '#fef3c7';
+          iconColor = '#d97706';
+          break;
+
+        case 'delete_feature':
+          text = details.message || `Deleted feature "${details.name || 'Unknown'}"`;
           icon = 'fas fa-trash-alt';
           iconBg = '#fee2e2';
           iconColor = '#dc2626';

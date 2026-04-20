@@ -13,9 +13,7 @@ export const useAuth = () => {
     const token = localStorage.getItem('access_token');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
     const newState = !!(token && isAuth);
-    if (newState !== isAuthenticated) {
-      setIsAuthenticated(newState);
-    }
+    setIsAuthenticated((prev) => (prev === newState ? prev : newState));
     return newState;
   };
 
@@ -30,20 +28,14 @@ export const useAuth = () => {
       checkAuthStatus();
     };
 
-    // Poll localStorage every 100ms to catch immediate changes
-    const pollInterval = setInterval(() => {
-      checkAuthStatus();
-    }, 100);
-
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthChange);
 
     return () => {
-      clearInterval(pollInterval);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authStateChanged', handleAuthChange);
     };
-  }, [isAuthenticated]); // Add isAuthenticated as dependency
+  }, []);
 
   const login = () => {
     setIsAuthenticated(true);

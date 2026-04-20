@@ -12,11 +12,13 @@ from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafeBranch, 
     CafeBranchTranslation, 
     CafeBranchMedia
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -140,21 +142,17 @@ class CafeBranchUpdate(BaseModel):
 
 def get_branch_with_relations(branch_id: int, db: Session) -> dict:
     """Get branch with all relations"""
-    branch = db.get(CafeBranch, branch_id)
+    statement = (
+        select(CafeBranch)
+        .where(CafeBranch.id == branch_id)
+        .options(
+            selectinload(CafeBranch.translations),
+            selectinload(CafeBranch.media),
+        )
+    )
+    branch = db.exec(statement).first()
     if not branch:
         return None
-    
-    # Get translations
-    trans_stmt = select(CafeBranchTranslation).where(
-        CafeBranchTranslation.branch_id == branch_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
-    # Get media
-    media_stmt = select(CafeBranchMedia).where(
-        CafeBranchMedia.branch_id == branch_id
-    ).order_by(CafeBranchMedia.sort_order)
-    media = db.exec(media_stmt).all()
     
     return {
         **branch.model_dump(),
@@ -165,14 +163,14 @@ def get_branch_with_relations(branch_id: int, db: Session) -> dict:
                 address=t.address,
                 description=t.description,
                 amenities_text=t.amenities_text
-            ) for t in translations
+            ) for t in branch.translations
         ],
         "media": [
             BranchMediaSchema(
                 media_id=m.media_id,
                 is_primary=m.is_primary,
                 sort_order=m.sort_order
-            ) for m in media
+            ) for m in sorted(branch.media, key=lambda media_row: media_row.sort_order)
         ]
     }
 
@@ -255,7 +253,9 @@ def get_branch(
     """
     Get specific branch by ID
     """
-    branch = db.get(CafeBranch, branch_id)
+    branch = db.exec(
+        select(CafeBranch).where(CafeBranch.id == branch_id)
+    ).first()
     
     if not branch or branch.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Branch not found")
@@ -334,6 +334,17 @@ def create_branch(
     
     db.commit()
     
+    branch_name = primary_translation.name if primary_translation else new_branch.code
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_PROPERTY,
+        f'Branch "{branch_name}" created',
+        resource_type="cafe_branch",
+        resource_id=new_branch.id,
+        extra_details={"title": branch_name, "code": new_branch.code},
+    )
+
     # Return with relations
     branch_full = get_branch_with_relations(new_branch.id, db)
     return CafeBranchResponse(**branch_full)
@@ -422,6 +433,17 @@ def update_branch(
     
     db.commit()
     db.refresh(branch)
+
+    branch_name = branch.name or branch.code
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_PROPERTY,
+        f'Branch "{branch_name}" updated',
+        resource_type="cafe_branch",
+        resource_id=branch_id,
+        extra_details={"title": branch_name, "code": branch.code},
+    )
     
     # Return with relations
     branch_full = get_branch_with_relations(branch_id, db)
@@ -442,8 +464,19 @@ def delete_branch(
     if not branch or branch.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Branch not found")
     
+    branch_name = branch.name or branch.code
     db.delete(branch)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_PROPERTY,
+        f'Branch "{branch_name}" deleted',
+        resource_type="cafe_branch",
+        resource_id=branch_id,
+        extra_details={"title": branch_name, "code": branch.code},
+    )
     
     return {"success": True, "message": "Branch deleted"}
 

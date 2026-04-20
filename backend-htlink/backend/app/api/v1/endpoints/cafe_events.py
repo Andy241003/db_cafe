@@ -8,16 +8,19 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafeEvent,
     CafeEventTranslation,
     CafeEventMedia,
     EventStatus
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -109,19 +112,17 @@ class CafeEventUpdate(BaseModel):
 
 def get_event_with_relations(event_id: int, db: Session) -> dict:
     """Get event with all relations"""
-    event = db.get(CafeEvent, event_id)
+    statement = (
+        select(CafeEvent)
+        .where(CafeEvent.id == event_id)
+        .options(
+            selectinload(CafeEvent.translations),
+            selectinload(CafeEvent.media),
+        )
+    )
+    event = db.exec(statement).first()
     if not event:
         return None
-    
-    trans_stmt = select(CafeEventTranslation).where(
-        CafeEventTranslation.event_id == event_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
-    media_stmt = select(CafeEventMedia).where(
-        CafeEventMedia.event_id == event_id
-    ).order_by(CafeEventMedia.sort_order)
-    media = db.exec(media_stmt).all()
     
     return {
         **event.model_dump(),
@@ -131,14 +132,14 @@ def get_event_with_relations(event_id: int, db: Session) -> dict:
                 title=t.title,
                 description=t.description,
                 details=t.details
-            ) for t in translations
+            ) for t in event.translations
         ],
         "media": [
             EventMediaSchema(
                 media_id=m.media_id,
                 is_primary=m.is_primary,
                 sort_order=m.sort_order
-            ) for m in media
+            ) for m in sorted(event.media, key=lambda media_row: media_row.sort_order)
         ]
     }
 
@@ -165,16 +166,49 @@ def get_events(
     if is_featured is not None:
         statement = statement.where(CafeEvent.is_featured == is_featured)
     
+    statement = statement.options(
+        selectinload(CafeEvent.translations),
+        selectinload(CafeEvent.media),
+    )
     statement = statement.order_by(CafeEvent.start_date.desc(), CafeEvent.display_order)
     events = db.exec(statement).all()
-    
-    result = []
-    for event in events:
-        event_data = get_event_with_relations(event.id, db)
-        if event_data:
-            result.append(CafeEventResponse(**event_data))
-    
-    return result
+
+    return [
+        CafeEventResponse(
+            id=event.id,
+            tenant_id=event.tenant_id,
+            code=event.code,
+            start_date=event.start_date,
+            end_date=event.end_date,
+            start_time=event.start_time,
+            end_time=event.end_time,
+            branch_id=event.branch_id,
+            location_text=event.location_text,
+            registration_url=event.registration_url,
+            max_participants=event.max_participants,
+            primary_image_media_id=event.primary_image_media_id,
+            status=event.status,
+            is_featured=event.is_featured,
+            display_order=event.display_order,
+            attributes_json=event.attributes_json,
+            translations=[
+                EventTranslationSchema(
+                    locale=t.locale,
+                    title=t.title,
+                    description=t.description,
+                    details=t.details,
+                ) for t in event.translations
+            ],
+            media=[
+                EventMediaSchema(
+                    media_id=m.media_id,
+                    is_primary=m.is_primary,
+                    sort_order=m.sort_order,
+                ) for m in sorted(event.media, key=lambda media_row: media_row.sort_order)
+            ],
+        )
+        for event in events
+    ]
 
 
 @router.get("/{event_id}", response_model=CafeEventResponse)
@@ -184,7 +218,9 @@ def get_event(
     db: SessionDep
 ):
     """Get specific event"""
-    event = db.get(CafeEvent, event_id)
+    event = db.exec(
+        select(CafeEvent).where(CafeEvent.id == event_id)
+    ).first()
     
     if not event or event.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -242,6 +278,17 @@ def create_event(
     
     db.commit()
     
+    event_title = next((trans.title for trans in event_data.translations if trans.title), new_event.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_POST,
+        f'Event "{event_title}" created',
+        resource_type="cafe_event",
+        resource_id=new_event.id,
+        extra_details={"title": event_title, "code": new_event.code},
+    )
+
     event_full = get_event_with_relations(new_event.id, db)
     return CafeEventResponse(**event_full)
 
@@ -307,6 +354,20 @@ def update_event(
     
     db.commit()
     
+    event_title = next(
+        (trans.title for trans in (event_data.translations or []) if trans.title),
+        event.code,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_POST,
+        f'Event "{event_title}" updated',
+        resource_type="cafe_event",
+        resource_id=event_id,
+        extra_details={"title": event_title, "code": event.code},
+    )
+
     event_full = get_event_with_relations(event_id, db)
     return CafeEventResponse(**event_full)
 
@@ -323,7 +384,18 @@ def delete_event(
     if not event or event.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Event not found")
     
+    event_title = event.code
     db.delete(event)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_POST,
+        f'Event "{event_title}" deleted',
+        resource_type="cafe_event",
+        resource_id=event_id,
+        extra_details={"title": event_title, "code": event.code},
+    )
     
     return {"success": True, "message": "Event deleted"}

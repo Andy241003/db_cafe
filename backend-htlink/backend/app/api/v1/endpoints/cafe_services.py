@@ -17,6 +17,7 @@ from sqlmodel import Session, select
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
+from sqlalchemy.orm import selectinload
 
 from app.models.cafe import (
     CafeService,
@@ -24,8 +25,19 @@ from app.models.cafe import (
     CafeServiceMedia
 )
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
+
+
+def _get_service_record(service_id: int, db: Session) -> Optional[CafeService]:
+    statement = (
+        select(CafeService)
+        .where(CafeService.id == service_id)
+        .options(selectinload(CafeService.translations))
+    )
+    return db.exec(statement).first()
 
 
 # ==========================================
@@ -92,28 +104,23 @@ def get_services(
     if service_type:
         statement = statement.where(CafeService.service_type == service_type)
     
+    statement = statement.options(selectinload(CafeService.translations))
     statement = statement.order_by(CafeService.display_order, CafeService.created_at)
     services = db.exec(statement).all()
-    
-    result = []
-    for service in services:
-        trans_stmt = select(CafeServiceTranslation).where(
-            CafeServiceTranslation.service_id == service.id
-        )
-        translations = db.exec(trans_stmt).all()
-        
-        result.append(ServiceResponse(
+
+    return [
+        ServiceResponse(
             **service.model_dump(),
             translations=[
                 ServiceTranslationSchema(
                     locale=t.locale,
                     name=t.name,
-                    description=t.description
-                ) for t in translations
-            ]
-        ))
-    
-    return result
+                    description=t.description,
+                ) for t in service.translations
+            ],
+        )
+        for service in services
+    ]
 
 
 @router.get("/{service_id}", response_model=ServiceResponse)
@@ -123,15 +130,10 @@ def get_service(
     db: SessionDep
 ):
     """Get a specific service"""
-    service = db.get(CafeService, service_id)
+    service = _get_service_record(service_id, db)
     if not service or service.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Service not found")
-    
-    trans_stmt = select(CafeServiceTranslation).where(
-        CafeServiceTranslation.service_id == service_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
+
     return ServiceResponse(
         **service.model_dump(),
         translations=[
@@ -139,7 +141,7 @@ def get_service(
                 locale=t.locale,
                 name=t.name,
                 description=t.description
-            ) for t in translations
+            ) for t in service.translations
         ]
     )
 
@@ -191,6 +193,17 @@ def create_service(
     
     db.commit()
     
+    service_name = next((trans.name for trans in service_data.translations if trans.name), service.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_FEATURE,
+        f'Service "{service_name}" created',
+        resource_type="cafe_service",
+        resource_id=service.id,
+        extra_details={"name": service_name, "code": service.code},
+    )
+
     return get_service(service.id, current_user, db)
 
 
@@ -252,6 +265,17 @@ def update_service(
     
     db.commit()
     
+    service_name = next((trans.name for trans in service_data.translations if trans.name), service.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_FEATURE,
+        f'Service "{service_name}" updated',
+        resource_type="cafe_service",
+        resource_id=service_id,
+        extra_details={"name": service_name, "code": service.code},
+    )
+
     return get_service(service_id, current_user, db)
 
 
@@ -281,8 +305,19 @@ def delete_service(
     ).all():
         db.delete(existing_media)
     
+    service_name = service.code
     db.delete(service)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_FEATURE,
+        f'Service "{service_name}" deleted',
+        resource_type="cafe_service",
+        resource_id=service_id,
+        extra_details={"name": service_name, "code": service.code},
+    )
     
     return {"message": "Service deleted successfully"}
 

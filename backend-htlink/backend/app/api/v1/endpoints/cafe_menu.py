@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafeMenuCategory,
     CafeMenuCategoryTranslation,
@@ -20,6 +21,7 @@ from app.models.cafe import (
     CafeMenuItemMedia,
     MenuItemStatus
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -172,21 +174,17 @@ def get_category_with_translations(category_id: int, db: Session) -> dict:
 
 def get_item_with_relations(item_id: int, db: Session) -> dict:
     """Get menu item with all relations"""
-    item = db.get(CafeMenuItem, item_id)
+    statement = (
+        select(CafeMenuItem)
+        .where(CafeMenuItem.id == item_id)
+        .options(
+            selectinload(CafeMenuItem.translations),
+            selectinload(CafeMenuItem.media),
+        )
+    )
+    item = db.exec(statement).first()
     if not item:
         return None
-    
-    # Get translations
-    trans_stmt = select(CafeMenuItemTranslation).where(
-        CafeMenuItemTranslation.item_id == item_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
-    # Get media
-    media_stmt = select(CafeMenuItemMedia).where(
-        CafeMenuItemMedia.item_id == item_id
-    ).order_by(CafeMenuItemMedia.sort_order)
-    media = db.exec(media_stmt).all()
     
     return {
         **item.model_dump(),
@@ -196,14 +194,14 @@ def get_item_with_relations(item_id: int, db: Session) -> dict:
                 name=t.name,
                 description=t.description,
                 ingredients=t.ingredients
-            ) for t in translations
+            ) for t in item.translations
         ],
         "media": [
             ItemMediaSchema(
                 media_id=m.media_id,
                 is_primary=m.is_primary,
                 sort_order=m.sort_order
-            ) for m in media
+            ) for m in sorted(item.media, key=lambda media_row: media_row.sort_order)
         ]
     }
 
@@ -294,6 +292,17 @@ def create_category(
     
     db.commit()
     
+    primary_name = next((trans.name for trans in category_data.translations if trans.name), category_data.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_CATEGORY,
+        f'Menu category "{primary_name}" created',
+        resource_type="cafe_menu_category",
+        resource_id=new_category.id,
+        extra_details={"name": primary_name, "code": new_category.code},
+    )
+
     cat_data = get_category_with_translations(new_category.id, db)
     return MenuCategoryResponse(**cat_data)
 
@@ -343,6 +352,20 @@ def update_category(
     
     db.commit()
     
+    category_name = next(
+        (trans.name for trans in (category_data.translations or []) if trans.name),
+        category.code,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_CATEGORY,
+        f'Menu category "{category_name}" updated',
+        resource_type="cafe_menu_category",
+        resource_id=category_id,
+        extra_details={"name": category_name, "code": category.code},
+    )
+
     cat_data = get_category_with_translations(category_id, db)
     return MenuCategoryResponse(**cat_data)
 
@@ -370,8 +393,19 @@ def delete_category(
             detail="Cannot delete category with menu items. Please delete or move items first."
         )
     
+    category_name = category.code
     db.delete(category)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_CATEGORY,
+        f'Menu category "{category_name}" deleted',
+        resource_type="cafe_menu_category",
+        resource_id=category_id,
+        extra_details={"name": category_name, "code": category.code},
+    )
     
     return {"success": True, "message": "Category deleted"}
 
@@ -398,16 +432,48 @@ def get_menu_items(
     if status:
         statement = statement.where(CafeMenuItem.status == status)
     
+    statement = statement.options(
+        selectinload(CafeMenuItem.translations),
+        selectinload(CafeMenuItem.media),
+    )
     statement = statement.order_by(CafeMenuItem.display_order)
     items = db.exec(statement).all()
     
-    result = []
-    for item in items:
-        item_data = get_item_with_relations(item.id, db)
-        if item_data:
-            result.append(MenuItemResponse(**item_data))
-    
-    return result
+    return [
+        MenuItemResponse(
+            id=item.id,
+            category_id=item.category_id,
+            code=item.code,
+            price=item.price,
+            original_price=item.original_price,
+            status=item.status,
+            sizes=item.sizes,
+            tags=item.tags,
+            calories=item.calories,
+            primary_image_media_id=item.primary_image_media_id,
+            is_bestseller=item.is_bestseller,
+            is_new=item.is_new,
+            is_seasonal=item.is_seasonal,
+            display_order=item.display_order,
+            attributes_json=item.attributes_json,
+            translations=[
+                ItemTranslationSchema(
+                    locale=t.locale,
+                    name=t.name,
+                    description=t.description,
+                    ingredients=t.ingredients,
+                ) for t in item.translations
+            ],
+            media=[
+                ItemMediaSchema(
+                    media_id=m.media_id,
+                    is_primary=m.is_primary,
+                    sort_order=m.sort_order,
+                ) for m in sorted(item.media, key=lambda media_row: media_row.sort_order)
+            ],
+        )
+        for item in items
+    ]
 
 
 @router.get("/items/{item_id}", response_model=MenuItemResponse)
@@ -417,7 +483,9 @@ def get_menu_item(
     db: SessionDep
 ):
     """Get specific menu item"""
-    item = db.get(CafeMenuItem, item_id)
+    item = db.exec(
+        select(CafeMenuItem).where(CafeMenuItem.id == item_id)
+    ).first()
     
     if not item or item.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Menu item not found")
@@ -494,6 +562,17 @@ def create_menu_item(
     
     db.commit()
     
+    item_name = next((trans.name for trans in item_data.translations if trans.name), item_data.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_POST,
+        f'Menu item "{item_name}" created',
+        resource_type="cafe_menu_item",
+        resource_id=new_item.id,
+        extra_details={"title": item_name, "code": new_item.code},
+    )
+
     item_full = get_item_with_relations(new_item.id, db)
     return MenuItemResponse(**item_full)
 
@@ -570,6 +649,20 @@ def update_menu_item(
     
     db.commit()
     
+    item_name = next(
+        (trans.name for trans in (item_data.translations or []) if trans.name),
+        item.code,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_POST,
+        f'Menu item "{item_name}" updated',
+        resource_type="cafe_menu_item",
+        resource_id=item_id,
+        extra_details={"title": item_name, "code": item.code},
+    )
+
     item_full = get_item_with_relations(item_id, db)
     return MenuItemResponse(**item_full)
 
@@ -586,8 +679,19 @@ def delete_menu_item(
     if not item or item.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Menu item not found")
     
+    item_name = item.code
     db.delete(item)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_POST,
+        f'Menu item "{item_name}" deleted',
+        resource_type="cafe_menu_item",
+        resource_id=item_id,
+        extra_details={"title": item_name, "code": item.code},
+    )
     
     return {"success": True, "message": "Menu item deleted"}
 

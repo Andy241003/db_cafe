@@ -18,16 +18,11 @@ const CafeActivities: React.FC = () => {
       setLoading(true);
       const data = await cafeActivityLogsApi.getAllActivities(100, days);
       
-      console.log('Activities data:', data); // Debug: check data structure
-      
       // Filter by activity type if not "all"
       let filteredData = data;
       if (filter !== "all") {
         filteredData = data.filter(activity => activity.type === filter);
       }
-
-      console.log('Filtered activities:', filteredData); // Debug: check filtered data
-
       setActivities(filteredData);
       setLoading(false);
     } catch (error) {
@@ -70,8 +65,8 @@ const CafeActivities: React.FC = () => {
     <main className="pt-6 px-6 pb-6">
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">VR Hotel Activity Log</h1>
-        <p className="text-slate-600 mt-2">Track all VR Hotel management activities and events</p>
+        <h1 className="text-3xl font-bold text-slate-900">Cafe Activity Log</h1>
+        <p className="text-slate-600 mt-2">Track logins and content management activity across the cafe dashboard</p>
       </div>
 
         {/* Filters */}
@@ -88,6 +83,7 @@ const CafeActivities: React.FC = () => {
               >
                 <option value="all">All Activities</option>
                 <option value="login">Login</option>
+                <option value="logout">Logout</option>
                 <option value="delete_media">Delete Media</option>
                 <option value="upload_media">Upload Media</option>
                 <option value="create_post">Create Post</option>
@@ -96,6 +92,12 @@ const CafeActivities: React.FC = () => {
                 <option value="create_category">Create Category</option>
                 <option value="update_category">Update Category</option>
                 <option value="delete_category">Delete Category</option>
+                <option value="create_property">Create Property</option>
+                <option value="update_property">Update Property</option>
+                <option value="delete_property">Delete Property</option>
+                <option value="create_feature">Create Feature</option>
+                <option value="update_feature">Update Feature</option>
+                <option value="delete_feature">Delete Feature</option>
               </select>
             </div>
 

@@ -7,14 +7,17 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafeContentSection,
     CafeContentSectionTranslation
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -75,14 +78,14 @@ class CafeContentSectionUpdate(BaseModel):
 
 def get_section_with_relations(section_id: int, db: Session) -> dict:
     """Get content section with all relations"""
-    section = db.get(CafeContentSection, section_id)
+    statement = (
+        select(CafeContentSection)
+        .where(CafeContentSection.id == section_id)
+        .options(selectinload(CafeContentSection.translations))
+    )
+    section = db.exec(statement).first()
     if not section:
         return None
-    
-    trans_stmt = select(CafeContentSectionTranslation).where(
-        CafeContentSectionTranslation.section_id == section_id
-    )
-    translations = db.exec(trans_stmt).all()
     
     return {
         **section.model_dump(),
@@ -92,7 +95,7 @@ def get_section_with_relations(section_id: int, db: Session) -> dict:
                 title=t.title,
                 description=t.description,
                 content=t.content
-            ) for t in translations
+            ) for t in section.translations
         ]
     }
 
@@ -123,16 +126,32 @@ def get_content_sections(
     if is_active is not None:
         statement = statement.where(CafeContentSection.is_active == is_active)
     
+    statement = statement.options(selectinload(CafeContentSection.translations))
     statement = statement.order_by(CafeContentSection.page_code, CafeContentSection.display_order)
     sections = db.exec(statement).all()
-    
-    result = []
-    for section in sections:
-        section_data = get_section_with_relations(section.id, db)
-        if section_data:
-            result.append(CafeContentSectionResponse(**section_data))
-    
-    return result
+
+    return [
+        CafeContentSectionResponse(
+            id=section.id,
+            tenant_id=section.tenant_id,
+            section_type=section.section_type,
+            page_code=section.page_code,
+            icon=section.icon,
+            image_media_id=section.image_media_id,
+            is_active=section.is_active,
+            display_order=section.display_order,
+            attributes_json=section.attributes_json,
+            translations=[
+                ContentSectionTranslationSchema(
+                    locale=t.locale,
+                    title=t.title,
+                    description=t.description,
+                    content=t.content,
+                ) for t in section.translations
+            ],
+        )
+        for section in sections
+    ]
 
 
 @router.get("/{section_id}", response_model=CafeContentSectionResponse)
@@ -142,7 +161,9 @@ def get_content_section(
     db: SessionDep
 ):
     """Get specific content section"""
-    section = db.get(CafeContentSection, section_id)
+    section = db.exec(
+        select(CafeContentSection).where(CafeContentSection.id == section_id)
+    ).first()
     
     if not section or section.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Content section not found")
@@ -180,6 +201,17 @@ def create_content_section(
     
     db.commit()
     
+    section_title = next((trans.title for trans in section_data.translations if trans.title), new_section.section_type)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_POST,
+        f'Content section "{section_title}" created',
+        resource_type="cafe_content_section",
+        resource_id=new_section.id,
+        extra_details={"title": section_title, "page_code": new_section.page_code},
+    )
+
     section_full = get_section_with_relations(new_section.id, db)
     return CafeContentSectionResponse(**section_full)
 
@@ -233,6 +265,20 @@ def update_content_section(
     
     db.commit()
     
+    section_title = next(
+        (trans.title for trans in (section_data.translations or []) if trans.title),
+        section.section_type,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_POST,
+        f'Content section "{section_title}" updated',
+        resource_type="cafe_content_section",
+        resource_id=section_id,
+        extra_details={"title": section_title, "page_code": section.page_code},
+    )
+
     section_full = get_section_with_relations(section_id, db)
     return CafeContentSectionResponse(**section_full)
 
@@ -249,8 +295,19 @@ def delete_content_section(
     if not section or section.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Content section not found")
     
+    section_title = section.section_type
     db.delete(section)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_POST,
+        f'Content section "{section_title}" deleted',
+        resource_type="cafe_content_section",
+        resource_id=section_id,
+        extra_details={"title": section_title, "page_code": section.page_code},
+    )
     
     return {"success": True, "message": "Content section deleted"}
 

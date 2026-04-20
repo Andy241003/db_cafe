@@ -28,10 +28,7 @@ export const usePageTracking = (pagePath: string) => {
           referrer: document.referrer || undefined,
         };
 
-        console.log('Tracking page view:', pagePath, trackingEvent);
-        
-        const result = await analyticsAPI.trackEvent(trackingEvent);
-        console.log('Page view tracked successfully:', result);
+        await analyticsAPI.trackEvent(trackingEvent);
         
       } catch (error) {
         console.error('Failed to track page view:', error);

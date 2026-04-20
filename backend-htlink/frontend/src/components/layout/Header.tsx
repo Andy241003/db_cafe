@@ -49,7 +49,6 @@ const Header: React.FC<HeaderProps> = ({
 
   const handleLogout = () => {
     // In a real app, you'd clear tokens, etc.
-    console.log("Logging out...");
     navigate("/login");
   };
 

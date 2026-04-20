@@ -8,16 +8,19 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafeCareer,
     CafeCareerMedia,
     CafeCareerTranslation,
     CareerStatus
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -109,21 +112,17 @@ class CafeCareerUpdate(BaseModel):
 
 def get_career_with_translations(career_id: int, db: Session) -> dict:
     """Get career with translations"""
-    career = db.get(CafeCareer, career_id)
+    statement = (
+        select(CafeCareer)
+        .where(CafeCareer.id == career_id)
+        .options(
+            selectinload(CafeCareer.translations),
+            selectinload(CafeCareer.media),
+        )
+    )
+    career = db.exec(statement).first()
     if not career:
         return None
-    
-    trans_stmt = select(CafeCareerTranslation).where(
-        CafeCareerTranslation.career_id == career_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
-    # Load career media objects and map to IDs.
-    media_stmt = select(CafeCareerMedia).where(
-        CafeCareerMedia.career_id == career_id
-    ).order_by(CafeCareerMedia.sort_order)
-    media_objects = db.exec(media_stmt).all()
-    media_ids = [m.media_id for m in media_objects]
     
     return {
         "id": career.id,
@@ -151,9 +150,9 @@ def get_career_with_translations(career_id: int, db: Session) -> dict:
                 description=t.description,
                 requirements=t.requirements,
                 benefits=t.benefits
-            ) for t in translations
+            ) for t in career.translations
         ],
-        "media_ids": media_ids
+        "media_ids": [m.media_id for m in sorted(career.media, key=lambda media_row: media_row.sort_order)]
     }
 
 
@@ -179,16 +178,46 @@ def get_careers(
     if is_urgent is not None:
         statement = statement.where(CafeCareer.is_urgent == is_urgent)
     
+    statement = statement.options(
+        selectinload(CafeCareer.translations),
+        selectinload(CafeCareer.media),
+    )
     statement = statement.order_by(CafeCareer.display_order)
     careers = db.exec(statement).all()
-    
-    result = []
-    for career in careers:
-        career_data = get_career_with_translations(career.id, db)
-        if career_data:
-            result.append(CafeCareerResponse(**career_data))
-    
-    return result
+
+    return [
+        CafeCareerResponse(**{
+            "id": career.id,
+            "tenant_id": career.tenant_id,
+            "code": career.code,
+            "job_type": career.job_type,
+            "experience_required": career.experience_required,
+            "salary_min": career.salary_min,
+            "salary_max": career.salary_max,
+            "salary_text": career.salary_text,
+            "deadline": career.deadline,
+            "contact_email": career.contact_email,
+            "contact_phone": career.contact_phone,
+            "application_url": career.application_url,
+            "branch_id": career.branch_id,
+            "primary_image_media_id": career.primary_image_media_id,
+            "status": career.status,
+            "display_order": career.display_order,
+            "is_urgent": career.is_urgent,
+            "attributes_json": career.attributes_json,
+            "translations": [
+                CareerTranslationSchema(
+                    locale=t.locale,
+                    title=t.title,
+                    description=t.description,
+                    requirements=t.requirements,
+                    benefits=t.benefits,
+                ) for t in career.translations
+            ],
+            "media_ids": [m.media_id for m in sorted(career.media, key=lambda media_row: media_row.sort_order)],
+        })
+        for career in careers
+    ]
 
 
 @router.get("/{career_id}", response_model=CafeCareerResponse)
@@ -198,7 +227,9 @@ def get_career(
     db: SessionDep
 ):
     """Get specific career posting"""
-    career = db.get(CafeCareer, career_id)
+    career = db.exec(
+        select(CafeCareer).where(CafeCareer.id == career_id)
+    ).first()
     
     if not career or career.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Career posting not found")
@@ -263,6 +294,17 @@ def create_career(
     
     db.commit()
     
+    career_title = next((trans.title for trans in career_data.translations if trans.title), new_career.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_POST,
+        f'Career "{career_title}" created',
+        resource_type="cafe_career",
+        resource_id=new_career.id,
+        extra_details={"title": career_title, "code": new_career.code},
+    )
+
     career_full = get_career_with_translations(new_career.id, db)
     return CafeCareerResponse(**career_full)
 
@@ -334,6 +376,20 @@ def update_career(
     
     db.commit()
     
+    career_title = next(
+        (trans.title for trans in (career_data.translations or []) if trans.title),
+        career.code,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_POST,
+        f'Career "{career_title}" updated',
+        resource_type="cafe_career",
+        resource_id=career_id,
+        extra_details={"title": career_title, "code": career.code},
+    )
+
     career_full = get_career_with_translations(career_id, db)
     return CafeCareerResponse(**career_full)
 
@@ -350,7 +406,18 @@ def delete_career(
     if not career or career.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Career posting not found")
     
+    career_title = career.code
     db.delete(career)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_POST,
+        f'Career "{career_title}" deleted',
+        resource_type="cafe_career",
+        resource_id=career_id,
+        extra_details={"title": career_title, "code": career.code},
+    )
     
     return {"success": True, "message": "Career posting deleted"}

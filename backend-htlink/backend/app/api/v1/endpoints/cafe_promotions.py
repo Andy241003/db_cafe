@@ -8,16 +8,19 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
+from app.models.activity_log import ActivityType
 from app.models.cafe import (
     CafePromotion,
     CafePromotionTranslation,
     CafePromotionMedia,
     PromotionType
 )
+from app.utils.activity_logger import log_user_activity
 
 router = APIRouter()
 
@@ -109,19 +112,17 @@ class CafePromotionUpdate(BaseModel):
 
 def get_promotion_with_relations(promotion_id: int, db: Session) -> dict:
     """Get promotion with all relations"""
-    promotion = db.get(CafePromotion, promotion_id)
+    statement = (
+        select(CafePromotion)
+        .where(CafePromotion.id == promotion_id)
+        .options(
+            selectinload(CafePromotion.translations),
+            selectinload(CafePromotion.media),
+        )
+    )
+    promotion = db.exec(statement).first()
     if not promotion:
         return None
-    
-    trans_stmt = select(CafePromotionTranslation).where(
-        CafePromotionTranslation.promotion_id == promotion_id
-    )
-    translations = db.exec(trans_stmt).all()
-    
-    media_stmt = select(CafePromotionMedia).where(
-        CafePromotionMedia.promotion_id == promotion_id
-    ).order_by(CafePromotionMedia.sort_order)
-    media = db.exec(media_stmt).all()
     
     return {
         **promotion.model_dump(),
@@ -131,14 +132,14 @@ def get_promotion_with_relations(promotion_id: int, db: Session) -> dict:
                 title=t.title,
                 description=t.description,
                 terms_and_conditions=t.terms_and_conditions
-            ) for t in translations
+            ) for t in promotion.translations
         ],
         "media": [
             PromotionMediaSchema(
                 media_id=m.media_id,
                 is_primary=m.is_primary,
                 sort_order=m.sort_order
-            ) for m in media
+            ) for m in sorted(promotion.media, key=lambda media_row: media_row.sort_order)
         ]
     }
 
@@ -165,16 +166,49 @@ def get_promotions(
     if is_featured is not None:
         statement = statement.where(CafePromotion.is_featured == is_featured)
     
+    statement = statement.options(
+        selectinload(CafePromotion.translations),
+        selectinload(CafePromotion.media),
+    )
     statement = statement.order_by(CafePromotion.display_order)
     promotions = db.exec(statement).all()
-    
-    result = []
-    for promo in promotions:
-        promo_data = get_promotion_with_relations(promo.id, db)
-        if promo_data:
-            result.append(CafePromotionResponse(**promo_data))
-    
-    return result
+
+    return [
+        CafePromotionResponse(
+            id=promotion.id,
+            tenant_id=promotion.tenant_id,
+            code=promotion.code,
+            promotion_type=promotion.promotion_type,
+            discount_value=promotion.discount_value,
+            start_date=promotion.start_date,
+            end_date=promotion.end_date,
+            applicable_menu_items=promotion.applicable_menu_items,
+            applicable_categories=promotion.applicable_categories,
+            applicable_branches=promotion.applicable_branches,
+            min_purchase_amount=promotion.min_purchase_amount,
+            primary_image_media_id=promotion.primary_image_media_id,
+            is_active=promotion.is_active,
+            is_featured=promotion.is_featured,
+            display_order=promotion.display_order,
+            attributes_json=promotion.attributes_json,
+            translations=[
+                PromotionTranslationSchema(
+                    locale=t.locale,
+                    title=t.title,
+                    description=t.description,
+                    terms_and_conditions=t.terms_and_conditions,
+                ) for t in promotion.translations
+            ],
+            media=[
+                PromotionMediaSchema(
+                    media_id=m.media_id,
+                    is_primary=m.is_primary,
+                    sort_order=m.sort_order,
+                ) for m in sorted(promotion.media, key=lambda media_row: media_row.sort_order)
+            ],
+        )
+        for promotion in promotions
+    ]
 
 
 @router.get("/{promotion_id}", response_model=CafePromotionResponse)
@@ -184,7 +218,9 @@ def get_promotion(
     db: SessionDep
 ):
     """Get specific promotion"""
-    promotion = db.get(CafePromotion, promotion_id)
+    promotion = db.exec(
+        select(CafePromotion).where(CafePromotion.id == promotion_id)
+    ).first()
     
     if not promotion or promotion.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Promotion not found")
@@ -242,6 +278,17 @@ def create_promotion(
     
     db.commit()
     
+    promo_title = next((trans.title for trans in promo_data.translations if trans.title), new_promo.code)
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.CREATE_POST,
+        f'Promotion "{promo_title}" created',
+        resource_type="cafe_promotion",
+        resource_id=new_promo.id,
+        extra_details={"title": promo_title, "code": new_promo.code},
+    )
+
     promo_full = get_promotion_with_relations(new_promo.id, db)
     return CafePromotionResponse(**promo_full)
 
@@ -310,6 +357,20 @@ def update_promotion(
     
     db.commit()
     
+    promo_title = next(
+        (trans.title for trans in (promo_data.translations or []) if trans.title),
+        promotion.code,
+    )
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.UPDATE_POST,
+        f'Promotion "{promo_title}" updated',
+        resource_type="cafe_promotion",
+        resource_id=promotion_id,
+        extra_details={"title": promo_title, "code": promotion.code},
+    )
+
     promo_full = get_promotion_with_relations(promotion_id, db)
     return CafePromotionResponse(**promo_full)
 
@@ -326,7 +387,18 @@ def delete_promotion(
     if not promotion or promotion.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="Promotion not found")
     
+    promo_title = promotion.code
     db.delete(promotion)
     db.commit()
+
+    log_user_activity(
+        db,
+        current_user,
+        ActivityType.DELETE_POST,
+        f'Promotion "{promo_title}" deleted',
+        resource_type="cafe_promotion",
+        resource_id=promotion_id,
+        extra_details={"title": promo_title, "code": promotion.code},
+    )
     
     return {"success": True, "message": "Promotion deleted"}
