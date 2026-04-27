@@ -29,7 +29,7 @@ import {
     type Promotion,
     type PromotionCreate,
     type PromotionTranslation,
-} from '../../services/cafeApi';
+} from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
@@ -164,7 +164,7 @@ const convertToEmbedUrl = (url: string): string => {
   return url;
 };
 
-const CafePromotions: React.FC = () => {
+const RestaurantPromotions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -503,7 +503,7 @@ const CafePromotions: React.FC = () => {
         <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Promotions Management</h2>
-            <p className="mt-1 text-sm text-slate-500">Manage promotion content, active period, featured deals, and visual highlights for the cafe site.</p>
+            <p className="mt-1 text-sm text-slate-500">Manage promotion content, active period, featured deals, and visual highlights for the restaurant site.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <select value={promotionFilter} onChange={(e) => setPromotionFilter(e.target.value as typeof promotionFilter)} className="h-11 min-w-[140px] rounded-md border border-slate-300 px-4 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500">
@@ -729,9 +729,9 @@ const CafePromotions: React.FC = () => {
           onClose={() => setMediaPickerMode(null)}
           title="Select Promotion Images"
           kind="image"
-          source="cafe"
+          source="restaurant"
           folder="promotions"
-          folderAliases={['promotion', 'cafe/promotions', 'cafe/promotion']}
+          folderAliases={['promotion', 'restaurant/promotions', 'restaurant/promotion']}
           allowMultiple
           initialSelectedIds={editingPromotion.media_ids}
           onSelectMultiple={handleGallerySelect}
@@ -741,4 +741,7 @@ const CafePromotions: React.FC = () => {
   );
 };
 
-export default CafePromotions;
+export default RestaurantPromotions;
+
+
+

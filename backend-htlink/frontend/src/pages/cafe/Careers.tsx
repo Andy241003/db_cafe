@@ -26,7 +26,7 @@ import {
     type Career,
     type CareerCreate,
     type CareerTranslation,
-} from '../../services/cafeApi';
+} from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
@@ -147,7 +147,7 @@ const convertToEmbedUrl = (url: string): string => {
   return url;
 };
 
-const CafeCareers: React.FC = () => {
+const RestaurantCareers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [careers, setCareers] = useState<Career[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -522,7 +522,7 @@ const CafeCareers: React.FC = () => {
         <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Careers Management</h2>
-            <p className="mt-1 text-sm text-slate-500">Manage job postings, branches, deadlines, and featured hiring priorities for the cafe site.</p>
+            <p className="mt-1 text-sm text-slate-500">Manage job postings, branches, deadlines, and featured hiring priorities for the restaurant site.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <select
@@ -563,8 +563,8 @@ const CafeCareers: React.FC = () => {
 
               return (
                 <div key={career.id} className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                    <div className={`flex h-28 w-full shrink-0 overflow-hidden rounded-lg md:w-40 ${imageUrl ? 'bg-slate-100' : 'bg-blue-50 text-blue-600'}`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <div className={`flex h-32 w-full shrink-0 overflow-hidden rounded-xl lg:w-52 ${imageUrl ? 'bg-slate-100' : 'bg-blue-50 text-blue-600'}`}>
                       {imageUrl ? (
                         <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
                       ) : (
@@ -851,9 +851,9 @@ const CafeCareers: React.FC = () => {
           onClose={() => setMediaPickerMode(null)}
           title="Select Career Images"
           kind="image"
-          source="cafe"
+          source="restaurant"
           folder="careers"
-          folderAliases={['career', 'cafe/careers', 'cafe/career']}
+          folderAliases={['career', 'restaurant/careers', 'restaurant/career']}
           allowMultiple
           initialSelectedIds={editingCareer?.media_ids || []}
           onSelectMultiple={handleGallerySelect}
@@ -863,4 +863,7 @@ const CafeCareers: React.FC = () => {
   );
 };
 
-export default CafeCareers;
+export default RestaurantCareers;
+
+
+

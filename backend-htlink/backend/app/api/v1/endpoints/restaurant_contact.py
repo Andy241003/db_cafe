@@ -1,7 +1,7 @@
 """
-Cafe Contact API endpoints
+Restaurant Contact API endpoints.
 
-Handles cafe contact information separately from general settings
+Handles restaurant contact information separately from general settings
 """
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
-from app.models.cafe import CafeSettings
+from app.models.restaurant import CafeSettings
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ router = APIRouter()
 # ==========================================
 
 class CafeContactResponse(BaseModel):
-    """Cafe Contact Response"""
+    """Restaurant Contact Response"""
     is_displaying: bool = True
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -37,7 +37,7 @@ class CafeContactResponse(BaseModel):
 
 
 class CafeContactUpdate(BaseModel):
-    """Cafe Contact Update"""
+    """Restaurant Contact Update"""
     is_displaying: Optional[bool] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -56,21 +56,21 @@ class CafeContactUpdate(BaseModel):
 # API Endpoints
 # ==========================================
 
-def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
+def get_restaurant_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
     return db.exec(
         select(CafeSettings).where(CafeSettings.tenant_id == tenant_id).limit(1)
     ).first()
 
 @router.get("/", response_model=CafeContactResponse)
-def get_cafe_contact(
+def get_restaurant_contact(
     current_user: CurrentUser,
     db: SessionDep
 ):
     """
-    Get cafe contact information for current tenant
-    Contact data is stored in CafeSettings table but accessed separately
+    Get restaurant contact information for current tenant
+    Contact data is stored in the restaurant settings table but accessed separately.
     """
-    settings = get_cafe_settings_record(db, current_user.tenant_id)
+    settings = get_restaurant_settings_record(db, current_user.tenant_id)
     
     if not settings:
         # Return default empty contact if settings don't exist
@@ -111,23 +111,23 @@ def get_cafe_contact(
 
 
 @router.post("/", response_model=CafeContactResponse)
-def update_cafe_contact(
+def update_restaurant_contact(
     contact_data: CafeContactUpdate,
     current_user: CurrentUser,
     db: SessionDep
 ):
     """
-    Update cafe contact information
-    Contact data is stored in CafeSettings table
+    Update restaurant contact information
+    Contact data is stored in the restaurant settings table.
     """
     # Get or create settings
-    settings = get_cafe_settings_record(db, current_user.tenant_id)
+    settings = get_restaurant_settings_record(db, current_user.tenant_id)
     
     if not settings:
         # Create new settings if doesn't exist
         settings = CafeSettings(
             tenant_id=current_user.tenant_id,
-            cafe_name="My Cafe",
+            restaurant_name="My Restaurant",
             primary_color="#6f4e37",
             settings_json={}
         )
@@ -139,7 +139,7 @@ def update_cafe_contact(
     # Update contact fields from request
     update_dict = contact_data.model_dump(exclude_unset=True)
     
-    # Update direct fields in CafeSettings table
+    # Update direct fields in the restaurant settings table
     if 'phone' in update_dict:
         settings.phone = update_dict['phone']
     if 'email' in update_dict:
@@ -183,4 +183,8 @@ def update_cafe_contact(
     db.refresh(settings)
     
     # Return updated contact data
-    return get_cafe_contact(current_user, db)
+    return get_restaurant_contact(current_user, db)
+
+
+
+

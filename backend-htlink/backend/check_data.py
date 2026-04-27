@@ -12,3 +12,4 @@ with Session(engine) as db:
     print(f'✅ Contact exists: {contact is not None}')
     print(f'✅ Settings exists: {settings is not None}')
     print(f'✅ SEO records: {seo}')
+

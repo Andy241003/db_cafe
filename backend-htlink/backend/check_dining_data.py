@@ -65,3 +65,4 @@ except mysql.connector.Error as e:
     print(f"❌ Database error: {e}")
 except Exception as e:
     print(f"❌ Error: {e}")
+

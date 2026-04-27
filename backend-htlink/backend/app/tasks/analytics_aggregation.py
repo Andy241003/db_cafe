@@ -219,3 +219,4 @@ def backfill_summaries(start_date: datetime.date, end_date: datetime.date):
 if __name__ == "__main__":
     # Run aggregation
     run_daily_aggregation()
+

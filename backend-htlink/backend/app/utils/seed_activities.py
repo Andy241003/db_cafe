@@ -127,3 +127,4 @@ if __name__ == "__main__":
     # Run this to seed sample data
     seed_sample_activities(tenant_id=1, count=25)
     print("Sample activities seeded successfully!")
+

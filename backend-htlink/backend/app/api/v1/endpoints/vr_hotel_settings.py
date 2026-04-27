@@ -247,3 +247,4 @@ def update_vr_hotel_settings(
         x_tenant_code=x_tenant_code,
         x_property_id=x_property_id
     )
+

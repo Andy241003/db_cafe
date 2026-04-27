@@ -18,15 +18,15 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import {
-    cafeBranchesApi,
-    cafeEventsApi,
-    cafeLanguagesApi,
-    cafeSettingsApi,
+    restaurantBranchesApi,
+    restaurantEventsApi,
+    restaurantLanguagesApi,
+    restaurantSettingsApi,
     type Branch,
-    type CafeEvent,
-    type CafeEventCreate,
+    type RestaurantEvent,
+    type RestaurantEventCreate,
     type EventTranslation,
-} from '../../services/cafeApi';
+} from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'mb-2 block text-sm font-medium text-slate-700';
@@ -84,23 +84,23 @@ const buildEmptyLocalizedEventData = (locales: string[]) =>
     return acc;
   }, {});
 
-const getEventTranslation = (event: CafeEvent, locale: string) =>
+const getEventTranslation = (event: RestaurantEvent, locale: string) =>
   event.translations?.find((translation) => translation.locale === locale);
 
-const getEventTitle = (event: CafeEvent) =>
+const getEventTitle = (event: RestaurantEvent) =>
   getEventTranslation(event, 'vi')?.title ||
   getEventTranslation(event, 'en')?.title ||
   event.translations?.find((translation) => translation.title)?.title ||
   event.code ||
   'Untitled event';
 
-const getEventDescription = (event: CafeEvent) =>
+const getEventDescription = (event: RestaurantEvent) =>
   getEventTranslation(event, 'vi')?.description ||
   getEventTranslation(event, 'en')?.description ||
   event.translations?.find((translation) => translation.description)?.description ||
   '';
 
-const getEventPriceLabel = (event: CafeEvent) => {
+const getEventPriceLabel = (event: RestaurantEvent) => {
   const attributes = event.attributes_json as Record<string, unknown> | null | undefined;
   const priceText = attributes?.price_text;
   const ticketPrice = attributes?.ticket_price;
@@ -110,12 +110,12 @@ const getEventPriceLabel = (event: CafeEvent) => {
   return 'Free';
 };
 
-const getEventLanguageLabel = (event: CafeEvent) => {
+const getEventLanguageLabel = (event: RestaurantEvent) => {
   const count = event.translations?.length || 0;
   return count > 0 ? `${count} languages` : 'No translations';
 };
 
-const getEventImageCountLabel = (event: CafeEvent) => {
+const getEventImageCountLabel = (event: RestaurantEvent) => {
   const count = event.media?.length || 0;
   return count > 0 ? `${count} images` : 'No gallery';
 };
@@ -151,9 +151,9 @@ const getStatusBadgeClass = (status: EventStatus) => {
   }
 };
 
-const CafeEvents: React.FC = () => {
+const RestaurantEvents: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<CafeEvent[]>([]);
+  const [events, setEvents] = useState<RestaurantEvent[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
   const [currentLocale, setCurrentLocale] = useState('vi');
@@ -175,10 +175,10 @@ const CafeEvents: React.FC = () => {
     try {
       setLoading(true);
       const [eventData, languageCodes, settings, branchData] = await Promise.all([
-        cafeEventsApi.getEvents(),
-        cafeLanguagesApi.getLanguages(),
-        cafeSettingsApi.getSettings(),
-        cafeBranchesApi.getBranches(),
+        restaurantEventsApi.getEvents(),
+        restaurantLanguagesApi.getLanguages(),
+        restaurantSettingsApi.getSettings(),
+        restaurantBranchesApi.getBranches(),
       ]);
 
       const locales = languageCodes.length > 0 ? languageCodes.map((item) => item.locale) : ['vi', 'en'];
@@ -199,7 +199,7 @@ const CafeEvents: React.FC = () => {
   };
   const loadEvents = async () => {
     try {
-      const eventData = await cafeEventsApi.getEvents();
+      const eventData = await restaurantEventsApi.getEvents();
       setEvents(eventData);
     } catch (error: any) {
       toast.error(error.message || 'Failed to refresh events');
@@ -207,7 +207,7 @@ const CafeEvents: React.FC = () => {
   };
 
   const makeTranslations = useCallback(
-    (event?: CafeEvent) => {
+    (event?: RestaurantEvent) => {
       const result = buildEmptyLocalizedEventData(supportedLanguages);
       supportedLanguages.forEach((locale) => {
         const translation = event?.translations?.find((item) => item.locale === locale);
@@ -223,7 +223,7 @@ const CafeEvents: React.FC = () => {
   );
 
   const createDraftEvent = useCallback(
-    (event?: CafeEvent): EditableEvent => ({
+    (event?: RestaurantEvent): EditableEvent => ({
       id: event?.id,
       code: event?.code || `event_${Date.now()}`,
       start_date: event?.start_date || '',
@@ -261,7 +261,7 @@ const CafeEvents: React.FC = () => {
     setEditingEvent(createDraftEvent());
   };
 
-  const handleEdit = (event: CafeEvent) => {
+  const handleEdit = (event: RestaurantEvent) => {
     setCurrentLocale((previous) => (supportedLanguages.includes(previous) ? previous : supportedLanguages[0] || 'vi'));
     setEditingEvent(createDraftEvent(event));
   };
@@ -271,7 +271,7 @@ const CafeEvents: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await cafeEventsApi.deleteEvent(eventId);
+      await restaurantEventsApi.deleteEvent(eventId);
       toast.success('Event deleted');
       if (editingEvent?.id === eventId) {
         setEditingEvent(null);
@@ -364,7 +364,7 @@ const CafeEvents: React.FC = () => {
       return;
     }
 
-    const payload: CafeEventCreate = {
+    const payload: RestaurantEventCreate = {
       code: editingEvent.code.trim(),
       start_date: editingEvent.start_date || undefined,
       end_date: editingEvent.end_date || undefined,
@@ -386,10 +386,10 @@ const CafeEvents: React.FC = () => {
     try {
       setSavingEvent(true);
       if (editingEvent.id) {
-        await cafeEventsApi.updateEvent(editingEvent.id, payload);
+        await restaurantEventsApi.updateEvent(editingEvent.id, payload);
         toast.success('Event updated');
       } else {
-        await cafeEventsApi.createEvent(payload);
+        await restaurantEventsApi.createEvent(payload);
         toast.success('Event created');
       }
       setEditingEvent(null);
@@ -404,7 +404,7 @@ const CafeEvents: React.FC = () => {
   const handleVR360Change = async (field: 'link' | 'title', value: string) => {
     try {
       setSavingVR(true);
-      const currentSettings = await cafeSettingsApi.getSettings();
+      const currentSettings = await restaurantSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
 
       if (field === 'link') {
@@ -416,7 +416,7 @@ const CafeEvents: React.FC = () => {
         setVrTitle(value);
       }
 
-      await cafeSettingsApi.updateSettings({ settings_json: updates });
+      await restaurantSettingsApi.updateSettings({ settings_json: updates });
       toast.success('VR360 settings saved');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save VR settings');
@@ -428,8 +428,8 @@ const CafeEvents: React.FC = () => {
   const handleDisplayStatusChange = async (nextValue: boolean) => {
     try {
       setSavingDisplayStatus(true);
-      const currentSettings = await cafeSettingsApi.getSettings();
-      await cafeSettingsApi.updateSettings({
+      const currentSettings = await restaurantSettingsApi.getSettings();
+      await restaurantSettingsApi.updateSettings({
         settings_json: {
           ...currentSettings.settings_json,
           events_is_displaying: nextValue,
@@ -595,8 +595,8 @@ const CafeEvents: React.FC = () => {
 
                 return (
                   <div key={event.id} className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                      <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 md:w-40">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <div className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:w-52">
                         {imageUrl ? (
                           <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
                         ) : (
@@ -872,9 +872,9 @@ const CafeEvents: React.FC = () => {
         onSelect={handlePrimaryMediaSelected}
         title="Select Event Image"
         kind="image"
-        source="cafe"
+        source="restaurant"
         folder="events"
-        folderAliases={['event', 'cafe/events', 'cafe/event']}
+        folderAliases={['event', 'restaurant/events', 'restaurant/event']}
       />
 
       <MediaPickerModal
@@ -883,16 +883,19 @@ const CafeEvents: React.FC = () => {
         onSelectMultiple={handleGalleryMediaSelected}
         title="Select Event Gallery Images"
         kind="image"
-        source="cafe"
+        source="restaurant"
         folder="events"
-        folderAliases={['event', 'cafe/events', 'cafe/event']}
+        folderAliases={['event', 'restaurant/events', 'restaurant/event']}
         allowMultiple
       />
     </div>
   );
 };
 
-export default CafeEvents;
+export default RestaurantEvents;
+
+
+
 
 
 

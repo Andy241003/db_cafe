@@ -1,8 +1,8 @@
-﻿import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPhone, faPlay, faShareNodes, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPhone, faPlay, faShareNodes, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { cafeLanguagesApi, cafeContactApi } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeContactApi } from '../../services/restaurantApi';
 
 // CSS Class Constants
 const INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -397,7 +397,7 @@ const CafeContact: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
               <span>
-                Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)
+                Enter the URL to a 360� panorama image (recommended: equirectangular JPG, minimum 4096x2048px)
               </span>
             </p>
           </div>
@@ -530,4 +530,7 @@ const CafeContact: React.FC = () => {
 };
 
 export default CafeContact;
+
+
+
 

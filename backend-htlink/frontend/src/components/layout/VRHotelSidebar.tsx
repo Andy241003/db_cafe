@@ -331,3 +331,4 @@ const VRHotelSidebar: React.FC = () => {
 };
 
 export default VRHotelSidebar;
+

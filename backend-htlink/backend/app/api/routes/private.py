@@ -36,3 +36,4 @@ def create_user(user_in: PrivateUserCreate, session: SessionDep) -> Any:
     session.commit()
 
     return user
+

@@ -120,7 +120,7 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-CAFE_DOC_TAGS = {"cafe", "auth", "media"}
+CAFE_DOC_TAGS = {"restaurant", "auth", "media"}
 
 
 def custom_openapi():
@@ -392,6 +392,7 @@ def root():
         "docs": "/docs",
         "token_helper": "/token-storage"
     }
+
 
 
 

@@ -1,7 +1,7 @@
 """
-Cafe Promotions API endpoints
+Restaurant Promotions API endpoints.
 
-Handles cafe promotions and special offers with multi-language support
+Handles restaurant promotions and special offers with multi-language support
 """
 from typing import Optional, List
 from datetime import date
@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafePromotion,
     CafePromotionTranslation,
     CafePromotionMedia,
@@ -45,7 +45,7 @@ class PromotionMediaSchema(BaseModel):
 
 
 class CafePromotionResponse(BaseModel):
-    """Cafe Promotion Response"""
+    """Restaurant Promotion Response"""
     id: int
     tenant_id: int
     code: str
@@ -67,7 +67,7 @@ class CafePromotionResponse(BaseModel):
 
 
 class CafePromotionCreate(BaseModel):
-    """Cafe Promotion Create"""
+    """Restaurant Promotion Create"""
     code: str
     promotion_type: str = "percentage"
     discount_value: Optional[float] = None
@@ -87,7 +87,7 @@ class CafePromotionCreate(BaseModel):
 
 
 class CafePromotionUpdate(BaseModel):
-    """Cafe Promotion Update"""
+    """Restaurant Promotion Update"""
     code: Optional[str] = None
     promotion_type: Optional[str] = None
     discount_value: Optional[float] = None
@@ -284,7 +284,7 @@ def create_promotion(
         current_user,
         ActivityType.CREATE_POST,
         f'Promotion "{promo_title}" created',
-        resource_type="cafe_promotion",
+        resource_type="restaurant_promotion",
         resource_id=new_promo.id,
         extra_details={"title": promo_title, "code": new_promo.code},
     )
@@ -366,7 +366,7 @@ def update_promotion(
         current_user,
         ActivityType.UPDATE_POST,
         f'Promotion "{promo_title}" updated',
-        resource_type="cafe_promotion",
+        resource_type="restaurant_promotion",
         resource_id=promotion_id,
         extra_details={"title": promo_title, "code": promotion.code},
     )
@@ -396,9 +396,13 @@ def delete_promotion(
         current_user,
         ActivityType.DELETE_POST,
         f'Promotion "{promo_title}" deleted',
-        resource_type="cafe_promotion",
+        resource_type="restaurant_promotion",
         resource_id=promotion_id,
         extra_details={"title": promo_title, "code": promotion.code},
     )
     
     return {"success": True, "message": "Promotion deleted"}
+
+
+
+

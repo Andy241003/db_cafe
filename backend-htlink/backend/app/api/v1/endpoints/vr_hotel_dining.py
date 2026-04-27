@@ -435,3 +435,4 @@ def delete_dining(
     # Delete dining
     session.delete(dining)
     session.commit()
+

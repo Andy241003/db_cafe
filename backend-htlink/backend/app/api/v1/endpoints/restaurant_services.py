@@ -1,7 +1,7 @@
 """
-Cafe Services API
+Restaurant Services API.
 
-Endpoints for managing cafe/hotel services:
+Endpoints for managing restaurant/hotel services:
 - Room service
 - Laundry
 - Concierge
@@ -19,7 +19,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import selectinload
 
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeService,
     CafeServiceTranslation,
     CafeServiceMedia
@@ -199,7 +199,7 @@ def create_service(
         current_user,
         ActivityType.CREATE_FEATURE,
         f'Service "{service_name}" created',
-        resource_type="cafe_service",
+        resource_type="restaurant_service",
         resource_id=service.id,
         extra_details={"name": service_name, "code": service.code},
     )
@@ -271,7 +271,7 @@ def update_service(
         current_user,
         ActivityType.UPDATE_FEATURE,
         f'Service "{service_name}" updated',
-        resource_type="cafe_service",
+        resource_type="restaurant_service",
         resource_id=service_id,
         extra_details={"name": service_name, "code": service.code},
     )
@@ -314,7 +314,7 @@ def delete_service(
         current_user,
         ActivityType.DELETE_FEATURE,
         f'Service "{service_name}" deleted',
-        resource_type="cafe_service",
+        resource_type="restaurant_service",
         resource_id=service_id,
         extra_details={"name": service_name, "code": service.code},
     )
@@ -446,3 +446,7 @@ def get_service_media(
     ).all()
     
     return media_list
+
+
+
+

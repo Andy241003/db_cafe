@@ -25,3 +25,4 @@ def upgrade():
 def downgrade():
     # Remove booking_url column from vr_hotel_settings
     op.drop_column('vr_hotel_settings', 'booking_url')
+

@@ -63,7 +63,7 @@ const Login: React.FC = () => {
 
       // Step 3: Set default tenant for single-tenant setup (skip tenant API call)
       localStorage.setItem('tenant_code', 'boton_blue');
-      localStorage.setItem('tenant_name', 'Boton Blue Cafe');
+      localStorage.setItem('tenant_name', 'Boton Blue Restaurant');
 
       // Step 4: Get user's service access
       const servicesResponse = await authAPI.getUserServices();
@@ -73,12 +73,12 @@ const Login: React.FC = () => {
       // Step 5: Update authentication state
       login();
       
-      // Step 6: Show success message and navigate to Cafe dashboard
+      // Step 6: Show success message and navigate to Restaurant dashboard
       toast.success(`Welcome back, ${userData.full_name}!`);
       
-      // Navigate directly to Cafe dashboard
+      // Navigate directly to Restaurant dashboard
       setTimeout(() => {
-        navigate('/cafe', { replace: true });
+        navigate('/restaurant', { replace: true });
       }, 100);
       
     } catch (err: any) {
@@ -118,8 +118,8 @@ const Login: React.FC = () => {
       <div className="bg-white w-full max-w-md py-12 px-9 rounded-2xl shadow-2xl">
         
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Management Dashboard Login</h2>
-          <p className="text-sm text-gray-500 mt-2">Travel Link • VR Hotel • Cafe</p>
+          <h2 className="text-2xl font-bold text-gray-800">VR Restaurant Dashboard Login</h2>
+          <p className="text-sm text-gray-500 mt-2">Travel Link | VR Restaurant | Management</p>
         </div>
 
         {error && (

@@ -187,3 +187,4 @@ async def translate_batch(texts: Iterable[str], target: str, source: str = "auto
 
     results = await asyncio.gather(*[_worker(t) for t in texts], return_exceptions=False)
     return results
+

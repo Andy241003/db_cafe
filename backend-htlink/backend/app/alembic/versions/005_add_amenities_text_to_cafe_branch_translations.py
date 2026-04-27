@@ -35,3 +35,4 @@ def downgrade():
 
     if "amenities_text" in existing_columns:
         op.drop_column("cafe_branch_translations", "amenities_text")
+

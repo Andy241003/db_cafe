@@ -1,16 +1,16 @@
-﻿import { Coffee, MapPin, Menu, Tag } from 'lucide-react';
+import { Coffee, MapPin, Menu, Tag } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  cafeActivityLogsApi,
-  cafeBranchesApi,
-  cafeMenuApi,
-  cafePromotionsApi,
-  type CafeActivityItem,
-} from '../../services/cafeApi';
+  restaurantActivityLogsApi,
+  restaurantBranchesApi,
+  restaurantMenuApi,
+  restaurantPromotionsApi,
+  type RestaurantActivityItem,
+} from '../../services/restaurantApi';
 import { tenantApi, type TenantSettings } from '../../services/tenantApi';
 
-interface CafeDashboardStats {
+interface RestaurantDashboardStats {
   totalMenuCategories: number;
   totalMenuItems: number;
   totalPromotions: number;
@@ -23,15 +23,17 @@ interface TenantDisplayInfo {
   code: string;
 }
 
-const CafeDashboard: React.FC = () => {
+const RestaurantDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<CafeDashboardStats>({
+  const location = useLocation();
+  const basePath = '/restaurant';
+  const [stats, setStats] = useState<RestaurantDashboardStats>({
     totalMenuCategories: 0,
     totalMenuItems: 0,
     totalPromotions: 0,
     totalBranches: 0,
   });
-  const [recentActivities, setRecentActivities] = useState<CafeActivityItem[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RestaurantActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [tenantInfo, setTenantInfo] = useState<TenantDisplayInfo>({
     id: localStorage.getItem('tenant_id') ? Number(localStorage.getItem('tenant_id')) : undefined,
@@ -68,10 +70,10 @@ const CafeDashboard: React.FC = () => {
       await loadTenantInfo();
 
       const [categories, items, promotions, branches] = await Promise.all([
-        cafeMenuApi.getCategories().catch(() => []),
-        cafeMenuApi.getItems().catch(() => []),
-        cafePromotionsApi.getPromotions().catch(() => []),
-        cafeBranchesApi.getBranches().catch(() => []),
+        restaurantMenuApi.getCategories().catch(() => []),
+        restaurantMenuApi.getItems().catch(() => []),
+        restaurantPromotionsApi.getPromotions().catch(() => []),
+        restaurantBranchesApi.getBranches().catch(() => []),
       ]);
 
       setStats({
@@ -81,7 +83,7 @@ const CafeDashboard: React.FC = () => {
         totalBranches: branches?.length || 0,
       });
 
-      const activities = await cafeActivityLogsApi.getRecentActivities(10);
+      const activities = await restaurantActivityLogsApi.getRecentActivities(10);
       setRecentActivities(activities);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -105,7 +107,7 @@ const CafeDashboard: React.FC = () => {
           <div>
             <h2 className="mb-2 text-3xl font-bold">Welcome back!</h2>
             <p className="text-lg text-blue-100">
-              Manage your cafe content and keep everything up to date
+              Manage your VR restaurant content and keep every dining experience up to date
             </p>
           </div>
 
@@ -123,19 +125,19 @@ const CafeDashboard: React.FC = () => {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button
-            onClick={() => navigate('/cafe/menu')}
+            onClick={() => navigate(`${basePath}/menu`)}
             className="rounded-md bg-white px-6 py-2.5 font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-50"
           >
             Add Menu Category
           </button>
           <button
-            onClick={() => navigate('/cafe/menu')}
+            onClick={() => navigate(`${basePath}/menu`)}
             className="rounded-md bg-white px-6 py-2.5 font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-50"
           >
             Add Menu Item
           </button>
           <button
-            onClick={() => navigate('/cafe/promotions')}
+            onClick={() => navigate(`${basePath}/promotions`)}
             className="rounded-md bg-white/90 px-6 py-2.5 font-medium text-blue-600 shadow-sm transition-colors hover:bg-white"
           >
             Add Promotion
@@ -155,7 +157,7 @@ const CafeDashboard: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cafe/menu')}
+            onClick={() => navigate(`${basePath}/menu`)}
             className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700"
           >
             View all -&gt;
@@ -173,7 +175,7 @@ const CafeDashboard: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cafe/menu')}
+            onClick={() => navigate(`${basePath}/menu`)}
             className="mt-4 text-sm font-medium text-pink-600 hover:text-pink-700"
           >
             View all -&gt;
@@ -191,7 +193,7 @@ const CafeDashboard: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cafe/promotions')}
+            onClick={() => navigate(`${basePath}/promotions`)}
             className="mt-4 text-sm font-medium text-cyan-600 hover:text-cyan-700"
           >
             View all -&gt;
@@ -209,7 +211,7 @@ const CafeDashboard: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/cafe/branches')}
+            onClick={() => navigate(`${basePath}/branches`)}
             className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700"
           >
             View all -&gt;
@@ -221,7 +223,7 @@ const CafeDashboard: React.FC = () => {
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
           <button
-            onClick={() => navigate('/cafe/activities')}
+            onClick={() => navigate(`${basePath}/activities`)}
             className="text-sm font-medium text-blue-600 hover:text-blue-700"
           >
             View all
@@ -249,11 +251,11 @@ const CafeDashboard: React.FC = () => {
                   <p className="text-sm font-semibold text-gray-900">{activity.text}</p>
                   <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
                     <span>{activity.user_name}</span>
-                    <span>•</span>
+                    <span>�</span>
                     <span>{activity.time}</span>
                     {activity.ip_address && (
                       <>
-                        <span>•</span>
+                        <span>�</span>
                         <span>IP {activity.ip_address}</span>
                       </>
                     )}
@@ -285,4 +287,7 @@ const CafeDashboard: React.FC = () => {
   );
 };
 
-export default CafeDashboard;
+export default RestaurantDashboard;
+
+
+

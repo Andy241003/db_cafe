@@ -382,3 +382,4 @@ def delete_offer(
     # Delete translations first (cascading)
     session.delete(offer)
     session.commit()
+

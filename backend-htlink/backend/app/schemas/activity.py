@@ -17,3 +17,4 @@ class ActivityLogResponse(ActivityLogBase):
     
     class Config:
         from_attributes = True
+

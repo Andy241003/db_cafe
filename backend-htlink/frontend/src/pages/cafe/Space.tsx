@@ -3,8 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import type { Space, SpaceTranslation } from '../../services/cafeApi';
-import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi } from '../../services/cafeApi';
+import type { Space, SpaceTranslation } from '../../services/restaurantApi';
+import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi } from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const LABEL_CLASS = 'block text-sm font-medium text-slate-700 mb-2';
@@ -24,7 +24,7 @@ interface SpaceFormData {
   translations: Record<string, { name: string; description: string }>;
 }
 
-const CafeSpace: React.FC = () => {
+const RestaurantSpace: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -526,11 +526,11 @@ const CafeSpace: React.FC = () => {
                     draggingSpaceId === space.id ? 'border-blue-300 opacity-60 shadow-sm' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
                   } ${reordering ? 'cursor-progress' : 'cursor-grab active:cursor-grabbing'}`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
                     <div className="cursor-grab rounded-md p-2 text-slate-400 hover:text-slate-600 active:cursor-grabbing">
                       <FontAwesomeIcon icon={faGripVertical} />
                     </div>
-                    <div className="flex h-28 w-40 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+                    <div className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:w-52">
                       {imageUrl ? (
                         <img src={imageUrl} alt={viName || enName || 'Space'} className="h-full w-full object-cover" />
                       ) : (
@@ -686,11 +686,14 @@ const CafeSpace: React.FC = () => {
         </div>
       )}
 
-      <MediaPickerModal isOpen={mediaPickerVisible} onClose={() => setMediaPickerVisible(false)} onSelect={handleMediaSelected} onSelectMultiple={handleMediaSelectedMultiple} title="Select Space Images" kind="image" source="cafe" folder="spaces" allowMultiple />
+      <MediaPickerModal isOpen={mediaPickerVisible} onClose={() => setMediaPickerVisible(false)} onSelect={handleMediaSelected} onSelectMultiple={handleMediaSelectedMultiple} title="Select Space Images" kind="image" source="restaurant" folder="spaces" allowMultiple />
     </div>
   );
 };
 
-export default CafeSpace;
+export default RestaurantSpace;
+
+
+
 
 

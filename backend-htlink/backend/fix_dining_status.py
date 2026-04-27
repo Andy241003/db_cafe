@@ -44,3 +44,4 @@ def fix_dining_status():
 
 if __name__ == "__main__":
     fix_dining_status()
+

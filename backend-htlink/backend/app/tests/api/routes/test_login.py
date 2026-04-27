@@ -116,3 +116,4 @@ def test_reset_password_invalid_token(
     assert "detail" in response
     assert r.status_code == 400
     assert response["detail"] == "Invalid token"
+

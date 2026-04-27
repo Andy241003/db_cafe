@@ -394,3 +394,4 @@ def downgrade():
     op.drop_table('cafe_branches')
     op.drop_table('cafe_page_settings')
     op.drop_table('cafe_settings')
+

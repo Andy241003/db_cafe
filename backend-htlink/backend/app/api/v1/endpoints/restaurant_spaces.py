@@ -1,7 +1,7 @@
 """
-Cafe Spaces API endpoints
+Restaurant Spaces API endpoints.
 
-Handles cafe spaces/areas management with multi-language support
+Handles restaurant spaces/areas management with multi-language support
 """
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeSpace,
     CafeSpaceTranslation,
     CafeSpaceMedia
@@ -42,7 +42,7 @@ class SpaceMediaSchema(BaseModel):
 
 
 class CafeSpaceResponse(BaseModel):
-    """Cafe Space Response"""
+    """Restaurant Space Response"""
     id: int
     tenant_id: int
     code: str
@@ -58,7 +58,7 @@ class CafeSpaceResponse(BaseModel):
 
 
 class CafeSpaceCreate(BaseModel):
-    """Cafe Space Create"""
+    """Restaurant Space Create"""
     code: str
     primary_image_media_id: Optional[int] = None
     amenities_json: Optional[Any] = None
@@ -72,7 +72,7 @@ class CafeSpaceCreate(BaseModel):
 
 
 class CafeSpaceUpdate(BaseModel):
-    """Cafe Space Update"""
+    """Restaurant Space Update"""
     code: Optional[str] = None
     primary_image_media_id: Optional[int] = None
     amenities_json: Optional[Any] = None
@@ -250,7 +250,7 @@ def create_space(
         current_user,
         ActivityType.CREATE_PROPERTY,
         f'Space "{space_name}" created',
-        resource_type="cafe_space",
+        resource_type="restaurant_space",
         resource_id=new_space.id,
         extra_details={"title": space_name, "code": new_space.code},
     )
@@ -325,7 +325,7 @@ def update_space(
         current_user,
         ActivityType.UPDATE_PROPERTY,
         f'Space "{space_name}" updated',
-        resource_type="cafe_space",
+        resource_type="restaurant_space",
         resource_id=space_id,
         extra_details={"title": space_name, "code": space.code},
     )
@@ -355,7 +355,7 @@ def delete_space(
         current_user,
         ActivityType.DELETE_PROPERTY,
         f'Space "{space_name}" deleted',
-        resource_type="cafe_space",
+        resource_type="restaurant_space",
         resource_id=space_id,
         extra_details={"title": space_name, "code": space.code},
     )
@@ -378,3 +378,7 @@ def reorder_spaces(
     
     db.commit()
     return {"success": True, "message": "Spaces reordered"}
+
+
+
+

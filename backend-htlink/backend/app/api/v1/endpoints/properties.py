@@ -481,3 +481,4 @@ def set_default_locale(
     session.refresh(locale)
     
     return {"message": f"Locale '{locale_code}' set as default successfully"}
+

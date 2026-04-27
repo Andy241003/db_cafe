@@ -203,3 +203,4 @@ def update_vr_hotel_introduction(
         vr360Link=introduction.vr360_link,
         vrTitle=introduction.vr_title
     )
+

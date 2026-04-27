@@ -52,3 +52,4 @@ def downgrade():
         type_=sa.String(length=255),
         existing_nullable=True,
     )
+

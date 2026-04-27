@@ -12,15 +12,15 @@ import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import type {
-    CafePageSettings,
+    RestaurantPageSettings,
     ContentSection,
     ContentSectionTranslation,
-} from '../../services/cafeApi';
+} from '../../services/restaurantApi';
 import {
-    cafeContentSectionsApi,
-    cafeLanguagesApi,
-    cafePageSettingsApi,
-} from '../../services/cafeApi';
+    restaurantContentSectionsApi,
+    restaurantLanguagesApi,
+    restaurantPageSettingsApi,
+} from '../../services/restaurantApi';
 
 const INPUT_CLASS = 'w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed';
 const TEXTAREA_CLASS = `${INPUT_CLASS} resize-y`;
@@ -62,7 +62,7 @@ interface PageSettingsFormState {
   vr_title: string;
 }
 
-interface CafeHomeAboutPageProps {
+interface RestaurantHomeAboutPageProps {
   pageCode: 'home' | 'about';
   pageTitle: string;
   pageDescription: string;
@@ -112,7 +112,7 @@ const buildIntroductionState = (
 
 const buildPageSettingsState = (
   pageCode: 'home' | 'about',
-  pageSettings?: CafePageSettings,
+  pageSettings?: RestaurantPageSettings,
 ): PageSettingsFormState => ({
   page_code: pageCode,
   is_displaying: pageSettings?.is_displaying ?? true,
@@ -120,7 +120,7 @@ const buildPageSettingsState = (
   vr_title: pageSettings?.vr_title || '',
 });
 
-const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
+const RestaurantHomeAboutPage: React.FC<RestaurantHomeAboutPageProps> = ({
   pageCode,
   pageTitle,
   pageDescription,
@@ -138,15 +138,15 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
     try {
       setLoading(true);
 
-      const languages = await cafeLanguagesApi.getLanguages();
+      const languages = await restaurantLanguagesApi.getLanguages();
       const locales = languages.map((language) => language.locale);
       const resolvedLocales = locales.length > 0 ? locales : ['vi', 'en'];
       setSupportedLanguages(resolvedLocales);
       setCurrentLocale((prev) => (resolvedLocales.includes(prev) ? prev : resolvedLocales[0]));
 
       const [sections, pageSetting] = await Promise.all([
-        cafeContentSectionsApi.getContentSections(pageCode, 'introduction'),
-        cafePageSettingsApi.getPageSetting(pageCode).catch((error) => {
+        restaurantContentSectionsApi.getContentSections(pageCode, 'introduction'),
+        restaurantPageSettingsApi.getPageSetting(pageCode).catch((error) => {
           if (axios.isAxiosError(error) && error.response?.status === 404) {
             return null;
           }
@@ -227,9 +227,9 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
 
       const [savedSection] = await Promise.all([
         introduction.id
-          ? cafeContentSectionsApi.updateContentSection(introduction.id, contentPayload)
-          : cafeContentSectionsApi.createContentSection(contentPayload),
-        cafePageSettingsApi.createOrUpdatePageSetting({
+          ? restaurantContentSectionsApi.updateContentSection(introduction.id, contentPayload)
+          : restaurantContentSectionsApi.createContentSection(contentPayload),
+        restaurantPageSettingsApi.createOrUpdatePageSetting({
           page_code: pageCode,
           is_displaying: pageSettings.is_displaying,
           vr360_link: pageSettings.vr360_link || null,
@@ -458,4 +458,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
   );
 };
 
-export default CafeHomeAboutPage;
+export default RestaurantHomeAboutPage;
+
+
+

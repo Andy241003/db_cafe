@@ -693,3 +693,4 @@ def delete_property_translation(
         session, property_id=property_id, locale=locale
     )
     return {"message": "Property translation deleted successfully"}
+

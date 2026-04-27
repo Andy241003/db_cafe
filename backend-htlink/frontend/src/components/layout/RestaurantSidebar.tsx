@@ -1,10 +1,9 @@
-// src/components/layout/CafeSidebar.tsx
+// src/components/layout/RestaurantSidebar.tsx
 import {
   faBriefcase,
   faBullhorn,
   faCalendarAlt,
   faChartLine,
-  faCoffee,
   faGear,
   faGlobe,
   faHome,
@@ -14,6 +13,7 @@ import {
   faPhone,
   faRightFromBracket,
   faShieldAlt,
+  faTrophy,
   faUtensils,
   faWarehouse
 } from '@fortawesome/free-solid-svg-icons';
@@ -22,10 +22,11 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 
-const CafeSidebar: React.FC = () => {
+const RestaurantSidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const permissions = usePermissions();
+  const basePath = '/restaurant';
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -35,8 +36,12 @@ const CafeSidebar: React.FC = () => {
   };
 
   const isActive = (path: string) => {
-    if (path === '/cafe') {
-      return location.pathname === '/cafe' || location.pathname === '/cafe/';
+    if (path === basePath) {
+      return (
+        location.pathname === basePath ||
+        location.pathname === `${basePath}/` ||
+        location.pathname === '/restaurant/'
+      );
     }
     return location.pathname.startsWith(path);
   };
@@ -46,31 +51,32 @@ const CafeSidebar: React.FC = () => {
     {
       section: 'SYSTEM ADMIN',
       links: [
-        { path: '/cafe/tenants', icon: faShieldAlt, label: 'Tenants', visible: permissions.canManageTenant || permissions.isAdmin },
-        { path: '/cafe/users', icon: faBriefcase, label: 'Users', visible: permissions.canManageUsers },
+        { path: `${basePath}/tenants`, icon: faShieldAlt, label: 'Tenants', visible: permissions.canManageTenant || permissions.isAdmin },
+        { path: `${basePath}/users`, icon: faBriefcase, label: 'Users', visible: permissions.canManageUsers },
       ],
     },
     {
       section: 'CONTENT MANAGEMENT',
       links: [
-        { path: '/cafe', icon: faChartLine, label: 'Dashboard', visible: true },
-        { path: '/cafe/home', icon: faHome, label: 'Home', visible: true },
-        { path: '/cafe/about', icon: faInfo, label: 'About', visible: true },
-        { path: '/cafe/menu', icon: faUtensils, label: 'Menu', visible: true },
-        { path: '/cafe/space', icon: faWarehouse, label: 'Spaces', visible: true },
-        { path: '/cafe/branches', icon: faMapMarkerAlt, label: 'Branches', visible: true },
-        { path: '/cafe/events', icon: faCalendarAlt, label: 'Events', visible: true },
-        { path: '/cafe/careers', icon: faBriefcase, label: 'Careers', visible: true },
-        { path: '/cafe/promotions', icon: faBullhorn, label: 'Promotions', visible: true },
-        { path: '/cafe/gallery', icon: faImages, label: 'Gallery', visible: true },
-        { path: '/cafe/contact', icon: faPhone, label: 'Contact', visible: true },
+        { path: basePath, icon: faChartLine, label: 'Dashboard', visible: true },
+        { path: `${basePath}/home`, icon: faHome, label: 'Home', visible: true },
+        { path: `${basePath}/about`, icon: faInfo, label: 'About', visible: true },
+        { path: `${basePath}/menu`, icon: faUtensils, label: 'Menu', visible: true },
+        { path: `${basePath}/space`, icon: faWarehouse, label: 'Spaces', visible: true },
+        { path: `${basePath}/branches`, icon: faMapMarkerAlt, label: 'Branches', visible: true },
+        { path: `${basePath}/events`, icon: faCalendarAlt, label: 'Events', visible: true },
+        { path: `${basePath}/careers`, icon: faBriefcase, label: 'Careers', visible: true },
+        { path: `${basePath}/promotions`, icon: faBullhorn, label: 'Promotions', visible: true },
+        { path: `${basePath}/achievements`, icon: faTrophy, label: 'Achievements', visible: true },
+        { path: `${basePath}/gallery`, icon: faImages, label: 'Gallery', visible: true },
+        { path: `${basePath}/contact`, icon: faPhone, label: 'Contact', visible: true },
       ],
     },
     {
       section: 'SETTINGS',
       links: [
-        { path: '/cafe/languages', icon: faGlobe, label: 'Languages', visible: true },
-        { path: '/cafe/settings', icon: faGear, label: 'Settings', visible: true },
+        { path: `${basePath}/languages`, icon: faGlobe, label: 'Languages', visible: true },
+        { path: `${basePath}/settings`, icon: faGear, label: 'Settings', visible: true },
       ],
     },
   ];
@@ -78,10 +84,10 @@ const CafeSidebar: React.FC = () => {
   return (
     <aside className="bg-gradient-to-b from-slate-800 to-slate-900 text-white w-64 fixed h-full overflow-y-auto hidden sm:block">
       <div className="p-4 flex items-center gap-2.5 border-b border-slate-700">
-        <div className="bg-blue-600 p-1.5 rounded-lg">
-          <FontAwesomeIcon icon={faCoffee} className="w-5 h-5" />
+        <div className="bg-amber-500 p-1.5 rounded-lg">
+          <FontAwesomeIcon icon={faUtensils} className="w-5 h-5" />
         </div>
-        <span className="text-lg font-bold">Coffee House</span>
+        <span className="text-lg font-bold">VR Restaurant</span>
       </div>
 
       <nav className="p-6">
@@ -108,9 +114,9 @@ const CafeSidebar: React.FC = () => {
                       <Link
                         to={link.path}
                         onClick={() => {
-                          // Store context when navigating to Core Admin or Settings from Cafe
+                          // Store context when navigating to Core Admin or Settings from Restaurant
                           if (isCoreAdmin || isSettings) {
-                            localStorage.setItem('admin_context', 'cafe');
+                            localStorage.setItem('admin_context', 'restaurant');
                           }
                         }}
                         className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -145,5 +151,6 @@ const CafeSidebar: React.FC = () => {
   );
 };
 
-export default CafeSidebar;
+export default RestaurantSidebar;
+
 

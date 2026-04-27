@@ -530,3 +530,4 @@ async def translate_batch_enhanced(
 # Backwards compatibility - expose same interface as universal_translation
 translate_text = translate_text_enhanced
 translate_batch = translate_batch_enhanced
+

@@ -42,3 +42,4 @@ else:
 cursor.close()
 conn.close()
 print('Migration completed')
+

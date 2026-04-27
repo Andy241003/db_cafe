@@ -9,3 +9,4 @@ with engine.connect() as conn:
     print("-" * 80)
     for row in result:
         print(row)
+

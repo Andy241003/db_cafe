@@ -1,7 +1,7 @@
 """
-Cafe Settings API endpoints
+Restaurant Settings API endpoints
 
-Handles cafe settings, contact, branding, and page configurations
+Handles restaurant settings, contact, branding, and page configurations.
 """
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models.cafe import CafeSettings, CafePageSettings
+from app.models.restaurant import CafeSettings, CafePageSettings
 
 router = APIRouter()
 
@@ -20,10 +20,10 @@ router = APIRouter()
 # ==========================================
 
 class CafeSettingsResponse(BaseModel):
-    """Cafe Settings Response"""
+    """Restaurant Settings Response"""
     id: Optional[int] = None
     tenant_id: Optional[int] = None
-    cafe_name: str
+    restaurant_name: str
     slogan: Optional[str] = None
     primary_color: str = "#6f4e37"
     secondary_color: str = "#d4a574"
@@ -43,8 +43,8 @@ class CafeSettingsResponse(BaseModel):
 
 
 class CafeSettingsUpdate(BaseModel):
-    """Cafe Settings Update"""
-    cafe_name: Optional[str] = None
+    """Restaurant Settings Update"""
+    restaurant_name: Optional[str] = None
     slogan: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
@@ -64,7 +64,7 @@ class CafeSettingsUpdate(BaseModel):
 
 
 class CafePageSettingsResponse(BaseModel):
-    """Cafe Page Settings Response"""
+    """Restaurant Page Settings Response"""
     id: Optional[int] = None
     tenant_id: Optional[int] = None
     page_code: str
@@ -75,7 +75,7 @@ class CafePageSettingsResponse(BaseModel):
 
 
 class CafePageSettingsUpdate(BaseModel):
-    """Cafe Page Settings Update"""
+    """Restaurant Page Settings Update"""
     page_code: str
     is_displaying: Optional[bool] = None
     vr360_link: Optional[str] = None
@@ -87,13 +87,13 @@ class CafePageSettingsUpdate(BaseModel):
 # Helper Functions
 # ==========================================
 
-def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
+def get_restaurant_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSettings]:
     return db.exec(
         select(CafeSettings).where(CafeSettings.tenant_id == tenant_id).limit(1)
     ).first()
 
 
-def to_cafe_settings_response(
+def to_restaurant_settings_response(
     settings: CafeSettings | CafeSettingsResponse,
     tenant_id: int,
 ) -> CafeSettingsResponse:
@@ -125,37 +125,37 @@ def get_page_settings_record(db: SessionDep, tenant_id: int, page_code: str) -> 
 # ==========================================
 
 @router.get("/", response_model=CafeSettingsResponse)
-def get_cafe_settings(
+def get_restaurant_settings(
     current_user: CurrentUser,
     db: SessionDep
 ):
     """
-    Get cafe settings for current tenant
+    Get restaurant settings for current tenant
     """
-    settings = get_cafe_settings_record(db, current_user.tenant_id)
+    settings = get_restaurant_settings_record(db, current_user.tenant_id)
 
     if not settings:
         return CafeSettingsResponse(
             tenant_id=current_user.tenant_id,
-            cafe_name="My Cafe",
+            restaurant_name="My Restaurant",
             primary_color="#6f4e37",
             secondary_color="#d4a574",
             background_color="#ffffff"
         )
 
-    return to_cafe_settings_response(settings, current_user.tenant_id)
+    return to_restaurant_settings_response(settings, current_user.tenant_id)
 
 
 @router.post("/", response_model=CafeSettingsResponse)
-def create_or_update_cafe_settings(
+def create_or_update_restaurant_settings(
     settings_data: CafeSettingsUpdate,
     current_user: CurrentUser,
     db: SessionDep
 ):
     """
-    Create or update cafe settings
+    Create or update restaurant settings
     """
-    existing = get_cafe_settings_record(db, current_user.tenant_id)
+    existing = get_restaurant_settings_record(db, current_user.tenant_id)
 
     if existing:
         for key, value in settings_data.model_dump(exclude_unset=True).items():
@@ -167,11 +167,11 @@ def create_or_update_cafe_settings(
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return to_cafe_settings_response(existing, current_user.tenant_id)
+        return to_restaurant_settings_response(existing, current_user.tenant_id)
 
     settings_dict = settings_data.model_dump(exclude_unset=True)
-    if 'cafe_name' not in settings_dict or settings_dict.get('cafe_name') is None:
-        settings_dict['cafe_name'] = 'My Cafe'
+    if 'restaurant_name' not in settings_dict or settings_dict.get('restaurant_name') is None:
+        settings_dict['restaurant_name'] = 'My Restaurant'
 
     new_settings = CafeSettings(
         tenant_id=current_user.tenant_id,
@@ -180,11 +180,11 @@ def create_or_update_cafe_settings(
     db.add(new_settings)
     db.commit()
     db.refresh(new_settings)
-    return to_cafe_settings_response(new_settings, current_user.tenant_id)
+    return to_restaurant_settings_response(new_settings, current_user.tenant_id)
 
 
 @router.get("/pages", response_model=list[CafePageSettingsResponse])
-def get_cafe_page_settings(
+def get_restaurant_page_settings(
     current_user: CurrentUser,
     db: SessionDep
 ):
@@ -276,3 +276,7 @@ def delete_page_setting(
     db.commit()
 
     return {"success": True, "message": "Page setting deleted"}
+
+
+
+

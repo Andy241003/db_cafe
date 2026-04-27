@@ -80,7 +80,7 @@ const CareersExample = () => {
         onSelectMultiple={handleMediaSelectedMultiple}
         pickerTitle="Select Career Images"
         pickerKind="image"
-        pickerSource="cafe"
+        pickerSource="restaurant"
         pickerFolder="careers"
         buttonText="Select Images"
         gridColumns={4}
@@ -183,3 +183,5 @@ const CareersExample = () => {
  */
 
 export default CareersExample;
+
+

@@ -52,3 +52,4 @@ def check_and_fix_enum():
 
 if __name__ == "__main__":
     check_and_fix_enum()
+

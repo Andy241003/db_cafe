@@ -1,7 +1,7 @@
 """
-Cafe Branches API endpoints
+Restaurant Branches API endpoints.
 
-Handles cafe branch management with multi-language support
+Handles restaurant branch management with multi-language support
 """
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeBranch, 
     CafeBranchTranslation, 
     CafeBranchMedia
@@ -76,7 +76,7 @@ class BranchMediaSchema(BaseModel):
 
 
 class CafeBranchResponse(BaseModel):
-    """Cafe Branch Response"""
+    """Restaurant Branch Response"""
     id: int
     tenant_id: int
     code: str
@@ -99,7 +99,7 @@ class CafeBranchResponse(BaseModel):
 
 
 class CafeBranchCreate(BaseModel):
-    """Cafe Branch Create"""
+    """Restaurant Branch Create"""
     code: str
     opening_hours: Optional[str] = None
     phone: Optional[str] = None
@@ -118,7 +118,7 @@ class CafeBranchCreate(BaseModel):
 
 
 class CafeBranchUpdate(BaseModel):
-    """Cafe Branch Update"""
+    """Restaurant Branch Update"""
     code: Optional[str] = None
     opening_hours: Optional[str] = None
     phone: Optional[str] = None
@@ -340,7 +340,7 @@ def create_branch(
         current_user,
         ActivityType.CREATE_PROPERTY,
         f'Branch "{branch_name}" created',
-        resource_type="cafe_branch",
+        resource_type="restaurant_branch",
         resource_id=new_branch.id,
         extra_details={"title": branch_name, "code": new_branch.code},
     )
@@ -440,7 +440,7 @@ def update_branch(
         current_user,
         ActivityType.UPDATE_PROPERTY,
         f'Branch "{branch_name}" updated',
-        resource_type="cafe_branch",
+        resource_type="restaurant_branch",
         resource_id=branch_id,
         extra_details={"title": branch_name, "code": branch.code},
     )
@@ -473,7 +473,7 @@ def delete_branch(
         current_user,
         ActivityType.DELETE_PROPERTY,
         f'Branch "{branch_name}" deleted',
-        resource_type="cafe_branch",
+        resource_type="restaurant_branch",
         resource_id=branch_id,
         extra_details={"title": branch_name, "code": branch.code},
     )
@@ -501,3 +501,7 @@ def reorder_branch(
     db.commit()
     
     return {"success": True, "message": "Branch reordered"}
+
+
+
+

@@ -149,3 +149,4 @@ def delete_tenant(
     
     crud.tenant.remove(session, id=tenant_id)
     return {"message": "Tenant deleted successfully"}
+

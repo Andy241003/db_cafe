@@ -1,12 +1,12 @@
 /**
- * Cafe API Service
+ * Restaurant API Service
  * 
- * API calls for Cafe management (Menu, Branches, Events, Careers, Promotions, etc.)
+ * API calls for Restaurant management (Menu, Branches, Events, Careers, Promotions, etc.)
  */
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/api';
 
-const cafeClient = axios.create({
+const restaurantClient = axios.create({
   timeout: 10000,
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -16,7 +16,7 @@ const cafeClient = axios.create({
 });
 
 // Set baseURL dynamically to handle both dev and production
-cafeClient.interceptors.request.use(
+restaurantClient.interceptors.request.use(
   (config) => {
     // Set baseURL on each request to ensure VITE_API_URL is available
     if (!config.baseURL) {
@@ -39,7 +39,7 @@ cafeClient.interceptors.request.use(
 
 // Setup interceptors for auth and permission handling
 import { setupAxiosInterceptors } from '../utils/axiosInterceptors';
-setupAxiosInterceptors(cafeClient);
+setupAxiosInterceptors(restaurantClient);
 
 // ==========================================
 // Types
@@ -67,7 +67,7 @@ export interface CafeActivityLogResponse {
 }
 
 export interface CafeSettings {
-  cafe_name?: string;
+  restaurant_name?: string;
   slogan?: string;
   primary_color: string;
   background_color?: string;
@@ -231,6 +231,12 @@ export interface PromotionTranslation {
   title: string;
   description?: string;
   terms_and_conditions?: string;
+}
+
+export interface AchievementTranslation {
+  locale: string;
+  title: string;
+  description?: string;
 }
 
 export interface SpaceTranslation {
@@ -455,6 +461,51 @@ export interface PromotionCreate {
 
 export interface PromotionUpdate extends Partial<PromotionCreate> {}
 
+// Achievement Types
+export interface AchievementMedia {
+  media_id: number;
+  is_primary: boolean;
+  sort_order: number;
+}
+
+export interface Achievement {
+  id: number;
+  tenant_id: number;
+  code: string;
+  achievement_type?: string | null;
+  issuer?: string | null;
+  awarded_at?: string | null;
+  location_text?: string | null;
+  reference_url?: string | null;
+  primary_image_media_id?: number | null;
+  is_active: boolean;
+  is_featured: boolean;
+  display_order: number;
+  attributes_json?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+  translations?: AchievementTranslation[];
+  media?: AchievementMedia[];
+}
+
+export interface AchievementCreate {
+  code: string;
+  achievement_type?: string | null;
+  issuer?: string | null;
+  awarded_at?: string | null;
+  location_text?: string | null;
+  reference_url?: string | null;
+  primary_image_media_id?: number | null;
+  is_active?: boolean;
+  is_featured?: boolean;
+  display_order?: number;
+  attributes_json?: Record<string, unknown> | null;
+  translations: AchievementTranslation[];
+  media_ids?: number[];
+}
+
+export interface AchievementUpdate extends Partial<AchievementCreate> {}
+
 // Space Types
 export interface Space {
   id: number;
@@ -539,12 +590,12 @@ export interface LanguageCreate {
 
 export const cafeSettingsApi = {
   getSettings: async (): Promise<CafeSettings> => {
-    const response = await cafeClient.get('/cafe/settings/');
+    const response = await restaurantClient.get('/restaurant/settings/');
     return response.data;
   },
 
   updateSettings: async (data: CafeSettingsUpdate): Promise<CafeSettings> => {
-    const response = await cafeClient.post('/cafe/settings/', data);
+    const response = await restaurantClient.post('/restaurant/settings/', data);
     return response.data;
   },
 };
@@ -578,32 +629,32 @@ export interface CafeContactUpdate extends Partial<CafeContact> {}
 
 export const cafePageSettingsApi = {
   getPageSettings: async (): Promise<CafePageSettings[]> => {
-    const response = await cafeClient.get('/cafe/settings/pages');
+    const response = await restaurantClient.get('/restaurant/settings/pages');
     return response.data;
   },
 
   getPageSetting: async (pageCode: string): Promise<CafePageSettings> => {
-    const response = await cafeClient.get(`/cafe/settings/pages/${pageCode}`);
+    const response = await restaurantClient.get(`/restaurant/settings/pages/${pageCode}`);
     return response.data;
   },
 
   createOrUpdatePageSetting: async (data: CafePageSettingsUpdate): Promise<CafePageSettings> => {
-    const response = await cafeClient.post('/cafe/settings/pages', data);
+    const response = await restaurantClient.post('/restaurant/settings/pages', data);
     return response.data;
   },
 
   deletePageSetting: async (pageCode: string): Promise<void> => {
-    await cafeClient.delete(`/cafe/settings/pages/${pageCode}`);
+    await restaurantClient.delete(`/restaurant/settings/pages/${pageCode}`);
   },
 };
 export const cafeContactApi = {
   getContact: async (): Promise<CafeContact> => {
-    const response = await cafeClient.get('/cafe/contact/');
+    const response = await restaurantClient.get('/restaurant/contact/');
     return response.data;
   },
 
   updateContact: async (data: CafeContactUpdate): Promise<CafeContact> => {
-    const response = await cafeClient.post('/cafe/contact/', data);
+    const response = await restaurantClient.post('/restaurant/contact/', data);
     return response.data;
   },
 };
@@ -617,7 +668,7 @@ export const cafeLanguagesApi = {
    * Get all supported languages for cafe
    */
   getLanguages: async (): Promise<CafeLanguage[]> => {
-    const response = await cafeClient.get<CafeLanguage[]>('/cafe/languages');
+    const response = await restaurantClient.get<CafeLanguage[]>('/restaurant/languages');
     return response.data;
   },
 
@@ -625,7 +676,7 @@ export const cafeLanguagesApi = {
    * Add a new language
    */
   addLanguage: async (locale: string): Promise<CafeLanguage> => {
-    const response = await cafeClient.post<CafeLanguage>('/cafe/languages', { locale });
+    const response = await restaurantClient.post<CafeLanguage>('/restaurant/languages', { locale });
     return response.data;
   },
 
@@ -633,14 +684,14 @@ export const cafeLanguagesApi = {
    * Remove a language
    */
   removeLanguage: async (locale: string): Promise<void> => {
-    await cafeClient.delete(`/cafe/languages/${locale}`);
+    await restaurantClient.delete(`/restaurant/languages/${locale}`);
   },
 
   /**
    * Set a language as default
    */
   setDefaultLanguage: async (locale: string): Promise<void> => {
-    await cafeClient.put(`/cafe/languages/${locale}/set-default`);
+    await restaurantClient.put(`/restaurant/languages/${locale}/set-default`);
   },
 
   /**
@@ -659,57 +710,57 @@ export const cafeLanguagesApi = {
 export const cafeMenuApi = {
   // Categories
   getCategories: async (): Promise<MenuCategory[]> => {
-    const response = await cafeClient.get('/cafe/menu/categories');
+    const response = await restaurantClient.get('/restaurant/menu/categories');
     return response.data;
   },
 
   createCategory: async (data: MenuCategoryCreate): Promise<MenuCategory> => {
-    const response = await cafeClient.post('/cafe/menu/categories', data);
+    const response = await restaurantClient.post('/restaurant/menu/categories', data);
     return response.data;
   },
 
   updateCategory: async (id: number, data: MenuCategoryUpdate): Promise<MenuCategory> => {
-    const response = await cafeClient.put(`/cafe/menu/categories/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/menu/categories/${id}`, data);
     return response.data;
   },
 
   deleteCategory: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/menu/categories/${id}`);
+    await restaurantClient.delete(`/restaurant/menu/categories/${id}`);
   },
 
   // Menu Items
   getItems: async (): Promise<MenuItem[]> => {
-    const response = await cafeClient.get('/cafe/menu/items');
+    const response = await restaurantClient.get('/restaurant/menu/items');
     return response.data;
   },
 
   getItem: async (id: number): Promise<MenuItem> => {
-    const response = await cafeClient.get(`/cafe/menu/items/${id}`);
+    const response = await restaurantClient.get(`/restaurant/menu/items/${id}`);
     return response.data;
   },
 
   createItem: async (data: MenuItemCreate): Promise<MenuItem> => {
-    const response = await cafeClient.post('/cafe/menu/items', data);
+    const response = await restaurantClient.post('/restaurant/menu/items', data);
     return response.data;
   },
 
   updateItem: async (id: number, data: MenuItemUpdate): Promise<MenuItem> => {
-    const response = await cafeClient.put(`/cafe/menu/items/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/menu/items/${id}`, data);
     return response.data;
   },
 
   deleteItem: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/menu/items/${id}`);
+    await restaurantClient.delete(`/restaurant/menu/items/${id}`);
   },
 
   // Translations
   updateCategoryTranslations: async (id: number, translations: CategoryTranslation[]): Promise<MenuCategory> => {
-    const response = await cafeClient.put(`/cafe/menu/categories/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/menu/categories/${id}`, { translations });
     return response.data;
   },
 
   updateItemTranslations: async (id: number, translations: ItemTranslation[]): Promise<MenuItem> => {
-    const response = await cafeClient.put(`/cafe/menu/items/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/menu/items/${id}`, { translations });
     return response.data;
   },
 };
@@ -720,39 +771,39 @@ export const cafeMenuApi = {
 
 export const cafeBranchesApi = {
   getBranches: async (): Promise<Branch[]> => {
-    const response = await cafeClient.get('/cafe/branches/');
+    const response = await restaurantClient.get('/restaurant/branches/');
     return response.data;
   },
 
   getBranch: async (id: number): Promise<Branch> => {
-    const response = await cafeClient.get(`/cafe/branches/${id}`);
+    const response = await restaurantClient.get(`/restaurant/branches/${id}`);
     return response.data;
   },
 
   createBranch: async (data: BranchCreate): Promise<Branch> => {
-    const response = await cafeClient.post('/cafe/branches/', data);
+    const response = await restaurantClient.post('/restaurant/branches/', data);
     return response.data;
   },
 
   updateBranch: async (id: number, data: BranchUpdate): Promise<Branch> => {
-    const response = await cafeClient.put(`/cafe/branches/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/branches/${id}`, data);
     return response.data;
   },
 
   deleteBranch: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/branches/${id}`);
+    await restaurantClient.delete(`/restaurant/branches/${id}`);
   },
 
   reorderBranch: async (id: number, newOrder: number): Promise<void> => {
-    await cafeClient.post(`/cafe/branches/${id}/reorder?new_order=${newOrder}`);
+    await restaurantClient.post(`/restaurant/branches/${id}/reorder?new_order=${newOrder}`);
   },
 
   reorderBranches: async (branchIds: number[]): Promise<void> => {
-    await cafeClient.post('/cafe/branches/reorder', { branch_ids: branchIds });
+    await restaurantClient.post('/restaurant/branches/reorder', { branch_ids: branchIds });
   },
 
   updateBranchTranslations: async (id: number, translations: BranchTranslation[]): Promise<Branch> => {
-    const response = await cafeClient.put(`/cafe/branches/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/branches/${id}`, { translations });
     return response.data;
   },
 };
@@ -763,31 +814,31 @@ export const cafeBranchesApi = {
 
 export const cafeEventsApi = {
   getEvents: async (): Promise<CafeEvent[]> => {
-    const response = await cafeClient.get('/cafe/events/');
+    const response = await restaurantClient.get('/restaurant/events/');
     return response.data;
   },
 
   getEvent: async (id: number): Promise<CafeEvent> => {
-    const response = await cafeClient.get(`/cafe/events/${id}`);
+    const response = await restaurantClient.get(`/restaurant/events/${id}`);
     return response.data;
   },
 
   createEvent: async (data: CafeEventCreate): Promise<CafeEvent> => {
-    const response = await cafeClient.post('/cafe/events/', data);
+    const response = await restaurantClient.post('/restaurant/events/', data);
     return response.data;
   },
 
   updateEvent: async (id: number, data: CafeEventUpdate): Promise<CafeEvent> => {
-    const response = await cafeClient.put(`/cafe/events/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/events/${id}`, data);
     return response.data;
   },
 
   deleteEvent: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/events/${id}`);
+    await restaurantClient.delete(`/restaurant/events/${id}`);
   },
 
   updateEventTranslations: async (id: number, translations: EventTranslation[]): Promise<CafeEvent> => {
-    const response = await cafeClient.put(`/cafe/events/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/events/${id}`, { translations });
     return response.data;
   },
 };
@@ -798,31 +849,31 @@ export const cafeEventsApi = {
 
 export const cafeCareersApi = {
   getCareers: async (): Promise<Career[]> => {
-    const response = await cafeClient.get('/cafe/careers/');
+    const response = await restaurantClient.get('/restaurant/careers/');
     return response.data;
   },
 
   getCareer: async (id: number): Promise<Career> => {
-    const response = await cafeClient.get(`/cafe/careers/${id}`);
+    const response = await restaurantClient.get(`/restaurant/careers/${id}`);
     return response.data;
   },
 
   createCareer: async (data: CareerCreate): Promise<Career> => {
-    const response = await cafeClient.post('/cafe/careers/', data);
+    const response = await restaurantClient.post('/restaurant/careers/', data);
     return response.data;
   },
 
   updateCareer: async (id: number, data: CareerUpdate): Promise<Career> => {
-    const response = await cafeClient.put(`/cafe/careers/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/careers/${id}`, data);
     return response.data;
   },
 
   deleteCareer: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/careers/${id}`);
+    await restaurantClient.delete(`/restaurant/careers/${id}`);
   },
 
   updateCareerTranslations: async (id: number, translations: CareerTranslation[]): Promise<Career> => {
-    const response = await cafeClient.put(`/cafe/careers/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/careers/${id}`, { translations });
     return response.data;
   },
 };
@@ -833,32 +884,62 @@ export const cafeCareersApi = {
 
 export const cafePromotionsApi = {
   getPromotions: async (): Promise<Promotion[]> => {
-    const response = await cafeClient.get('/cafe/promotions/');
+    const response = await restaurantClient.get('/restaurant/promotions/');
     return response.data;
   },
 
   getPromotion: async (id: number): Promise<Promotion> => {
-    const response = await cafeClient.get(`/cafe/promotions/${id}`);
+    const response = await restaurantClient.get(`/restaurant/promotions/${id}`);
     return response.data;
   },
 
   createPromotion: async (data: PromotionCreate): Promise<Promotion> => {
-    const response = await cafeClient.post('/cafe/promotions/', data);
+    const response = await restaurantClient.post('/restaurant/promotions/', data);
     return response.data;
   },
 
   updatePromotion: async (id: number, data: PromotionUpdate): Promise<Promotion> => {
-    const response = await cafeClient.put(`/cafe/promotions/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/promotions/${id}`, data);
     return response.data;
   },
 
   deletePromotion: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/promotions/${id}`);
+    await restaurantClient.delete(`/restaurant/promotions/${id}`);
   },
 
   updatePromotionTranslations: async (id: number, translations: PromotionTranslation[]): Promise<Promotion> => {
-    const response = await cafeClient.put(`/cafe/promotions/${id}`, { translations });
+    const response = await restaurantClient.put(`/restaurant/promotions/${id}`, { translations });
     return response.data;
+  },
+};
+
+// ==========================================
+// Achievements API
+// ==========================================
+
+export const cafeAchievementsApi = {
+  getAchievements: async (): Promise<Achievement[]> => {
+    const response = await restaurantClient.get('/restaurant/achievements/');
+    return response.data;
+  },
+
+  getAchievement: async (id: number): Promise<Achievement> => {
+    const response = await restaurantClient.get(`/restaurant/achievements/${id}`);
+    return response.data;
+  },
+
+  createAchievement: async (data: AchievementCreate): Promise<Achievement> => {
+    const response = await restaurantClient.post('/restaurant/achievements/', data);
+    return response.data;
+  },
+
+  updateAchievement: async (id: number, data: AchievementUpdate): Promise<Achievement> => {
+    const response = await restaurantClient.put(`/restaurant/achievements/${id}`, data);
+    return response.data;
+  },
+
+  deleteAchievement: async (id: number): Promise<void> => {
+    await restaurantClient.delete(`/restaurant/achievements/${id}`);
   },
 };
 
@@ -905,43 +986,43 @@ export interface ServiceUpdate extends Partial<ServiceCreate> {}
 
 export const cafeServicesApi = {
   getServices: async (): Promise<Service[]> => {
-    const response = await cafeClient.get('/cafe/services');
+    const response = await restaurantClient.get('/restaurant/services');
     return response.data;
   },
 
   getService: async (id: number): Promise<Service> => {
-    const response = await cafeClient.get(`/cafe/services/${id}`);
+    const response = await restaurantClient.get(`/restaurant/services/${id}`);
     return response.data;
   },
 
   createService: async (data: ServiceCreate): Promise<Service> => {
-    const response = await cafeClient.post('/cafe/services', data);
+    const response = await restaurantClient.post('/restaurant/services', data);
     return response.data;
   },
 
   updateService: async (id: number, data: ServiceUpdate): Promise<Service> => {
-    const response = await cafeClient.put(`/cafe/services/${id}`, data);
+    const response = await restaurantClient.put(`/restaurant/services/${id}`, data);
     return response.data;
   },
 
   deleteService: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/services/${id}`);
+    await restaurantClient.delete(`/restaurant/services/${id}`);
   },
 
   reorderService: async (id: number, newOrder: number): Promise<void> => {
-    await cafeClient.patch(`/cafe/services/${id}/reorder?new_order=${newOrder}`);
+    await restaurantClient.patch(`/restaurant/services/${id}/reorder?new_order=${newOrder}`);
   },
 
   addServiceMedia: async (serviceId: number, mediaId: number, isPrimary: boolean = false): Promise<void> => {
-    await cafeClient.post(`/cafe/services/${serviceId}/media/${mediaId}`, { is_primary: isPrimary });
+    await restaurantClient.post(`/restaurant/services/${serviceId}/media/${mediaId}`, { is_primary: isPrimary });
   },
 
   removeServiceMedia: async (serviceId: number, mediaId: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/services/${serviceId}/media/${mediaId}`);
+    await restaurantClient.delete(`/restaurant/services/${serviceId}/media/${mediaId}`);
   },
 
   getServiceMedia: async (serviceId: number) => {
-    const response = await cafeClient.get(`/cafe/services/${serviceId}/media`);
+    const response = await restaurantClient.get(`/restaurant/services/${serviceId}/media`);
     return response.data;
   }
 };
@@ -971,7 +1052,7 @@ export interface AuditLog {
 export const cafeActivityLogsApi = {
   getRecentActivities: async (limit: number = 10): Promise<CafeActivityItem[]> => {
     try {
-      const response = await cafeClient.get<CafeActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=7`);
+      const response = await restaurantClient.get<CafeActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=7`);
       const logs = Array.isArray(response.data) ? response.data : [];
       return transformCafeActivityLogs(logs);
     } catch (error) {
@@ -982,7 +1063,7 @@ export const cafeActivityLogsApi = {
 
   getAllActivities: async (limit: number = 50, days: number = 30): Promise<CafeActivityItem[]> => {
     try {
-      const response = await cafeClient.get<CafeActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=${days}`);
+      const response = await restaurantClient.get<CafeActivityLogResponse[]>(`/activity-logs/?limit=${limit}&days=${days}`);
       const logs = Array.isArray(response.data) ? response.data : [];
       return transformCafeActivityLogs(logs);
     } catch (error) {
@@ -1035,7 +1116,7 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
       let iconBg = '#f3f4f6';
       let iconColor = '#6b7280';
 
-      // Customize based on activity type - Cafe specific
+      // Customize based on activity type - Restaurant specific
       switch (activityType) {
         case 'upload_media':
           text = `Media file '${details.filename || 'Unknown'}' uploaded by ${username}`;
@@ -1165,7 +1246,7 @@ const transformCafeActivityLogs = (logs: CafeActivityLogResponse[]): CafeActivit
 };
 export const cafeAuditLogsApi = {
   getRecentLogs: async (limit: number = 10): Promise<AuditLog[]> => {
-    const response = await cafeClient.get('/audit-logs', {
+    const response = await restaurantClient.get('/audit-logs', {
       params: { limit }
     });
     return response.data;
@@ -1178,35 +1259,35 @@ export const cafeAuditLogsApi = {
 
 export const cafeSpacesApi = {
   getSpaces: async (): Promise<Space[]> => {
-    const response = await cafeClient.get('/cafe/spaces/');
+    const response = await restaurantClient.get('/restaurant/spaces/');
     return response.data;
   },
 
   getSpace: async (id: number): Promise<Space> => {
-    const response = await cafeClient.get(`/cafe/spaces/${id}/`);
+    const response = await restaurantClient.get(`/restaurant/spaces/${id}/`);
     return response.data;
   },
 
   createSpace: async (data: SpaceCreate): Promise<Space> => {
-    const response = await cafeClient.post('/cafe/spaces/', data);
+    const response = await restaurantClient.post('/restaurant/spaces/', data);
     return response.data;
   },
 
   updateSpace: async (id: number, data: SpaceUpdate): Promise<Space> => {
-    const response = await cafeClient.put(`/cafe/spaces/${id}/`, data);
+    const response = await restaurantClient.put(`/restaurant/spaces/${id}/`, data);
     return response.data;
   },
 
   deleteSpace: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/spaces/${id}/`);
+    await restaurantClient.delete(`/restaurant/spaces/${id}/`);
   },
 
   reorderSpaces: async (spaceIds: number[]): Promise<void> => {
-    await cafeClient.post('/cafe/spaces/reorder', { space_ids: spaceIds });
+    await restaurantClient.post('/restaurant/spaces/reorder', { space_ids: spaceIds });
   },
 
   updateSpaceTranslations: async (id: number, translations: SpaceTranslation[]): Promise<Space> => {
-    const response = await cafeClient.put(`/cafe/spaces/${id}/`, { translations });
+    const response = await restaurantClient.put(`/restaurant/spaces/${id}/`, { translations });
     return response.data;
   },
 };
@@ -1220,35 +1301,35 @@ export const cafeContentSectionsApi = {
     const params = new URLSearchParams();
     if (pageCode) params.append('page_code', pageCode);
     if (sectionType) params.append('section_type', sectionType);
-    const response = await cafeClient.get(`/cafe/content-sections/?${params.toString()}`);
+    const response = await restaurantClient.get(`/restaurant/content-sections/?${params.toString()}`);
     return response.data;
   },
 
   getContentSection: async (id: number): Promise<ContentSection> => {
-    const response = await cafeClient.get(`/cafe/content-sections/${id}/`);
+    const response = await restaurantClient.get(`/restaurant/content-sections/${id}/`);
     return response.data;
   },
 
   createContentSection: async (data: ContentSectionCreate): Promise<ContentSection> => {
-    const response = await cafeClient.post('/cafe/content-sections/', data);
+    const response = await restaurantClient.post('/restaurant/content-sections/', data);
     return response.data;
   },
 
   updateContentSection: async (id: number, data: ContentSectionUpdate): Promise<ContentSection> => {
-    const response = await cafeClient.put(`/cafe/content-sections/${id}/`, data);
+    const response = await restaurantClient.put(`/restaurant/content-sections/${id}/`, data);
     return response.data;
   },
 
   deleteContentSection: async (id: number): Promise<void> => {
-    await cafeClient.delete(`/cafe/content-sections/${id}/`);
+    await restaurantClient.delete(`/restaurant/content-sections/${id}/`);
   },
 
   reorderContentSections: async (sectionIds: number[]): Promise<void> => {
-    await cafeClient.post('/cafe/content-sections/reorder', { section_ids: sectionIds });
+    await restaurantClient.post('/restaurant/content-sections/reorder', { section_ids: sectionIds });
   },
 
   updateContentSectionTranslations: async (id: number, translations: ContentSectionTranslation[]): Promise<ContentSection> => {
-    const response = await cafeClient.put(`/cafe/content-sections/${id}/`, { translations });
+    const response = await restaurantClient.put(`/restaurant/content-sections/${id}/`, { translations });
     return response.data;
   },
 };
@@ -1262,6 +1343,7 @@ export default {
   events: cafeEventsApi,
   careers: cafeCareersApi,
   promotions: cafePromotionsApi,
+  achievements: cafeAchievementsApi,
   services: cafeServicesApi,
   spaces: cafeSpacesApi,
   contentSections: cafeContentSectionsApi,
@@ -1276,3 +1358,41 @@ export default {
 
 
 
+
+
+
+
+
+export const restaurantSettingsApi = cafeSettingsApi;
+export const restaurantContactApi = cafeContactApi;
+export const restaurantPageSettingsApi = cafePageSettingsApi;
+export const restaurantLanguagesApi = cafeLanguagesApi;
+export const restaurantMenuApi = cafeMenuApi;
+export const restaurantBranchesApi = cafeBranchesApi;
+export const restaurantEventsApi = cafeEventsApi;
+export const restaurantCareersApi = cafeCareersApi;
+export const restaurantPromotionsApi = cafePromotionsApi;
+export const restaurantAchievementsApi = cafeAchievementsApi;
+export const restaurantServicesApi = cafeServicesApi;
+export const restaurantActivityLogsApi = cafeActivityLogsApi;
+export const restaurantAuditLogsApi = cafeAuditLogsApi;
+export const restaurantSpacesApi = cafeSpacesApi;
+export const restaurantContentSectionsApi = cafeContentSectionsApi;
+
+export type RestaurantActivityItem = CafeActivityItem;
+export type RestaurantActivityLogResponse = CafeActivityLogResponse;
+export type RestaurantSettings = CafeSettings;
+export type RestaurantSettingsUpdate = CafeSettingsUpdate;
+export type RestaurantPageSettings = CafePageSettings;
+export type RestaurantPageSettingsUpdate = CafePageSettingsUpdate;
+export type RestaurantEvent = CafeEvent;
+export type RestaurantEventCreate = CafeEventCreate;
+export type RestaurantEventUpdate = CafeEventUpdate;
+export type RestaurantAchievement = Achievement;
+export type RestaurantAchievementCreate = AchievementCreate;
+export type RestaurantAchievementUpdate = AchievementUpdate;
+export type RestaurantLanguage = CafeLanguage;
+export type RestaurantContact = CafeContact;
+export type RestaurantContactUpdate = CafeContactUpdate;
+
+export const transformRestaurantActivityLogs = transformCafeActivityLogs;

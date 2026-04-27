@@ -31,3 +31,4 @@ def downgrade():
     # Remove columns
     op.drop_column('vr_hotel_settings', 'phone_number')
     op.drop_column('vr_hotel_settings', 'messenger_url')
+

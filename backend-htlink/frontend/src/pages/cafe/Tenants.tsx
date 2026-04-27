@@ -44,7 +44,7 @@ const EMPTY_FORM: TenantFormState = {
   is_active: true,
 };
 
-const CafeTenants: React.FC = () => {
+const RestaurantTenants: React.FC = () => {
   const [settings, setSettings] = useState<TenantSettings | null>(null);
   const [formData, setFormData] = useState<TenantFormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -202,11 +202,11 @@ const CafeTenants: React.FC = () => {
               Refresh
             </button>
             <Link
-              to="/cafe/settings"
+              to="/restaurant/settings"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-700 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
             >
               <FontAwesomeIcon icon={faGlobe} />
-              Cafe Settings
+              Restaurant Settings
             </Link>
           </div>
         </div>
@@ -351,7 +351,7 @@ const CafeTenants: React.FC = () => {
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
           <Link
-            to="/cafe/settings"
+            to="/restaurant/settings"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-6 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
             Back to Settings
@@ -371,4 +371,5 @@ const CafeTenants: React.FC = () => {
   );
 };
 
-export default CafeTenants;
+export default RestaurantTenants;
+

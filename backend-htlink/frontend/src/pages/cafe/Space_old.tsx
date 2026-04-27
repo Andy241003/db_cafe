@@ -135,7 +135,7 @@ const CafeSpace: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Space Management</h1>
-          <p className="text-gray-600 mt-1">Showcase different areas in your cafe</p>
+          <p className="text-gray-600 mt-1">Showcase different areas in your restaurant</p>
         </div>
         <Button type="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAddSpace} className="bg-blue-600 hover:bg-blue-700">
           Add Space
@@ -262,3 +262,5 @@ const CafeSpace: React.FC = () => {
 };
 
 export default CafeSpace;
+
+

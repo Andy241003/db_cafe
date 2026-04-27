@@ -18,3 +18,4 @@ with engine.begin() as conn:
             conn.exec_driver_sql(statement)
 
 print("\n✅ All Cafe tables created successfully!")
+

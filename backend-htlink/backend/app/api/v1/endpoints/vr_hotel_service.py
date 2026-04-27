@@ -388,3 +388,4 @@ def delete_service(
     session.delete(service)
     session.commit()
     return None
+

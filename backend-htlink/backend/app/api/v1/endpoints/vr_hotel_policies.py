@@ -204,3 +204,4 @@ def update_vr_hotel_Policies(
         vrTitle=Policies.vr_title
     )
 
+

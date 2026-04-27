@@ -1,7 +1,7 @@
 """
-Cafe Events API endpoints
+Restaurant Events API endpoints.
 
-Handles cafe events management with multi-language support
+Handles restaurant events management with multi-language support
 """
 from typing import Optional, List
 from datetime import date
@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeEvent,
     CafeEventTranslation,
     CafeEventMedia,
@@ -45,7 +45,7 @@ class EventMediaSchema(BaseModel):
 
 
 class CafeEventResponse(BaseModel):
-    """Cafe Event Response"""
+    """Restaurant Event Response"""
     id: int
     tenant_id: int
     code: str
@@ -67,7 +67,7 @@ class CafeEventResponse(BaseModel):
 
 
 class CafeEventCreate(BaseModel):
-    """Cafe Event Create"""
+    """Restaurant Event Create"""
     code: str
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -87,7 +87,7 @@ class CafeEventCreate(BaseModel):
 
 
 class CafeEventUpdate(BaseModel):
-    """Cafe Event Update"""
+    """Restaurant Event Update"""
     code: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -284,7 +284,7 @@ def create_event(
         current_user,
         ActivityType.CREATE_POST,
         f'Event "{event_title}" created',
-        resource_type="cafe_event",
+        resource_type="restaurant_event",
         resource_id=new_event.id,
         extra_details={"title": event_title, "code": new_event.code},
     )
@@ -363,7 +363,7 @@ def update_event(
         current_user,
         ActivityType.UPDATE_POST,
         f'Event "{event_title}" updated',
-        resource_type="cafe_event",
+        resource_type="restaurant_event",
         resource_id=event_id,
         extra_details={"title": event_title, "code": event.code},
     )
@@ -393,9 +393,13 @@ def delete_event(
         current_user,
         ActivityType.DELETE_POST,
         f'Event "{event_title}" deleted',
-        resource_type="cafe_event",
+        resource_type="restaurant_event",
         resource_id=event_id,
         extra_details={"title": event_title, "code": event.code},
     )
     
     return {"success": True, "message": "Event deleted"}
+
+
+
+

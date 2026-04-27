@@ -27,3 +27,4 @@ export const PropertiesLayout: React.FC<PropertiesLayoutProps> = ({
     </div>
   );
 };
+

@@ -281,3 +281,4 @@ vr_room = CRUDVRRoom(VRRoom)
 vr_dining = CRUDVRDining(VRDining)
 vr_facility = CRUDVRFacility(VRFacility)
 vr_offer = CRUDVROffer(VROffer)
+

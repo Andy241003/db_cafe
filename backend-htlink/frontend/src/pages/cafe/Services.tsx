@@ -1,7 +1,7 @@
-﻿import { Button, Form, Input, Modal, Select, Switch, Tag, Popconfirm } from 'antd';
+import { Button, Form, Input, Modal, Select, Switch, Tag, Popconfirm } from 'antd';
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { cafeServicesApi, cafeLanguagesApi, type Service, type ServiceCreate, type ServiceUpdate, type ServiceTranslation } from '../../services/cafeApi';
+import { cafeServicesApi, cafeLanguagesApi, type Service, type ServiceCreate, type ServiceUpdate, type ServiceTranslation } from '../../services/restaurantApi';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import { getApiBaseUrl } from '../../utils/api';
@@ -39,6 +39,7 @@ const CafeServices: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [serviceForm] = Form.useForm();
+  const [isSavingService, setIsSavingService] = useState(false);
 
   // Language state
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
@@ -65,8 +66,8 @@ const CafeServices: React.FC = () => {
       }
     };
 
-    window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
-    return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+    window.addEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
+    return () => window.removeEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
   }, []);
 
   const loadLanguages = async () => {
@@ -129,7 +130,12 @@ const CafeServices: React.FC = () => {
   };
 
   const handleServiceSubmit = async () => {
+    if (isSavingService) {
+      return;
+    }
+
     try {
+      setIsSavingService(true);
       const formValues = serviceForm.getFieldsValue();
       
       const translations: ServiceTranslation[] = Object.values(serviceTranslations);
@@ -165,6 +171,8 @@ const CafeServices: React.FC = () => {
       const message = error instanceof Error ? error.message : 'Failed to save service';
       toast.error(message);
       console.error(error);
+    } finally {
+      setIsSavingService(false);
     }
   };
 
@@ -194,7 +202,7 @@ const CafeServices: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Services Management</h1>
-          <p className="text-gray-600 mt-1">Manage your cafe/hotel services with multi-language support</p>
+          <p className="text-gray-600 mt-1">Manage your restaurant/hotel services with multi-language support</p>
         </div>
         <Button 
           type="primary" 
@@ -540,6 +548,7 @@ const CafeServices: React.FC = () => {
             <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
               <Button
                 onClick={() => setModalVisible(false)}
+                disabled={isSavingService}
                 className="px-6 py-2 border border-slate-600 text-slate-600 rounded-md hover:bg-slate-50 transition-colors"
               >
                 Cancel
@@ -547,9 +556,10 @@ const CafeServices: React.FC = () => {
               <Button
                 onClick={handleServiceSubmit}
                 type="primary"
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                disabled={isSavingService}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                {editingService ? 'Update' : 'Create'}
+                {isSavingService ? 'Saving...' : editingService ? 'Update' : 'Create'}
               </Button>
             </div>
           </div>
@@ -559,7 +569,7 @@ const CafeServices: React.FC = () => {
       {/* Media Picker Modal */}
       {mediaPickerVisible && (
         <MediaPickerModal
-          source="cafe"
+          source="restaurant"
           folder="services"
           kind="image"
           onSelect={handleMediaSelected}
@@ -571,4 +581,7 @@ const CafeServices: React.FC = () => {
 };
 
 export default CafeServices;
+
+
+
 

@@ -1,11 +1,43 @@
-# API v1 endpoints
-
-from . import auth, plans, tenants, users, properties, features, features_test, posts, media, categories, events, settings, analytics, utils, locales, translations, property_categories, test_upload, property_posts, activity_logs, activity_test, vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction, vr_hotel_rooms
+from . import (
+    auth,
+    media,
+    plans,
+    tenants,
+    users,
+    locales,
+    activity_logs,
+    activity_test,
+    restaurant_settings,
+    restaurant_contact,
+    restaurant_languages,
+    restaurant_branches,
+    restaurant_menu,
+    restaurant_events,
+    restaurant_careers,
+    restaurant_promotions,
+    restaurant_spaces,
+    restaurant_content_sections,
+    restaurant_services,
+)
 
 __all__ = [
-    'auth', 'plans', 'tenants', 'users', 'properties',
-    'features', 'features_test', 'posts', 'media', 'categories',
-    'events', 'settings', 'analytics', 'utils', 'locales', 'translations',
-    'property_categories', 'test_upload', 'property_posts', 'activity_logs', 'activity_test',
-    'vr_hotel_settings', 'vr_hotel_languages', 'vr_hotel_introduction', 'vr_hotel_rooms'
+    "auth",
+    "media",
+    "plans",
+    "tenants",
+    "users",
+    "locales",
+    "activity_logs",
+    "activity_test",
+    "restaurant_settings",
+    "restaurant_contact",
+    "restaurant_languages",
+    "restaurant_branches",
+    "restaurant_menu",
+    "restaurant_events",
+    "restaurant_careers",
+    "restaurant_promotions",
+    "restaurant_spaces",
+    "restaurant_content_sections",
+    "restaurant_services",
 ]

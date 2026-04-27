@@ -417,3 +417,4 @@ def delete_facility(
     session.commit()
     
     return {"message": "Facility deleted successfully"}
+

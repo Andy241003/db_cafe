@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useFeaturePosts } from '../../hooks/useFeaturesPosts';
 import type { UIPost } from '../../services/api';
 
@@ -202,3 +202,4 @@ const FeaturePosts: React.FC<FeaturePostsProps> = ({
 };
 
 export default FeaturePosts;
+

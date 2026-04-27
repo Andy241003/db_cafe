@@ -1,12 +1,12 @@
-﻿import { faImage, faPhotoFilm, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faImage, faPhotoFilm, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { cafeSettingsApi, type CafeSettings } from '../../services/cafeApi';
+import { restaurantSettingsApi, type RestaurantSettings } from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
-const CafeSettings: React.FC = () => {
+const RestaurantSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState({
     primaryColor: '#8eb18e',
     backgroundColor: '#ffffff',
@@ -38,7 +38,7 @@ const CafeSettings: React.FC = () => {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const data = await cafeSettingsApi.getSettings();
+      const data = await restaurantSettingsApi.getSettings();
       
       // Map API response to local state
       setSettings({
@@ -97,7 +97,7 @@ const CafeSettings: React.FC = () => {
     if (!logoMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ logo_media_id: null });
+      await restaurantSettingsApi.updateSettings({ logo_media_id: null });
       
       setLogoMediaId(null);
       setLogoUrl('');
@@ -113,7 +113,7 @@ const CafeSettings: React.FC = () => {
     if (!faviconMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ favicon_media_id: null });
+      await restaurantSettingsApi.updateSettings({ favicon_media_id: null });
       
       setFaviconMediaId(null);
       setFaviconUrl('');
@@ -129,7 +129,7 @@ const CafeSettings: React.FC = () => {
     if (!metaImageMediaId) return;
     
     try {
-      await cafeSettingsApi.updateSettings({ meta_image_media_id: null });
+      await restaurantSettingsApi.updateSettings({ meta_image_media_id: null });
       
       setMetaImageMediaId(null);
       setMetaImageUrl('');
@@ -152,17 +152,17 @@ const CafeSettings: React.FC = () => {
       if (currentMediaPicker === 'logo') {
         setLogoMediaId(mediaId);
         setLogoUrl(mediaUrl);
-        await cafeSettingsApi.updateSettings({ logo_media_id: mediaId });
+        await restaurantSettingsApi.updateSettings({ logo_media_id: mediaId });
         toast.success('Logo updated successfully');
       } else if (currentMediaPicker === 'favicon') {
         setFaviconMediaId(mediaId);
         setFaviconUrl(mediaUrl);
-        await cafeSettingsApi.updateSettings({ favicon_media_id: mediaId });
+        await restaurantSettingsApi.updateSettings({ favicon_media_id: mediaId });
         toast.success('Favicon updated successfully');
       } else if (currentMediaPicker === 'meta_image') {
         setMetaImageMediaId(mediaId);
         setMetaImageUrl(mediaUrl);
-        await cafeSettingsApi.updateSettings({ meta_image_media_id: mediaId });
+        await restaurantSettingsApi.updateSettings({ meta_image_media_id: mediaId });
         toast.success('Meta image updated successfully');
       }
     } catch (error: any) {
@@ -176,7 +176,7 @@ const CafeSettings: React.FC = () => {
       setIsSaving(true);
       
       // Map local state to API format
-      const updateData: Partial<CafeSettings> = {
+      const updateData: Partial<RestaurantSettings> = {
         primary_color: settings.primaryColor,
         background_color: settings.backgroundColor,
         booking_url: settings.bookingUrl.trim() === '' ? null : settings.bookingUrl,
@@ -190,7 +190,7 @@ const CafeSettings: React.FC = () => {
         meta_keywords: settings.keywords.trim() === '' ? null : settings.keywords,
       };
       
-      await cafeSettingsApi.updateSettings(updateData);
+      await restaurantSettingsApi.updateSettings(updateData);
       toast.success('Settings saved successfully!');
     } catch (error: any) {
       console.error('Failed to save settings:', error);
@@ -205,7 +205,7 @@ const CafeSettings: React.FC = () => {
       try {
         setIsSaving(true);
         // Reset to default values
-        const defaultData: Partial<CafeSettings> = {
+        const defaultData: Partial<RestaurantSettings> = {
           primary_color: '#8eb18e',
           background_color: '#ffffff',
           booking_url: null,
@@ -218,7 +218,7 @@ const CafeSettings: React.FC = () => {
           meta_description: null,
           meta_keywords: null,
         };
-        await cafeSettingsApi.updateSettings(defaultData);
+        await restaurantSettingsApi.updateSettings(defaultData);
         toast.success('Settings restored to defaults');
         await loadSettings(); // Reload to show defaults
       } catch (error: any) {
@@ -247,7 +247,7 @@ const CafeSettings: React.FC = () => {
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-3">
-              Cafe Logo
+              Restaurant Logo
             </label>
             <div className="flex items-center gap-4">
               {/* Logo Preview Box */}
@@ -463,7 +463,7 @@ const CafeSettings: React.FC = () => {
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-slate-500 mt-1">
-              {settings.metaDescription.length}/160 characters - Short description about the cafe
+              {settings.metaDescription.length}/160 characters - Short description about the restaurant
             </p>
           </div>
 
@@ -521,7 +521,7 @@ const CafeSettings: React.FC = () => {
                   Recommended: 1200x630px (Facebook, Twitter, LinkedIn)
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  This image will be displayed when sharing your cafe website on social media platforms
+                  This image will be displayed when sharing your restaurant website on social media platforms
                 </p>
               </div>
             </div>
@@ -561,7 +561,7 @@ const CafeSettings: React.FC = () => {
           'Select Meta Image'
         }
         kind="image"
-        source="cafe"
+        source="restaurant"
         folder={currentMediaPicker === 'meta_image' ? 'seo' : 'settings'}
         maxFileSize={currentMediaPicker === 'favicon' ? 1 : 5}
       />
@@ -569,6 +569,9 @@ const CafeSettings: React.FC = () => {
   );
 };
 
-export default CafeSettings;
+export default RestaurantSettingsPage;
+
+
+
 
 

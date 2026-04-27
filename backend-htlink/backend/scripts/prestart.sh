@@ -19,3 +19,6 @@ else
   echo "[prestart] Skipping Alembic migrations (set RUN_ALEMBIC_MIGRATIONS=true to enable)."
 fi
 
+echo "[prestart] Seeding initial application data..."
+python -m app.initial_data
+echo "[prestart] Initial data ready"

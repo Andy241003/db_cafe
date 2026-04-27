@@ -5,7 +5,7 @@ import { Coffee, Edit, Eye, GripVertical, Info, Play, Plus, Trash2 } from 'lucid
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { cafeLanguagesApi, cafeMenuApi, cafeSettingsApi, type CategoryTranslation, type ItemTranslation, type MenuCategory, type MenuCategoryCreate, type MenuItem, type MenuItemCreate } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeMenuApi, cafeSettingsApi, type CategoryTranslation, type ItemTranslation, type MenuCategory, type MenuCategoryCreate, type MenuItem, type MenuItemCreate } from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 const { TextArea } = Input;
@@ -26,6 +26,19 @@ const getLanguageDisplay = (locale: string) => {
   return LANGUAGE_CONFIG[locale] || { name: locale.toUpperCase(), flag: locale.toUpperCase(), shortLabel: locale.toUpperCase() };
 };
 
+const pickInternalCode = (...candidates: Array<string | undefined | null>) => {
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const normalized = candidate.trim();
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
+  return undefined;
+};
+
 type MenuItemFormState = {
   category_id?: number;
   code?: string;
@@ -39,19 +52,21 @@ type MenuItemFormState = {
   calories?: number;
 };
 
-const CafeMenu: React.FC = () => {
+const RestaurantMenu: React.FC = () => {
   // Categories state
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
   const [categoryForm] = Form.useForm();
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   // Menu Items state
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuItemModalVisible, setMenuItemModalVisible] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
   const [menuItemForm] = Form.useForm();
+  const [isSavingMenuItem, setIsSavingMenuItem] = useState(false);
   
   // Media picker state
   const [mediaPickerVisible, setMediaPickerVisible] = useState(false);
@@ -107,8 +122,8 @@ const CafeMenu: React.FC = () => {
       }
     };
 
-    window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
-    return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+    window.addEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
+    return () => window.removeEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
   }, []);
 
   // Restore category form when returning from media picker
@@ -268,7 +283,12 @@ const CafeMenu: React.FC = () => {
   };
 
   const handleCategorySubmit = async (values: any) => {
+    if (isSavingCategory) {
+      return;
+    }
+
     try {
+      setIsSavingCategory(true);
       const translations = Object.values(categoryTranslations).filter(t => t.name.trim() !== '');
       
       if (translations.length === 0) {
@@ -278,9 +298,12 @@ const CafeMenu: React.FC = () => {
 
       const displayOrder = values.display_order ?? categoryForm.getFieldValue('display_order') ?? (editingCategory?.display_order || categories.length + 1);
       const isActive = values.is_active ?? categoryForm.getFieldValue('is_active') ?? (editingCategory?.is_active ?? true);
+      const submitCode =
+        pickInternalCode(values.code, categoryForm.getFieldValue('code'), editingCategory?.code) ??
+        `cat_${Date.now()}`;
 
       const submitData: MenuCategoryCreate = {
-        code: values.code || `cat_${Date.now()}`,
+        code: submitCode,
         icon_media_id: selectedCategoryIconId || undefined,
         display_order: displayOrder,
         is_active: isActive,
@@ -302,6 +325,8 @@ const CafeMenu: React.FC = () => {
       console.error('Category submit error:', error);
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to save category';
       toast.error(errorMsg);
+    } finally {
+      setIsSavingCategory(false);
     }
   };
 
@@ -399,7 +424,12 @@ const CafeMenu: React.FC = () => {
   };
 
   const handleMenuItemSubmit = async (values: any) => {
+    if (isSavingMenuItem) {
+      return;
+    }
+
     try {
+      setIsSavingMenuItem(true);
       const formValues = menuItemForm.getFieldsValue();
       const categoryId = values.category_id ?? menuItemState.category_id ?? formValues.category_id;
 
@@ -415,7 +445,9 @@ const CafeMenu: React.FC = () => {
         return;
       }
 
-      const submitCode = values.code ?? menuItemState.code ?? formValues.code ?? editingMenuItem?.code ?? `item_${Date.now()}`;
+      const submitCode =
+        pickInternalCode(values.code, menuItemState.code, formValues.code, editingMenuItem?.code) ??
+        `item_${Date.now()}`;
       const submitStatus = values.status ?? menuItemState.status ?? formValues.status ?? editingMenuItem?.status ?? 'available';
       const submitDisplayOrder =
         values.display_order ??
@@ -469,6 +501,8 @@ const CafeMenu: React.FC = () => {
         ? detail.map((item: any) => item.msg).join(', ')
         : detail || 'Failed to save menu item';
       toast.error(errorMessage);
+    } finally {
+      setIsSavingMenuItem(false);
     }
   };
 
@@ -1148,6 +1182,7 @@ const CafeMenu: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCategoryModalClose}
+                disabled={isSavingCategory}
                 className="rounded-md border border-slate-600 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Cancel
@@ -1155,9 +1190,10 @@ const CafeMenu: React.FC = () => {
               <button
                 type="button"
                 onClick={() => categoryForm.submit()}
-                className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
+                disabled={isSavingCategory}
+                className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                Save
+                {isSavingCategory ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -1448,6 +1484,7 @@ const CafeMenu: React.FC = () => {
             <div className="border-t border-slate-200 p-6 bg-slate-50 flex justify-end gap-4 sticky bottom-0">
               <Button 
                 onClick={handleMenuItemModalClose}
+                disabled={isSavingMenuItem}
                 className="rounded-md border border-slate-600 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
@@ -1455,9 +1492,10 @@ const CafeMenu: React.FC = () => {
               <Button
                 type="primary"
                 onClick={() => menuItemForm.submit()}
+                disabled={isSavingMenuItem}
                 className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                Save
+                {isSavingMenuItem ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </div>
@@ -1485,12 +1523,15 @@ const CafeMenu: React.FC = () => {
         allowMultiple={mediaPickerMode === 'item-image'}
         title={mediaPickerMode === 'category-icon' ? 'Select Category Image' : 'Select Menu Item Images'}
         kind="image"
-        source="cafe"
+        source="restaurant"
         folder={mediaPickerMode === 'category-icon' ? 'menu/categories' : 'menu/items'}
       />
     </div>
   );
 };
 
-export default CafeMenu;
+export default RestaurantMenu;
+
+
+
 

@@ -89,3 +89,4 @@ def log_user_activity(
         db.rollback()
         logger.error(f"Failed to log user activity {activity_type.value}: {e}")
         return None
+

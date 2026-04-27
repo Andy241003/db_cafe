@@ -241,3 +241,4 @@ def update_contact(
         vrTitle=contact.vr_title,
         content=content
     )
+

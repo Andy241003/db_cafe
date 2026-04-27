@@ -724,3 +724,4 @@ async def import_property_template(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Import failed: {str(e)}")
+

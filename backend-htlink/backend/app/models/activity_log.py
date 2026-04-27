@@ -1,5 +1,5 @@
 from sqlmodel import Field, SQLModel, Column
-from sqlalchemy import DateTime, JSON
+from sqlalchemy import JSON
 from datetime import datetime
 from typing import Optional, Dict, Any
 import enum
@@ -63,16 +63,3 @@ class ActivityLog(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 
-class AnalyticsSummary(SQLModel, table=True):
-    """Daily/Monthly analytics summary for performance"""
-    __tablename__ = "analytics_summary"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenants.id")
-    date: datetime = Field(sa_column=Column(DateTime, index=True))
-    period_type: str = Field(max_length=10)  # daily, monthly
-    total_page_views: int = Field(default=0)
-    unique_visitors: int = Field(default=0)
-    total_activities: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default=None)

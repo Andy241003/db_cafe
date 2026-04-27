@@ -2,7 +2,7 @@ import { faCheck, faGlobe } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { cafeLanguagesApi, cafeSettingsApi } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeSettingsApi } from '../../services/restaurantApi';
 
 // CSS Class Constants
 const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6';
@@ -58,7 +58,7 @@ interface LanguageSettings {
   date_format: string;
 }
 
-const CafeLanguages: React.FC = () => {
+const RestaurantLanguages: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -194,7 +194,7 @@ const CafeLanguages: React.FC = () => {
 
       setOriginalSettings(settings);
       setHasChanges(false);
-      window.dispatchEvent(new CustomEvent('cafe-languages-updated', {
+      window.dispatchEvent(new CustomEvent('restaurant-languages-updated', {
         detail: {
           supportedLanguages: settings.supported_languages,
           defaultLanguage: settings.default_language,
@@ -346,7 +346,7 @@ const CafeLanguages: React.FC = () => {
         </div>
 
         <p className="mb-5 text-sm text-slate-500">
-          Configure timezone and regional display preferences for your cafe.
+          Configure timezone and regional display preferences for your restaurant.
         </p>
 
         {/* Timezone */}
@@ -395,4 +395,7 @@ const CafeLanguages: React.FC = () => {
   );
 };
 
-export default CafeLanguages;
+export default RestaurantLanguages;
+
+
+

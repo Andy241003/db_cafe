@@ -71,3 +71,4 @@ def downgrade():
     op.drop_column('cafe_settings', 'messenger_url')
     op.drop_column('cafe_settings', 'booking_url')
     op.drop_column('cafe_settings', 'background_color')
+

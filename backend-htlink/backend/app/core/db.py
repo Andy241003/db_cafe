@@ -1,9 +1,9 @@
 from sqlmodel import Session, create_engine, select
-from datetime import datetime
 
 from app import crud
 from app.core.config import settings
-from app.models import AdminUser, AdminUserCreate
+from app.models import AdminUser
+from app.schemas.core import AdminUserCreate
 
 # Sync engine for MySQL with pymysql
 engine = create_engine(
@@ -36,7 +36,6 @@ def init_db(session: Session) -> None:
     # This works because the models are already imported and registered from app.models
     # SQLModel.metadata.create_all(engine)
 
-    # Import the models we need for seeding
     from app.models import Plan, Tenant, Locale
     
     # 1. Create tourism locales (25+ languages for international tourists)
@@ -86,18 +85,23 @@ def init_db(session: Session) -> None:
     
     session.commit()
     
-    # 2. Create basic plan
+    # 2. Reuse bootstrap plan when present, otherwise create the default restaurant plan
     plan = session.exec(
-        select(Plan).where(Plan.name == "Basic Plan")
+        select(Plan).where(Plan.code == "restaurant-basic")
     ).first()
     if not plan:
+        plan = session.exec(
+            select(Plan).where(Plan.code == "basic")
+        ).first()
+    if not plan:
         plan = Plan(
-            name="Basic Plan",
-            code="basic",
+            name="Restaurant Basic",
+            code="restaurant-basic",
             features_json={"core": True, "analytics": False}
         )
         session.add(plan)
         session.commit()
+        session.refresh(plan)
     
     # 3. Create demo tenant
     demo_tenant = session.exec(
@@ -106,9 +110,9 @@ def init_db(session: Session) -> None:
     if not demo_tenant:
         demo_tenant = Tenant(
             plan_id=plan.id,
-            name="Demo Hotel Chain",
+            name="Demo Restaurant",
             code="demo",
-            default_locale="en",
+            default_locale="vi",
             fallback_locale="en",
             settings_json={"theme": "default"},
             is_active=True
@@ -123,9 +127,9 @@ def init_db(session: Session) -> None:
     if not prod_tenant:
         prod_tenant = Tenant(
             plan_id=plan.id,
-            name="Premier Hotel Admin",
+            name="Premier Restaurant Admin",
             code="premier_admin",
-            default_locale="en",
+            default_locale="vi",
             fallback_locale="en",
             settings_json={"theme": "default"},
             is_active=True
@@ -137,17 +141,25 @@ def init_db(session: Session) -> None:
     tenant = demo_tenant
 
     # 4. Create admin users for both tenants
+    superuser_email = str(settings.FIRST_SUPERUSER)
+    email_local, _, email_domain = superuser_email.partition("@")
+    prod_superuser_email = (
+        f"{email_local}+premier@{email_domain}"
+        if email_domain
+        else f"{superuser_email}.premier"
+    )
+
     # Demo tenant admin
     demo_user = session.exec(
         select(AdminUser).where(
-            AdminUser.email == settings.FIRST_SUPERUSER,
+            AdminUser.email == superuser_email,
             AdminUser.tenant_id == demo_tenant.id
         )
     ).first()
     if not demo_user:
         user_in = AdminUserCreate(
             tenant_id=demo_tenant.id,
-            email=settings.FIRST_SUPERUSER,
+            email=superuser_email,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             full_name="System Administrator",
             role="OWNER"
@@ -157,60 +169,19 @@ def init_db(session: Session) -> None:
     # Production tenant admin
     prod_user = session.exec(
         select(AdminUser).where(
-            AdminUser.email == settings.FIRST_SUPERUSER,
+            AdminUser.email == prod_superuser_email,
             AdminUser.tenant_id == prod_tenant.id
         )
     ).first()
     if not prod_user:
         user_in = AdminUserCreate(
             tenant_id=prod_tenant.id,
-            email=settings.FIRST_SUPERUSER,
+            email=prod_superuser_email,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             full_name="Premier Admin",
             role="OWNER"
         )
         prod_user = crud.create_admin_user(session=session, user_create=user_in)
 
-    # Use demo user as default reference
-    user = demo_user
-
-    # 5. Create sample feature categories and features
-    from app.models import FeatureCategory, Feature
-    
-    # Create feature categories
-    categories_data = [
-        {"slug": "services", "icon_key": "fa-concierge-bell", "is_system": True},
-        {"slug": "dining", "icon_key": "fa-utensils", "is_system": True},
-        {"slug": "facilities", "icon_key": "fa-swimming-pool", "is_system": True},
-        {"slug": "accommodation", "icon_key": "fa-bed", "is_system": True}
-    ]
-    
-    for cat_data in categories_data:
-        existing_cat = session.exec(
-            select(FeatureCategory).where(FeatureCategory.slug == cat_data["slug"])
-        ).first()
-        if not existing_cat:
-            category = FeatureCategory(tenant_id=0, **cat_data)
-            session.add(category)
-    
     session.commit()
-    
-    # Get category IDs for features
-    services_cat = session.exec(select(FeatureCategory).where(FeatureCategory.slug == "services")).first()
-    dining_cat = session.exec(select(FeatureCategory).where(FeatureCategory.slug == "dining")).first()
-    
-    if services_cat and dining_cat:
-        # Create sample features
-        features_data = [
-            {"slug": "check-in-process", "category_id": services_cat.id, "icon_key": "fa-sign-in-alt", "is_system": True},
-            {"slug": "restaurant-dining", "category_id": dining_cat.id, "icon_key": "fa-utensils", "is_system": True},
-            {"slug": "vip-butler-service", "category_id": services_cat.id, "icon_key": "fa-crown", "is_system": True}
-        ]
-        
-        for feature_data in features_data:
-            existing_feature = session.exec(
-                select(Feature).where(Feature.slug == feature_data["slug"])
-            ).first()
-            if not existing_feature:
-                feature = Feature(tenant_id=0, **feature_data)
-                session.add(feature)
+

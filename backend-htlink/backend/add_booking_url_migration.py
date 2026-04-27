@@ -47,3 +47,4 @@ if __name__ == "__main__":
     print("docker exec -it <mysql_container> mysql -u <user> -p <database>")
     print("=" * 70)
 
+

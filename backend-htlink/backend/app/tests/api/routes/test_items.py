@@ -162,3 +162,4 @@ def test_delete_item_not_enough_permissions(
     assert response.status_code == 400
     content = response.json()
     assert content["detail"] == "Not enough permissions"
+

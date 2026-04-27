@@ -503,3 +503,4 @@ class PropertyLocale(SQLModel, table=True):
 
 # Backward compatibility alias (deprecated)
 VRLanguage = PropertyLocale
+

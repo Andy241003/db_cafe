@@ -1,7 +1,7 @@
 """
-Cafe Management System Models
+Restaurant Management System Models
 
-Database models for cafe management including:
+Database models for restaurant management including:
 - Settings and branding
 - Branches
 - Menu (categories and items)
@@ -52,20 +52,20 @@ class PromotionType(str, Enum):
 
 
 # ==========================================
-# Cafe Settings
+# Restaurant Settings
 # ==========================================
 
 class CafeSettings(SQLModel, table=True):
     """
-    Cafe general settings - branding, contact, business hours
+    Restaurant general settings - branding, contact, business hours
     """
-    __tablename__ = "cafe_settings"
+    __tablename__ = "restaurant_settings"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     
     # Branding
-    cafe_name: str
+    restaurant_name: str
     slogan: Optional[str] = None
     primary_color: str = "#6f4e37"  # Coffee brown
     secondary_color: str = "#d4a574"  # Light coffee
@@ -111,7 +111,7 @@ class CafePageSettings(SQLModel, table=True):
     """
     Per-page settings (VR360 links, display control)
     """
-    __tablename__ = "cafe_page_settings"
+    __tablename__ = "restaurant_page_settings"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -127,14 +127,14 @@ class CafePageSettings(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Branches
+# Restaurant Branches
 # ==========================================
 
 class CafeBranch(SQLModel, table=True):
     """
-    Cafe branches/locations
+    Restaurant branches/locations
     """
-    __tablename__ = "cafe_branches"
+    __tablename__ = "restaurant_branches"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -176,10 +176,10 @@ class CafeBranchTranslation(SQLModel, table=True):
     """
     Branch translations
     """
-    __tablename__ = "cafe_branch_translations"
+    __tablename__ = "restaurant_branch_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    branch_id: int = Field(foreign_key="cafe_branches.id", index=True)
+    branch_id: int = Field(foreign_key="restaurant_branches.id", index=True)
     locale: str = Field(index=True)
     
     name: str
@@ -196,10 +196,10 @@ class CafeBranchMedia(SQLModel, table=True):
     """
     Branch media (photos)
     """
-    __tablename__ = "cafe_branch_media"
+    __tablename__ = "restaurant_branch_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    branch_id: int = Field(foreign_key="cafe_branches.id", index=True)
+    branch_id: int = Field(foreign_key="restaurant_branches.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -211,14 +211,14 @@ class CafeBranchMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Menu
+# Restaurant Menu
 # ==========================================
 
 class CafeMenuCategory(SQLModel, table=True):
     """
     Menu categories (e.g., Coffee, Tea, Desserts)
     """
-    __tablename__ = "cafe_menu_categories"
+    __tablename__ = "restaurant_menu_categories"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -237,10 +237,10 @@ class CafeMenuCategoryTranslation(SQLModel, table=True):
     """
     Menu category translations
     """
-    __tablename__ = "cafe_menu_category_translations"
+    __tablename__ = "restaurant_menu_category_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    category_id: int = Field(foreign_key="cafe_menu_categories.id", index=True)
+    category_id: int = Field(foreign_key="restaurant_menu_categories.id", index=True)
     locale: str = Field(index=True)
     
     name: str
@@ -255,11 +255,11 @@ class CafeMenuItem(SQLModel, table=True):
     """
     Menu items (dishes, drinks)
     """
-    __tablename__ = "cafe_menu_items"
+    __tablename__ = "restaurant_menu_items"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
-    category_id: int = Field(foreign_key="cafe_menu_categories.id", index=True)
+    category_id: int = Field(foreign_key="restaurant_menu_categories.id", index=True)
     code: str = Field(unique=True, index=True)
     
     # Pricing
@@ -300,10 +300,10 @@ class CafeMenuItemTranslation(SQLModel, table=True):
     """
     Menu item translations
     """
-    __tablename__ = "cafe_menu_item_translations"
+    __tablename__ = "restaurant_menu_item_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    item_id: int = Field(foreign_key="cafe_menu_items.id", index=True)
+    item_id: int = Field(foreign_key="restaurant_menu_items.id", index=True)
     locale: str = Field(index=True)
     
     name: str
@@ -319,10 +319,10 @@ class CafeMenuItemMedia(SQLModel, table=True):
     """
     Menu item media (photos)
     """
-    __tablename__ = "cafe_menu_item_media"
+    __tablename__ = "restaurant_menu_item_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    item_id: int = Field(foreign_key="cafe_menu_items.id", index=True)
+    item_id: int = Field(foreign_key="restaurant_menu_items.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -334,14 +334,14 @@ class CafeMenuItemMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Events
+# Restaurant Events
 # ==========================================
 
 class CafeEvent(SQLModel, table=True):
     """
-    Cafe events (workshops, tastings, music nights)
+    Restaurant events (workshops, tastings, music nights)
     """
-    __tablename__ = "cafe_events"
+    __tablename__ = "restaurant_events"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -354,7 +354,7 @@ class CafeEvent(SQLModel, table=True):
     end_time: Optional[str] = None
     
     # Location
-    branch_id: Optional[int] = Field(default=None, foreign_key="cafe_branches.id")
+    branch_id: Optional[int] = Field(default=None, foreign_key="restaurant_branches.id")
     location_text: Optional[str] = None
     
     # Registration
@@ -382,10 +382,10 @@ class CafeEventTranslation(SQLModel, table=True):
     """
     Event translations
     """
-    __tablename__ = "cafe_event_translations"
+    __tablename__ = "restaurant_event_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    event_id: int = Field(foreign_key="cafe_events.id", index=True)
+    event_id: int = Field(foreign_key="restaurant_events.id", index=True)
     locale: str = Field(index=True)
     
     title: str
@@ -401,10 +401,10 @@ class CafeEventMedia(SQLModel, table=True):
     """
     Event media (photos)
     """
-    __tablename__ = "cafe_event_media"
+    __tablename__ = "restaurant_event_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    event_id: int = Field(foreign_key="cafe_events.id", index=True)
+    event_id: int = Field(foreign_key="restaurant_events.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -416,14 +416,14 @@ class CafeEventMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Careers
+# Restaurant Careers
 # ==========================================
 
 class CafeCareer(SQLModel, table=True):
     """
     Career/job postings
     """
-    __tablename__ = "cafe_careers"
+    __tablename__ = "restaurant_careers"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -445,7 +445,7 @@ class CafeCareer(SQLModel, table=True):
     application_url: Optional[str] = None
     
     # Location
-    branch_id: Optional[int] = Field(default=None, foreign_key="cafe_branches.id")
+    branch_id: Optional[int] = Field(default=None, foreign_key="restaurant_branches.id")
     
     # Media
     primary_image_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
@@ -468,10 +468,10 @@ class CafeCareerTranslation(SQLModel, table=True):
     """
     Career posting translations
     """
-    __tablename__ = "cafe_career_translations"
+    __tablename__ = "restaurant_career_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    career_id: int = Field(foreign_key="cafe_careers.id", index=True)
+    career_id: int = Field(foreign_key="restaurant_careers.id", index=True)
     locale: str = Field(index=True)
     
     title: str
@@ -488,10 +488,10 @@ class CafeCareerMedia(SQLModel, table=True):
     """
     Career media (photos)
     """
-    __tablename__ = "cafe_career_media"
+    __tablename__ = "restaurant_career_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    career_id: int = Field(foreign_key="cafe_careers.id", index=True)
+    career_id: int = Field(foreign_key="restaurant_careers.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -503,14 +503,14 @@ class CafeCareerMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Promotions
+# Restaurant Promotions
 # ==========================================
 
 class CafePromotion(SQLModel, table=True):
     """
     Promotions and special offers
     """
-    __tablename__ = "cafe_promotions"
+    __tablename__ = "restaurant_promotions"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -551,10 +551,10 @@ class CafePromotionTranslation(SQLModel, table=True):
     """
     Promotion translations
     """
-    __tablename__ = "cafe_promotion_translations"
+    __tablename__ = "restaurant_promotion_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    promotion_id: int = Field(foreign_key="cafe_promotions.id", index=True)
+    promotion_id: int = Field(foreign_key="restaurant_promotions.id", index=True)
     locale: str = Field(index=True)
     
     title: str
@@ -570,10 +570,10 @@ class CafePromotionMedia(SQLModel, table=True):
     """
     Promotion media (photos)
     """
-    __tablename__ = "cafe_promotion_media"
+    __tablename__ = "restaurant_promotion_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    promotion_id: int = Field(foreign_key="cafe_promotions.id", index=True)
+    promotion_id: int = Field(foreign_key="restaurant_promotions.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -585,14 +585,85 @@ class CafePromotionMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Spaces
+# Restaurant Achievements
+# ==========================================
+
+class CafeAchievement(SQLModel, table=True):
+    """
+    Restaurant achievements (awards, certifications, milestones)
+    """
+    __tablename__ = "restaurant_achievements"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    code: str = Field(unique=True, index=True)
+
+    achievement_type: Optional[str] = Field(default=None, index=True)
+    issuer: Optional[str] = None
+    awarded_at: Optional[date] = None
+    location_text: Optional[str] = None
+    reference_url: Optional[str] = None
+
+    primary_image_media_id: Optional[int] = Field(default=None, foreign_key="media_files.id")
+
+    is_active: bool = True
+    is_featured: bool = False
+    display_order: int = 0
+
+    attributes_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    translations: List["CafeAchievementTranslation"] = Relationship(back_populates="achievement")
+    media: List["CafeAchievementMedia"] = Relationship(back_populates="achievement")
+
+
+class CafeAchievementTranslation(SQLModel, table=True):
+    """
+    Achievement translations
+    """
+    __tablename__ = "restaurant_achievement_translations"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    achievement_id: int = Field(foreign_key="restaurant_achievements.id", index=True)
+    locale: str = Field(index=True)
+
+    title: str
+    description: Optional[str] = None
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    achievement: Optional[CafeAchievement] = Relationship(back_populates="translations")
+
+
+class CafeAchievementMedia(SQLModel, table=True):
+    """
+    Achievement media (photos/certificates)
+    """
+    __tablename__ = "restaurant_achievement_media"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    achievement_id: int = Field(foreign_key="restaurant_achievements.id", index=True)
+    media_id: int = Field(foreign_key="media_files.id", index=True)
+
+    is_primary: bool = False
+    sort_order: int = 0
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    achievement: Optional[CafeAchievement] = Relationship(back_populates="media")
+
+
+# ==========================================
+# Restaurant Spaces
 # ==========================================
 
 class CafeSpace(SQLModel, table=True):
     """
-    Cafe spaces / areas
+    Restaurant spaces / areas
     """
-    __tablename__ = "cafe_spaces"
+    __tablename__ = "restaurant_spaces"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -618,10 +689,10 @@ class CafeSpaceTranslation(SQLModel, table=True):
     """
     Space translations
     """
-    __tablename__ = "cafe_space_translations"
+    __tablename__ = "restaurant_space_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    space_id: int = Field(foreign_key="cafe_spaces.id", index=True)
+    space_id: int = Field(foreign_key="restaurant_spaces.id", index=True)
     locale: str = Field(index=True)
     
     name: str
@@ -636,10 +707,10 @@ class CafeSpaceMedia(SQLModel, table=True):
     """
     Space media (photos)
     """
-    __tablename__ = "cafe_space_media"
+    __tablename__ = "restaurant_space_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    space_id: int = Field(foreign_key="cafe_spaces.id", index=True)
+    space_id: int = Field(foreign_key="restaurant_spaces.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     is_primary: bool = False
@@ -651,14 +722,14 @@ class CafeSpaceMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Services
+# Restaurant Services
 # ==========================================
 
 class CafeService(SQLModel, table=True):
     """
-    Cafe/Hotel services (spa, concierge, etc.)
+    Restaurant services (spa, concierge, etc.)
     """
-    __tablename__ = "cafe_services"
+    __tablename__ = "restaurant_services"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -691,10 +762,10 @@ class CafeServiceTranslation(SQLModel, table=True):
     """
     Service translations
     """
-    __tablename__ = "cafe_service_translations"
+    __tablename__ = "restaurant_service_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    service_id: int = Field(foreign_key="cafe_services.id", index=True)
+    service_id: int = Field(foreign_key="restaurant_services.id", index=True)
     locale: str = Field(index=True)
     
     name: str  # Service name
@@ -709,10 +780,10 @@ class CafeServiceMedia(SQLModel, table=True):
     """
     Service media (photos/gallery)
     """
-    __tablename__ = "cafe_service_media"
+    __tablename__ = "restaurant_service_media"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    service_id: int = Field(foreign_key="cafe_services.id", index=True)
+    service_id: int = Field(foreign_key="restaurant_services.id", index=True)
     media_id: int = Field(foreign_key="media_files.id", index=True)
     
     sort_order: int = 0
@@ -724,14 +795,14 @@ class CafeServiceMedia(SQLModel, table=True):
 
 
 # ==========================================
-# Cafe Content Sections (Home/About)
+# Restaurant Content Sections (Home/About)
 # ==========================================
 
 class CafeContentSection(SQLModel, table=True):
     """
     Content sections for Home/About pages (features, values, etc.)
     """
-    __tablename__ = "cafe_content_sections"
+    __tablename__ = "restaurant_content_sections"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
@@ -755,10 +826,10 @@ class CafeContentSectionTranslation(SQLModel, table=True):
     """
     Content section translations
     """
-    __tablename__ = "cafe_content_section_translations"
+    __tablename__ = "restaurant_content_section_translations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    section_id: int = Field(foreign_key="cafe_content_sections.id", index=True)
+    section_id: int = Field(foreign_key="restaurant_content_sections.id", index=True)
     locale: str = Field(index=True)
     
     title: str
@@ -768,3 +839,39 @@ class CafeContentSectionTranslation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     section: Optional[CafeContentSection] = Relationship(back_populates="translations")
+
+
+# Backward-compatible aliases while the codebase finishes migrating to restaurant naming.
+RestaurantSettings = CafeSettings
+RestaurantPageSettings = CafePageSettings
+RestaurantBranch = CafeBranch
+RestaurantBranchTranslation = CafeBranchTranslation
+RestaurantBranchMedia = CafeBranchMedia
+RestaurantMenuCategory = CafeMenuCategory
+RestaurantMenuCategoryTranslation = CafeMenuCategoryTranslation
+RestaurantMenuItem = CafeMenuItem
+RestaurantMenuItemTranslation = CafeMenuItemTranslation
+RestaurantMenuItemMedia = CafeMenuItemMedia
+RestaurantEvent = CafeEvent
+RestaurantEventTranslation = CafeEventTranslation
+RestaurantEventMedia = CafeEventMedia
+RestaurantCareer = CafeCareer
+RestaurantCareerTranslation = CafeCareerTranslation
+RestaurantCareerMedia = CafeCareerMedia
+RestaurantPromotion = CafePromotion
+RestaurantPromotionTranslation = CafePromotionTranslation
+RestaurantPromotionMedia = CafePromotionMedia
+RestaurantAchievement = CafeAchievement
+RestaurantAchievementTranslation = CafeAchievementTranslation
+RestaurantAchievementMedia = CafeAchievementMedia
+RestaurantSpace = CafeSpace
+RestaurantSpaceTranslation = CafeSpaceTranslation
+RestaurantSpaceMedia = CafeSpaceMedia
+RestaurantService = CafeService
+RestaurantServiceTranslation = CafeServiceTranslation
+RestaurantServiceMedia = CafeServiceMedia
+RestaurantContentSection = CafeContentSection
+RestaurantContentSectionTranslation = CafeContentSectionTranslation
+
+
+

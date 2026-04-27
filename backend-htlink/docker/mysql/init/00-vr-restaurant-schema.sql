@@ -1,0 +1,5 @@
+-- Legacy wrapper retained so Docker init order remains stable.
+-- The actual canonical schema for this project is:
+--   00-vr-restaurant-only-schema.sql
+-- This file is intentionally left as a no-op to avoid provisioning
+-- the old mixed property/feature/post schema on fresh database init.

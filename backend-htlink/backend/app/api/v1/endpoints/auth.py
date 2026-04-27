@@ -77,8 +77,8 @@ def login(
     
     POST /api/v1/auth/login
     Form data:
-    - username: admin@travel.link360.vn  
-    - password: admin123
+    - username: admin@travel.link360.vn
+    - password: use the configured FIRST_SUPERUSER_PASSWORD value
     
     Backend automatically finds the correct tenant for the user
     Returns access token for external apps to use
@@ -225,3 +225,4 @@ def get_user_services(
         "user_id": current_user.id,
         "email": current_user.email
     }
+

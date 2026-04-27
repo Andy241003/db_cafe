@@ -1,6 +1,6 @@
 services:
   # Database is remote: travel.link360.vn
-  # Connection: pymysql://vrcafe_user:cafe@1234@travel.link360.vn:3306/vrcafe_db
+  # Connection values come from .env.production / Coolify environment variables
 
   backend:
     build:
@@ -25,7 +25,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://cafe-api.157.10.199.22.sslip.io/api
+        - VITE_API_URL=${VITE_API_URL}
         - NODE_ENV=production
     restart: always
     ports:
@@ -45,14 +45,6 @@ services:
       - app-network
     environment:
       - RUN_ALEMBIC_MIGRATIONS=true
-
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - "8081:8080"
-    networks:
-      - app-network
 
 volumes:
   app-uploads:

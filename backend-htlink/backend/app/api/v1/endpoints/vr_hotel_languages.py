@@ -161,3 +161,4 @@ def remove_vr_hotel_language(
     db.commit()
     
     return {"message": f"Language '{locale}' removed successfully"}
+

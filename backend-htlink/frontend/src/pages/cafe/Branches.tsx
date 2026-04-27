@@ -23,7 +23,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { cafeBranchesApi, cafeLanguagesApi, cafeSettingsApi, type Branch, type BranchTranslation } from '../../services/cafeApi';
+import { cafeBranchesApi, cafeLanguagesApi, cafeSettingsApi, type Branch, type BranchTranslation } from '../../services/restaurantApi';
 import { getApiBaseUrl } from '../../utils/api';
 
 
@@ -169,7 +169,7 @@ const SortableBranchItem: React.FC<SortableBranchItemProps> = ({ branch, onEdit,
       style={style}
       className="rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div
           {...attributes}
           {...listeners}
@@ -178,7 +178,7 @@ const SortableBranchItem: React.FC<SortableBranchItemProps> = ({ branch, onEdit,
           <FontAwesomeIcon icon={faGripVertical} />
         </div>
 
-        <div className="flex h-28 w-40 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+        <div className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:w-52">
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -248,7 +248,7 @@ const SortableBranchItem: React.FC<SortableBranchItemProps> = ({ branch, onEdit,
   );
 };
 
-const CafeBranches: React.FC = () => {
+const RestaurantBranches: React.FC = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -329,8 +329,8 @@ const CafeBranches: React.FC = () => {
       }
     };
 
-    window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
-    return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+    window.addEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
+    return () => window.removeEventListener('restaurant-languages-updated', handleLanguagesUpdated as EventListener);
   }, []);
 
   const loadLanguageSettings = async () => {
@@ -832,7 +832,7 @@ const CafeBranches: React.FC = () => {
         <div className="border-b border-slate-200 pb-4 mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Branch Management</h2>
-            <p className="mt-1 text-sm text-slate-500">Manage your cafe locations and details</p>
+            <p className="mt-1 text-sm text-slate-500">Manage your restaurant locations and details</p>
           </div>
           <button
             onClick={handleAdd}
@@ -920,7 +920,7 @@ const CafeBranches: React.FC = () => {
                       value={currentLocalizedBranch.name}
                       onChange={(e) => handleLocalizedBranchChange(currentLang, 'name', e.target.value)}
                       className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-                      placeholder="e.g., DB Cafe - Downtown"
+                      placeholder="e.g., DB Restaurant - Downtown"
                       required={currentLang === 'vi'}
                       disabled={isSaving}
                     />
@@ -1177,14 +1177,17 @@ const CafeBranches: React.FC = () => {
         onSelect={handleMediaSelect}
         title="Select Branch Image"
         kind="image"
-        source="cafe"
+        source="restaurant"
         folder="branches"
-        folderAliases={["branch", "cafe/branches", "cafe/branch"]}
+        folderAliases={["branch", "restaurant/branches", "restaurant/branch"]}
       />
     </div>
   );
 };
 
-export default CafeBranches;
+export default RestaurantBranches;
+
+
+
 
 

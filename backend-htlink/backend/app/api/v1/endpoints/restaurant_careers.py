@@ -1,7 +1,7 @@
 """
-Cafe Careers API endpoints
+Restaurant Careers API endpoints.
 
-Handles cafe career/job postings with multi-language support
+Handles restaurant career/job postings with multi-language support
 """
 from typing import Optional, List
 from datetime import date
@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeCareer,
     CafeCareerMedia,
     CafeCareerTranslation,
@@ -39,7 +39,7 @@ class CareerTranslationSchema(BaseModel):
 
 
 class CafeCareerResponse(BaseModel):
-    """Cafe Career Response"""
+    """Restaurant Career Response"""
     id: int
     tenant_id: int
     code: str
@@ -63,7 +63,7 @@ class CafeCareerResponse(BaseModel):
 
 
 class CafeCareerCreate(BaseModel):
-    """Cafe Career Create"""
+    """Restaurant Career Create"""
     code: str
     job_type: Optional[str] = None
     experience_required: Optional[str] = None
@@ -85,7 +85,7 @@ class CafeCareerCreate(BaseModel):
 
 
 class CafeCareerUpdate(BaseModel):
-    """Cafe Career Update"""
+    """Restaurant Career Update"""
     code: Optional[str] = None
     job_type: Optional[str] = None
     experience_required: Optional[str] = None
@@ -300,7 +300,7 @@ def create_career(
         current_user,
         ActivityType.CREATE_POST,
         f'Career "{career_title}" created',
-        resource_type="cafe_career",
+        resource_type="restaurant_career",
         resource_id=new_career.id,
         extra_details={"title": career_title, "code": new_career.code},
     )
@@ -385,7 +385,7 @@ def update_career(
         current_user,
         ActivityType.UPDATE_POST,
         f'Career "{career_title}" updated',
-        resource_type="cafe_career",
+        resource_type="restaurant_career",
         resource_id=career_id,
         extra_details={"title": career_title, "code": career.code},
     )
@@ -415,9 +415,13 @@ def delete_career(
         current_user,
         ActivityType.DELETE_POST,
         f'Career "{career_title}" deleted',
-        resource_type="cafe_career",
+        resource_type="restaurant_career",
         resource_id=career_id,
         extra_details={"title": career_title, "code": career.code},
     )
     
     return {"success": True, "message": "Career posting deleted"}
+
+
+
+

@@ -27,7 +27,7 @@ interface MediaStats {
   storage_used_mb: number;
 }
 
-const CafeGallery: React.FC = () => {
+const RestaurantGallery: React.FC = () => {
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -62,11 +62,11 @@ const CafeGallery: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      // Load all media from cafe source
+      // Load all media from restaurant source
       const data = await mediaApi.getMediaFiles({
         skip: 0,
         limit: 200,
-        source: 'cafe',
+        source: 'restaurant',
       });
       setMedia(data);
     } catch (err: any) {
@@ -142,7 +142,7 @@ const CafeGallery: React.FC = () => {
         let kind: 'image' | 'video' | 'file' = 'file';
         if (file.type.startsWith('image/')) kind = 'image';
         else if (file.type.startsWith('video/')) kind = 'video';
-        return await mediaApi.uploadFile(file, kind, undefined, 'cafe', undefined, undefined, 'gallery');
+        return await mediaApi.uploadFile(file, kind, undefined, 'restaurant', undefined, undefined, 'gallery');
       });
 
       const uploadResults = await Promise.all(uploadPromises);
@@ -371,7 +371,7 @@ const CafeGallery: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Media Library</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Store and organize images, videos, documents for your cafe content
+              Store and organize images, videos, documents for your restaurant content
             </p>
           </div>
 
@@ -903,4 +903,6 @@ const CafeGallery: React.FC = () => {
   );
 };
 
-export default CafeGallery;
+export default RestaurantGallery;
+
+

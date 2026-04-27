@@ -225,3 +225,4 @@ class VROfferResponse(VROfferBase):
     
     class Config:
         from_attributes = True
+

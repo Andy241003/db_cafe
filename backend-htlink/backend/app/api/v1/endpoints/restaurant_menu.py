@@ -1,7 +1,7 @@
 """
-Cafe Menu API endpoints
+Restaurant Menu API endpoints.
 
-Handles cafe menu categories and menu items with multi-language support
+Handles restaurant menu categories and menu items with multi-language support
 """
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeMenuCategory,
     CafeMenuCategoryTranslation,
     CafeMenuItem,
@@ -310,7 +310,7 @@ def create_category(
         current_user,
         ActivityType.CREATE_CATEGORY,
         f'Menu category "{primary_name}" created',
-        resource_type="cafe_menu_category",
+        resource_type="restaurant_menu_category",
         resource_id=new_category.id,
         extra_details={"name": primary_name, "code": new_category.code},
     )
@@ -375,7 +375,7 @@ def update_category(
         current_user,
         ActivityType.UPDATE_CATEGORY,
         f'Menu category "{category_name}" updated',
-        resource_type="cafe_menu_category",
+        resource_type="restaurant_menu_category",
         resource_id=category_id,
         extra_details={"name": category_name, "code": category.code},
     )
@@ -406,8 +406,18 @@ def delete_category(
             status_code=400, 
             detail="Cannot delete category with menu items. Please delete or move items first."
         )
-    
+
     category_name = category.code
+    translations = db.exec(
+        select(CafeMenuCategoryTranslation).where(
+            CafeMenuCategoryTranslation.category_id == category_id
+        )
+    ).all()
+
+    for translation in translations:
+        db.delete(translation)
+
+    db.flush()
     db.delete(category)
     db.commit()
 
@@ -416,7 +426,7 @@ def delete_category(
         current_user,
         ActivityType.DELETE_CATEGORY,
         f'Menu category "{category_name}" deleted',
-        resource_type="cafe_menu_category",
+        resource_type="restaurant_menu_category",
         resource_id=category_id,
         extra_details={"name": category_name, "code": category.code},
     )
@@ -584,7 +594,7 @@ def create_menu_item(
         current_user,
         ActivityType.CREATE_POST,
         f'Menu item "{item_name}" created',
-        resource_type="cafe_menu_item",
+        resource_type="restaurant_menu_item",
         resource_id=new_item.id,
         extra_details={"title": item_name, "code": new_item.code},
     )
@@ -676,7 +686,7 @@ def update_menu_item(
         current_user,
         ActivityType.UPDATE_POST,
         f'Menu item "{item_name}" updated',
-        resource_type="cafe_menu_item",
+        resource_type="restaurant_menu_item",
         resource_id=item_id,
         extra_details={"title": item_name, "code": item.code},
     )
@@ -706,11 +716,15 @@ def delete_menu_item(
         current_user,
         ActivityType.DELETE_POST,
         f'Menu item "{item_name}" deleted',
-        resource_type="cafe_menu_item",
+        resource_type="restaurant_menu_item",
         resource_id=item_id,
         extra_details={"title": item_name, "code": item.code},
     )
     
     return {"success": True, "message": "Menu item deleted"}
+
+
+
+
 
 

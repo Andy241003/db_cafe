@@ -150,7 +150,7 @@ const CafeHomeAbout: React.FC = () => {
           </div>
 
           <Form.Item label="Description" name="hero_description">
-            <TextArea rows={3} placeholder="Brief description about the cafe..." />
+            <TextArea rows={3} placeholder="Brief description about the restaurant..." />
           </Form.Item>
 
           <Form.Item label="Background image URL" name="hero_image_url">
@@ -239,3 +239,5 @@ const CafeHomeAbout: React.FC = () => {
 };
 
 export default CafeHomeAbout;
+
+

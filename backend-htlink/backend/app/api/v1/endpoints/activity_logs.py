@@ -310,3 +310,4 @@ def seed_sample_activities_public(
         "tenant_id": tenant_id,
         "count": created_count
     }
+

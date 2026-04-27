@@ -1,4 +1,4 @@
-﻿// src/components/TranslationModal.tsx
+// src/components/TranslationModal.tsx
 import { faArrowRotateLeft, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -225,4 +225,5 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
 };
 
 export default TranslationModal;
+
 

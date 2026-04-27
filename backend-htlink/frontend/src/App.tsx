@@ -25,24 +25,25 @@ import Media from './pages/Media';
 // import MainLayout from './layouts/MainLayout';
 // import DashboardSelection from './pages/DashboardSelection';
 
-// Cafe imports
-import CafeActivities from './pages/cafe/Activities';
-import CafeBranches from './pages/cafe/Branches';
-import CafeCareers from './pages/cafe/Careers';
-import CafeContact from './pages/cafe/Contact';
-import CafeDashboard from './pages/cafe/Dashboard';
-import CafeEvents from './pages/cafe/Events';
-import CafeGallery from './pages/cafe/Gallery';
-import CafeAbout from './pages/cafe/About';
-import CafeHome from './pages/cafe/Home';
-import CafeLanguages from './pages/cafe/Languages';
-import CafeLayout from './pages/cafe/CafeLayout';
-import CafeMenu from './pages/cafe/Menu';
-import CafePromotions from './pages/cafe/Promotions';
-import CafeSettings from './pages/cafe/Settings';
-import CafeSpace from './pages/cafe/Space';
-import CafeUsers from './pages/cafe/Users';
-import CafeTenants from './pages/cafe/Tenants';
+// Restaurant imports
+import RestaurantActivities from './pages/restaurant/Activities';
+import RestaurantAchievements from './pages/restaurant/Achievements';
+import RestaurantBranches from './pages/restaurant/Branches';
+import RestaurantCareers from './pages/restaurant/Careers';
+import RestaurantContact from './pages/restaurant/Contact';
+import RestaurantDashboard from './pages/restaurant/Dashboard';
+import RestaurantEvents from './pages/restaurant/Events';
+import RestaurantGallery from './pages/restaurant/Gallery';
+import RestaurantAbout from './pages/restaurant/About';
+import RestaurantHome from './pages/restaurant/Home';
+import RestaurantLanguages from './pages/restaurant/Languages';
+import RestaurantLayout from './pages/restaurant/RestaurantLayout';
+import RestaurantMenu from './pages/restaurant/Menu';
+import RestaurantPromotions from './pages/restaurant/Promotions';
+import RestaurantSettings from './pages/restaurant/Settings';
+import RestaurantSpace from './pages/restaurant/Space';
+import RestaurantUsers from './pages/restaurant/Users';
+import RestaurantTenants from './pages/restaurant/Tenants';
 import { autoDetectLanguage } from './utils/languageDetection';
 
 // Create a client
@@ -145,31 +146,32 @@ function App() {
             {/* VR Hotel Routes - REMOVED (Cafe only) */}
             {/* <Route path="/vr-hotel/*" element={...} /> */}
 
-            {/* Cafe Routes */}
+            {/* Restaurant Routes */}
             <Route 
-              path="/cafe/*" 
+              path="/restaurant/*" 
               element={
                 isAuthenticated ? (
                   <ProtectedRoute>
                     <Routes>
-                      <Route element={<CafeLayout />}>
-                        <Route path="" element={<CafeDashboard />} />
-                        <Route path="activities" element={<CafeActivities />} />
-                        <Route path="users" element={<CafeUsers />} />
-                        <Route path="tenants" element={<ProtectedRoute requireAdmin><CafeTenants /></ProtectedRoute>} />
-                        <Route path="home" element={<CafeHome />} />
-                        <Route path="about" element={<CafeAbout />} />
-                        <Route path="menu" element={<CafeMenu />} />
-                        <Route path="space" element={<CafeSpace />} />
-                        <Route path="branches" element={<CafeBranches />} />
-                        <Route path="events" element={<CafeEvents />} />
-                        <Route path="careers" element={<CafeCareers />} />
-                        <Route path="promotions" element={<CafePromotions />} />
-                        <Route path="gallery" element={<CafeGallery />} />
-                        <Route path="media" element={<Media defaultSource="cafe" />} />
-                        <Route path="contact" element={<CafeContact />} />
-                        <Route path="languages" element={<CafeLanguages />} />
-                        <Route path="settings" element={<CafeSettings />} />
+                      <Route element={<RestaurantLayout />}>
+                        <Route path="" element={<RestaurantDashboard />} />
+                        <Route path="activities" element={<RestaurantActivities />} />
+                        <Route path="users" element={<RestaurantUsers />} />
+                        <Route path="tenants" element={<ProtectedRoute requireAdmin><RestaurantTenants /></ProtectedRoute>} />
+                        <Route path="home" element={<RestaurantHome />} />
+                        <Route path="about" element={<RestaurantAbout />} />
+                        <Route path="menu" element={<RestaurantMenu />} />
+                        <Route path="space" element={<RestaurantSpace />} />
+                        <Route path="branches" element={<RestaurantBranches />} />
+                        <Route path="events" element={<RestaurantEvents />} />
+                        <Route path="careers" element={<RestaurantCareers />} />
+                        <Route path="promotions" element={<RestaurantPromotions />} />
+                        <Route path="achievements" element={<RestaurantAchievements />} />
+                        <Route path="gallery" element={<RestaurantGallery />} />
+                        <Route path="media" element={<Media defaultSource="restaurant" />} />
+                        <Route path="contact" element={<RestaurantContact />} />
+                        <Route path="languages" element={<RestaurantLanguages />} />
+                        <Route path="settings" element={<RestaurantSettings />} />
                       </Route>
                     </Routes>
                   </ProtectedRoute>
@@ -180,12 +182,12 @@ function App() {
             />
 
             {/* Travel Link Routes - REMOVED (Cafe only) */}
-            {/* Default route: redirect to Cafe */}
+            {/* Default route: redirect to Restaurant */}
             <Route 
               path="/" 
-              element={isAuthenticated ? <Navigate to="/cafe" replace /> : <Navigate to="/login" replace />} 
+              element={isAuthenticated ? <Navigate to="/restaurant" replace /> : <Navigate to="/login" replace />} 
             />
-            <Route path="/*" element={<Navigate to="/cafe" replace />} />
+            <Route path="/*" element={<Navigate to="/restaurant" replace />} />
           </Routes>
         </div>
       </Router>
@@ -220,4 +222,6 @@ function App() {
 }
 
 export default App;
+
+
 

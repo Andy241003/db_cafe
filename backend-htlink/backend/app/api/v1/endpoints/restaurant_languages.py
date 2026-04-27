@@ -1,6 +1,6 @@
 """
-Cafe Languages API
-Manage supported languages for cafe (stored in cafe_settings.settings_json)
+Restaurant Languages API.
+Manage supported languages for restaurant (stored in restaurant settings JSON).
 """
 from typing import List
 from fastapi import APIRouter, HTTPException
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import SessionDep, CurrentUser
-from app.models.cafe import CafeSettings
+from app.models.restaurant import CafeSettings
 
 router = APIRouter()
 
@@ -44,7 +44,7 @@ def get_or_create_settings(db: SessionDep, tenant_id: int) -> CafeSettings:
     if not settings:
         settings = CafeSettings(
             tenant_id=tenant_id,
-            cafe_name="My Cafe",
+            restaurant_name="My Restaurant",
             primary_color="#6f4e37",
             secondary_color="#d4a574",
             background_color="#ffffff",
@@ -81,14 +81,14 @@ def save_supported_languages(db: SessionDep, settings: CafeSettings, languages: 
 # ==========================================
 
 @router.get("/languages", response_model=List[LanguageResponse])
-def get_cafe_languages(
+def get_restaurant_languages(
     *,
     db: SessionDep,
     current_user: CurrentUser
 ):
     """
-    Get all supported languages for cafe
-    Languages are stored in cafe_settings.settings_json
+    Get all supported languages for the restaurant.
+    Languages are stored in restaurant settings JSON.
     """
     settings = get_or_create_settings(db, current_user.tenant_id)
     languages = get_supported_languages(settings)
@@ -101,14 +101,14 @@ def get_cafe_languages(
 
 
 @router.post("/languages", response_model=LanguageResponse)
-def add_cafe_language(
+def add_restaurant_language(
     *,
     db: SessionDep,
     current_user: CurrentUser,
     language_in: LanguageCreate
 ):
     """
-    Add a new language to cafe
+    Add a new language to the restaurant.
     """
     settings = get_or_create_settings(db, current_user.tenant_id)
     languages = get_supported_languages(settings)
@@ -138,14 +138,14 @@ def add_cafe_language(
 
 
 @router.delete("/languages/{locale}")
-def remove_cafe_language(
+def remove_restaurant_language(
     *,
     db: SessionDep,
     current_user: CurrentUser,
     locale: str
 ):
     """
-    Remove a language from cafe
+    Remove a language from the restaurant.
     Cannot remove if it's the only language
     """
     settings = get_or_create_settings(db, current_user.tenant_id)
@@ -180,14 +180,14 @@ def remove_cafe_language(
 
 
 @router.put("/languages/{locale}/set-default", response_model=LanguageResponse)
-def set_default_cafe_language(
+def set_default_restaurant_language(
     *,
     db: SessionDep,
     current_user: CurrentUser,
     locale: str
 ):
     """
-    Set the default cafe language by moving it to the first position.
+    Set the default restaurant language by moving it to the first position.
     """
     settings = get_or_create_settings(db, current_user.tenant_id)
     languages = get_supported_languages(settings)
@@ -202,4 +202,8 @@ def set_default_cafe_language(
     save_supported_languages(db, settings, reordered)
 
     return LanguageResponse(locale=locale, is_default=True)
+
+
+
+
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { cafeActivityLogsApi, type CafeActivityItem } from "../../services/cafeApi";
+import { restaurantActivityLogsApi, type RestaurantActivityItem } from "../../services/restaurantApi";
 
-const CafeActivities: React.FC = () => {
-  const [activities, setActivities] = useState<CafeActivityItem[]>([]);
+const RestaurantActivities: React.FC = () => {
+  const [activities, setActivities] = useState<RestaurantActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [filter, setFilter] = useState<string>("all");
@@ -15,7 +15,7 @@ const CafeActivities: React.FC = () => {
   const loadActivities = async () => {
     try {
       setLoading(true);
-      const data = await cafeActivityLogsApi.getAllActivities(100, days);
+      const data = await restaurantActivityLogsApi.getAllActivities(100, days);
 
       let filteredData = data;
       if (filter !== "all") {
@@ -64,9 +64,9 @@ const CafeActivities: React.FC = () => {
   return (
     <main className="px-6 pb-6 pt-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">Cafe Activity Log</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Restaurant Activity Log</h1>
         <p className="mt-2 text-slate-600">
-          Track logins and content management activity across the cafe dashboard
+          Track logins and content management activity across the restaurant dashboard
         </p>
       </div>
 
@@ -197,4 +197,7 @@ const CafeActivities: React.FC = () => {
   );
 };
 
-export default CafeActivities;
+export default RestaurantActivities;
+
+
+

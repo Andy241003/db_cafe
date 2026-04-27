@@ -1,4 +1,4 @@
-﻿// src/components/categories/CategoryModal.tsx
+// src/components/categories/CategoryModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
@@ -335,7 +335,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
             >
-              Ã—
+              ×
             </button>
           </div>
 
@@ -415,7 +415,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                ðŸ’¡ Default: {propertySettings.defaultLanguage.toUpperCase()} | Fallback: {propertySettings.fallbackLanguage.toUpperCase()}
+                💡 Default: {propertySettings.defaultLanguage.toUpperCase()} | Fallback: {propertySettings.fallbackLanguage.toUpperCase()}
               </p>
             </div>
 
@@ -486,7 +486,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               <div className="mb-3">
                 <input
                   type="text"
-                  placeholder="ðŸ” Search icons... (e.g., wifi, pool, spa)"
+                  placeholder="🔍 Search icons... (e.g., wifi, pool, spa)"
                   value={iconSearch}
                   onChange={(e) => setIconSearch(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -689,3 +689,4 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
     </>
   );
 };
+

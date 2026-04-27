@@ -73,3 +73,4 @@ class MediaFileCRUD:
         return media_file
 
 media_file = MediaFileCRUD()
+

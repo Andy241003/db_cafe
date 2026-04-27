@@ -40,3 +40,4 @@ def get_activities():
             "error": str(e),
             "data": []
         }
+

@@ -20,3 +20,4 @@ __all__ = [
     "UserRole", "PostStatus", "EventType", "DeviceType", "MediaKind",
     "AdminUserCreate", "AdminUserUpdate"
 ]
+

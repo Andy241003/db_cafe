@@ -33,9 +33,10 @@ class CRUDTenant(CRUDBase[Tenant, TenantCreate, TenantUpdate]):
 class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
     def get_by_email(self, db: Session, *, email: str, tenant_id: Optional[int] = None) -> Optional[AdminUser]:
         """Get user by email"""
-        return db.exec(
-            select(AdminUser).where(AdminUser.email == email)
-        ).first()
+        query = select(AdminUser).where(AdminUser.email == email)
+        if tenant_id is not None:
+            query = query.where(AdminUser.tenant_id == tenant_id)
+        return db.exec(query).first()
 
     def create(self, db: Session, *, obj_in: AdminUserCreate) -> AdminUser:
         """Create user with hashed password"""
@@ -63,7 +64,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
 
     def authenticate(self, db: Session, *, email: str, password: str, tenant_id: Optional[int] = None) -> Optional[AdminUser]:
         """Authenticate user"""
-        user = self.get_by_email(db, email=email)
+        user = self.get_by_email(db, email=email, tenant_id=tenant_id)
         if not user:
             return None
         if not verify_password(password, user.password_hash):

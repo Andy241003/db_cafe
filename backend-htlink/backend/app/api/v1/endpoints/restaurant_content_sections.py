@@ -1,5 +1,5 @@
 """
-Cafe Content Sections API endpoints
+Restaurant Content Sections API endpoints.
 
 Handles content sections for Home/About pages with multi-language support
 """
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.activity_log import ActivityType
-from app.models.cafe import (
+from app.models.restaurant import (
     CafeContentSection,
     CafeContentSectionTranslation
 )
@@ -35,7 +35,7 @@ class ContentSectionTranslationSchema(BaseModel):
 
 
 class CafeContentSectionResponse(BaseModel):
-    """Cafe Content Section Response"""
+    """Restaurant Content Section Response"""
     id: int
     tenant_id: int
     section_type: str
@@ -49,7 +49,7 @@ class CafeContentSectionResponse(BaseModel):
 
 
 class CafeContentSectionCreate(BaseModel):
-    """Cafe Content Section Create"""
+    """Restaurant Content Section Create"""
     section_type: str
     page_code: str
     icon: Optional[str] = None
@@ -61,7 +61,7 @@ class CafeContentSectionCreate(BaseModel):
 
 
 class CafeContentSectionUpdate(BaseModel):
-    """Cafe Content Section Update"""
+    """Restaurant Content Section Update"""
     section_type: Optional[str] = None
     page_code: Optional[str] = None
     icon: Optional[str] = None
@@ -207,7 +207,7 @@ def create_content_section(
         current_user,
         ActivityType.CREATE_POST,
         f'Content section "{section_title}" created',
-        resource_type="cafe_content_section",
+        resource_type="restaurant_content_section",
         resource_id=new_section.id,
         extra_details={"title": section_title, "page_code": new_section.page_code},
     )
@@ -274,7 +274,7 @@ def update_content_section(
         current_user,
         ActivityType.UPDATE_POST,
         f'Content section "{section_title}" updated',
-        resource_type="cafe_content_section",
+        resource_type="restaurant_content_section",
         resource_id=section_id,
         extra_details={"title": section_title, "page_code": section.page_code},
     )
@@ -304,7 +304,7 @@ def delete_content_section(
         current_user,
         ActivityType.DELETE_POST,
         f'Content section "{section_title}" deleted',
-        resource_type="cafe_content_section",
+        resource_type="restaurant_content_section",
         resource_id=section_id,
         extra_details={"title": section_title, "page_code": section.page_code},
     )
@@ -327,3 +327,7 @@ def reorder_content_sections(
     
     db.commit()
     return {"success": True, "message": "Content sections reordered"}
+
+
+
+

@@ -36,3 +36,4 @@ def downgrade():
 
     if "opening_hours" in existing_columns:
         op.drop_column("cafe_branches", "opening_hours")
+
