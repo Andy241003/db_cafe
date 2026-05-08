@@ -96,6 +96,11 @@ def get_section_with_relations(section_id: int, db: Session) -> dict:
                 description=t.description,
                 content=t.content
             ) for t in section.translations
+
+
+
+
+
         ]
     }
 

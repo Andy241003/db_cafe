@@ -1,11 +1,13 @@
 import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPenToSquare, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import type { Space, SpaceTranslation } from '../../services/cafeApi';
 import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi } from '../../services/cafeApi';
+import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { getApiBaseUrl } from '../../utils/api';
+import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
 
 const LABEL_CLASS = 'block text-sm font-medium text-slate-700 mb-2';
 const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
@@ -33,9 +35,12 @@ const CafeSpace: React.FC = () => {
   const [currentLocale, setCurrentLocale] = useState('vi');
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
+  const [panoramaUrl, setPanoramaUrl] = useState('');
   const [vr360Link, setVr360Link] = useState('');
-  const [vrTitle, setVrTitle] = useState('');
+  const [panoramaTargetId, setPanoramaTargetId] = useState('1');
+  const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
+  const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mediaPickerVisible, setMediaPickerVisible] = useState(false);
   const [draggingSpaceId, setDraggingSpaceId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -44,6 +49,12 @@ const CafeSpace: React.FC = () => {
 
   useEffect(() => {
     void loadInitialData();
+  }, []);
+
+  useEffect(() => () => {
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
   }, []);
 
   const loadInitialData = async () => {
@@ -60,8 +71,10 @@ const CafeSpace: React.FC = () => {
         setCurrentLocale(langCodes[0]);
       }
       setIsDisplaying(settings.settings_json?.spaces_is_displaying ?? true);
+      setPanoramaUrl(settings.settings_json?.spaces_panorama_url || '');
       setVr360Link(settings.settings_json?.spaces_vr360_link || '');
-      setVrTitle(settings.settings_json?.spaces_vr_title || '');
+      setPanoramaTargetId(String(settings.settings_json?.spaces_panorama_target_id ?? 1));
+      setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'spaces', langCodes.length > 0 ? langCodes : ['vi', 'en']));
       setSpaces(spaceData);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load spaces');
@@ -349,25 +362,59 @@ const CafeSpace: React.FC = () => {
     return url;
   };
 
-  const handleVR360Change = async (field: 'link' | 'title', value: string) => {
+  const persistVR360Change = async (field: 'panorama' | 'vr' | 'title', value: string, localeForTitle = currentLocale) => {
     try {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       await cafeSettingsApi.updateSettings({
         settings_json: {
-          ...(currentSettings.settings_json || {}),
-          spaces_vr360_link: field === 'link' ? convertToEmbedUrl(value) : vr360Link,
-          spaces_vr_title: field === 'title' ? value : vrTitle,
+          ...applyScopedTitleTranslations(currentSettings.settings_json, 'spaces', field === 'title'
+            ? {
+                ...vrTitleTranslations,
+                [localeForTitle]: value,
+              }
+            : vrTitleTranslations),
+          spaces_panorama_target_id: Number(panoramaTargetId) || 1,
+          spaces_panorama_url: field === 'panorama' ? value : panoramaUrl,
+          spaces_vr360_link: field === 'vr' ? convertToEmbedUrl(value) : vr360Link,
         },
       });
-      if (field === 'link') setVr360Link(convertToEmbedUrl(value));
-      if (field === 'title') setVrTitle(value);
+      if (field === 'panorama') setPanoramaUrl(value);
+      if (field === 'vr') setVr360Link(convertToEmbedUrl(value));
+      if (field === 'title') {
+        setVrTitleTranslations((previous) => ({
+          ...previous,
+          [currentLocale]: value,
+        }));
+      }
       toast.success('VR360 settings saved');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save VR settings');
     } finally {
       setSavingVR(false);
     }
+  };
+
+  const handleVR360Change = (field: 'panorama' | 'vr' | 'title', value: string) => {
+    if (field === 'panorama') {
+      setPanoramaUrl(value);
+    } else if (field === 'vr') {
+      setVr360Link(convertToEmbedUrl(value));
+    } else {
+      setVrTitleTranslations((previous) => ({
+        ...previous,
+        [currentLocale]: value,
+      }));
+    }
+
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
+
+    const localeForTitle = currentLocale;
+    vrSaveTimeoutRef.current = setTimeout(() => {
+      void persistVR360Change(field, value, localeForTitle);
+    }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
   };
   const currentTranslation = useMemo(
     () => editingSpace?.translations[currentLocale] || { name: '', description: '' },
@@ -401,12 +448,17 @@ const CafeSpace: React.FC = () => {
     return true;
   });
 
+  const panoramaTargetOptions = useMemo(() => {
+    const ids = new Set<number>([1, ...spaces.map((space) => space.id)]);
+    return Array.from(ids).sort((a, b) => a - b);
+  }, [spaces]);
+
   if (loading) {
     return <div className="flex h-64 items-center justify-center text-slate-600">Loading spaces...</div>;
   }
 
   return (
-    <div className="space-y-6">
+          <div>
       <div className={SECTION_CLASS}>
         <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
           <h2 className="text-xl font-bold text-slate-800">Display Status - Spaces Section</h2>
@@ -428,28 +480,66 @@ const CafeSpace: React.FC = () => {
         </div>
         <div className="space-y-6">
           <div>
-            <label className={LABEL_CLASS}>VR360 Link</label>
+            <label className={LABEL_CLASS}>Target ID</label>
+            <select
+              className={FIELD_CLASS}
+              value={panoramaTargetId}
+              onChange={(e) => setPanoramaTargetId(e.target.value)}
+              disabled={savingVR}
+            >
+              {panoramaTargetOptions.map((id) => (
+                <option key={id} value={id}>
+                  ID {id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Panorama URL</label>
+            <input
+              type="url"
+              className={FIELD_CLASS}
+              value={panoramaUrl}
+              onChange={(e) => void handleVR360Change('panorama', e.target.value)}
+              placeholder="https://example.com/panorama.jpg"
+              disabled={savingVR}
+            />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>VR URL</label>
             <input
               type="url"
               className={FIELD_CLASS}
               value={vr360Link}
-              onChange={(e) => void handleVR360Change('link', e.target.value)}
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
+              onChange={(e) => void handleVR360Change('vr', e.target.value)}
+              placeholder="https://youtube.com/watch?v=... or https://example.com/vr"
               disabled={savingVR}
             />
-            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
-              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
-              <span>Enter the URL to a 360� panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL</span>
-            </p>
           </div>
           <div>
-            <label className={LABEL_CLASS}>VR360 Title</label>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {supportedLanguages.map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  onClick={() => setCurrentLocale(locale)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentLocale === locale
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {locale.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <label className={LABEL_CLASS}>Title ({currentLocale.toUpperCase()})</label>
             <input
               type="text"
               className={FIELD_CLASS}
-              value={vrTitle}
+              value={vrTitleTranslations[currentLocale] || ''}
               onChange={(e) => void handleVR360Change('title', e.target.value)}
-              placeholder="Enter VR tour title"
+              placeholder="Enter title"
               disabled={savingVR}
             />
           </div>

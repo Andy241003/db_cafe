@@ -1,8 +1,10 @@
 ﻿import { faArrowRotateLeft, faCircleInfo, faEye, faFloppyDisk, faPhone, faPlay, faShareNodes, faVrCardboard } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { cafeLanguagesApi, cafeContactApi } from '../../services/cafeApi';
+import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
+import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
 
 // CSS Class Constants
 const INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -43,8 +45,10 @@ interface ContactSettings {
   instagram_url: string;
   twitter_url: string;
   youtube_url: string;
+  target_id: string;
+  panorama_url: string;
   vr360_link: string;
-  vr_title: string;
+  title_translations: TitleTranslations;
   map_coordinates: string;
   settings_json: {
     [locale: string]: {
@@ -58,9 +62,12 @@ interface ContactSettings {
 const CafeContact: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingVR, setSavingVR] = useState(false);
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
   const [currentLocale, setCurrentLocale] = useState<string>('vi');
   const [hasChanges, setHasChanges] = useState(false);
+  const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panoramaTargetOptions = [1, 2, 3];
   
   const [settings, setSettings] = useState<ContactSettings>({
     is_displaying: true,
@@ -71,8 +78,10 @@ const CafeContact: React.FC = () => {
     instagram_url: '',
     twitter_url: '',
     youtube_url: '',
+    target_id: '1',
+    panorama_url: '',
     vr360_link: '',
-    vr_title: '',
+    title_translations: { vi: '', en: '' },
     map_coordinates: '',
     settings_json: {
       vi: { address: '', working_hours: '', description: '' },
@@ -85,6 +94,12 @@ const CafeContact: React.FC = () => {
 
   useEffect(() => {
     loadLanguagesAndSettings();
+  }, []);
+
+  useEffect(() => () => {
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
   }, []);
 
   const loadLanguagesAndSettings = async () => {
@@ -135,8 +150,10 @@ const CafeContact: React.FC = () => {
         instagram_url: data.instagram_url || '',
         twitter_url: data.twitter_url || '',
         youtube_url: data.youtube_url || '',
+        target_id: String(data.target_id ?? 1),
+        panorama_url: data.panorama_url || '',
         vr360_link: data.vr360_link || '',
-        vr_title: data.vr_title || '',
+        title_translations: buildTitleTranslations(langCodes, data.title_translations, data.vr_title || ''),
         map_coordinates: data.map_coordinates || '',
         settings_json: address_translations
       };
@@ -187,6 +204,44 @@ const CafeContact: React.FC = () => {
     setHasChanges(true);
   }, []);
 
+  const persistVR360Change = async (
+    field: 'target_id' | 'panorama_url' | 'vr360_link' | 'title',
+    value: string,
+    localeForTitle = currentLocale,
+  ) => {
+    try {
+      setSavingVR(true);
+      const nextSettings: ContactSettings = {
+        ...settings,
+        target_id: field === 'target_id' ? value : settings.target_id,
+        panorama_url: field === 'panorama_url' ? value : settings.panorama_url,
+        vr360_link: field === 'vr360_link' ? value : settings.vr360_link,
+        title_translations:
+          field === 'title'
+            ? {
+                ...settings.title_translations,
+                [localeForTitle]: value,
+              }
+            : settings.title_translations,
+      };
+      await cafeContactApi.updateContact({
+        target_id: Number(nextSettings.target_id) || 1,
+        panorama_url: nextSettings.panorama_url,
+        vr360_link: nextSettings.vr360_link,
+        vr_title: pickPrimaryTitle(nextSettings.title_translations),
+        title_translations: nextSettings.title_translations,
+      });
+      setSettings(nextSettings);
+      setOriginalSettings(nextSettings);
+      setHasChanges(false);
+      toast.success('VR360 settings saved');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to save VR settings');
+    } finally {
+      setSavingVR(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -200,8 +255,11 @@ const CafeContact: React.FC = () => {
         instagram_url: settings.instagram_url,
         twitter_url: settings.twitter_url,
         youtube_url: settings.youtube_url,
+        target_id: Number(settings.target_id) || 1,
+        panorama_url: settings.panorama_url,
         vr360_link: settings.vr360_link,
-        vr_title: settings.vr_title,
+        vr_title: pickPrimaryTitle(settings.title_translations),
+        title_translations: settings.title_translations,
         map_coordinates: settings.map_coordinates,
         address_translations: settings.settings_json
       });
@@ -384,32 +442,115 @@ const CafeContact: React.FC = () => {
         
         <div className="space-y-6">
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Target ID</label>
+            <select
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={settings.target_id}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSettings((prev) => ({ ...prev, target_id: nextValue }));
+                if (vrSaveTimeoutRef.current) {
+                  clearTimeout(vrSaveTimeoutRef.current);
+                }
+                vrSaveTimeoutRef.current = setTimeout(() => {
+                  void persistVR360Change('target_id', nextValue, currentLocale);
+                }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
+              }}
+              disabled={savingVR}
+            >
+              {panoramaTargetOptions.map((id) => (
+                <option key={id} value={String(id)}>
+                  ID {id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama / YouTube Video
+              Panorama URL
             </label>
             <input
               type="url"
-              placeholder="https://example.com/your-panorama.jpg"
+              placeholder="https://example.com/panorama.jpg"
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={settings.panorama_url}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSettings((prev) => ({ ...prev, panorama_url: nextValue }));
+                if (vrSaveTimeoutRef.current) {
+                  clearTimeout(vrSaveTimeoutRef.current);
+                }
+                vrSaveTimeoutRef.current = setTimeout(() => {
+                  void persistVR360Change('panorama_url', nextValue, currentLocale);
+                }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
+              }}
+              disabled={savingVR}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">VR URL</label>
+            <input
+              type="url"
+              placeholder="https://youtube.com/watch?v=... or https://example.com/vr"
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={settings.vr360_link}
-              onChange={(e) => handleInputChange('vr360_link', e.target.value)}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSettings((prev) => ({ ...prev, vr360_link: nextValue }));
+                if (vrSaveTimeoutRef.current) {
+                  clearTimeout(vrSaveTimeoutRef.current);
+                }
+                vrSaveTimeoutRef.current = setTimeout(() => {
+                  void persistVR360Change('vr360_link', nextValue, currentLocale);
+                }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
+              }}
+              disabled={savingVR}
             />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
-              <span>
-                Enter the URL to a 360° panorama image (recommended: equirectangular JPG, minimum 4096x2048px)
-              </span>
-            </p>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {supportedLanguages.map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  onClick={() => setCurrentLocale(locale)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentLocale === locale
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {locale.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title ({currentLocale.toUpperCase()})</label>
             <input
               type="text"
-              placeholder="Enter VR tour title"
+              placeholder="Enter title"
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={settings.vr_title}
-              onChange={(e) => handleInputChange('vr_title', e.target.value)}
+              value={settings.title_translations[currentLocale] || ''}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSettings((prev) => ({
+                  ...prev,
+                  title_translations: {
+                    ...prev.title_translations,
+                    [currentLocale]: nextValue,
+                  },
+                }));
+                if (vrSaveTimeoutRef.current) {
+                  clearTimeout(vrSaveTimeoutRef.current);
+                }
+                const localeForTitle = currentLocale;
+                vrSaveTimeoutRef.current = setTimeout(() => {
+                  void persistVR360Change('title', nextValue, localeForTitle);
+                }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
+              }}
+              disabled={savingVR}
             />
           </div>
           

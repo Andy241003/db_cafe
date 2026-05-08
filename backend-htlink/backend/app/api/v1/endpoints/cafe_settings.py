@@ -3,6 +3,7 @@ Cafe Settings API endpoints
 
 Handles cafe settings, contact, branding, and page configurations
 """
+from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
@@ -11,6 +12,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models.cafe import CafeSettings, CafePageSettings
+from app.utils.cafe_vr_title import clean_title_translations, sync_title_translations
 
 router = APIRouter()
 
@@ -40,6 +42,7 @@ class CafeSettingsResponse(BaseModel):
     meta_keywords: Optional[str] = None
     business_hours: Optional[Dict[str, Any]] = None
     settings_json: Optional[Dict[str, Any]] = None
+    updated_at: Optional[datetime] = None
 
 
 class CafeSettingsUpdate(BaseModel):
@@ -69,17 +72,24 @@ class CafePageSettingsResponse(BaseModel):
     tenant_id: Optional[int] = None
     page_code: str
     is_displaying: bool = True
+    target_id: Optional[int] = None
+    panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
     settings_json: Optional[Dict[str, Any]] = None
+    updated_at: Optional[datetime] = None
 
 
 class CafePageSettingsUpdate(BaseModel):
     """Cafe Page Settings Update"""
     page_code: str
     is_displaying: Optional[bool] = None
+    target_id: Optional[int] = None
+    panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
     settings_json: Optional[Dict[str, Any]] = None
 
 
@@ -108,6 +118,11 @@ def to_page_settings_response(
 ) -> CafePageSettingsResponse:
     payload = page_settings.model_dump()
     payload["tenant_id"] = tenant_id
+    payload["target_id"] = (payload.get("settings_json") or {}).get("target_id")
+    payload["panorama_url"] = (payload.get("settings_json") or {}).get("panorama_url")
+    payload["title_translations"] = clean_title_translations(
+        (payload.get("settings_json") or {}).get("title_translations")
+    )
     return CafePageSettingsResponse(**payload)
 
 
@@ -163,6 +178,7 @@ def create_or_update_cafe_settings(
                 setattr(existing, key, value)
                 if key in ['business_hours', 'settings_json']:
                     flag_modified(existing, key)
+        existing.updated_at = datetime.utcnow()
 
         db.add(existing)
         db.commit()
@@ -177,6 +193,7 @@ def create_or_update_cafe_settings(
         tenant_id=current_user.tenant_id,
         **settings_dict,
     )
+    new_settings.updated_at = datetime.utcnow()
     db.add(new_settings)
     db.commit()
     db.refresh(new_settings)
@@ -217,8 +234,11 @@ def get_page_setting(
             tenant_id=current_user.tenant_id,
             page_code=page_code,
             is_displaying=True,
+            target_id=1,
+            panorama_url=None,
             vr360_link=None,
             vr_title=None,
+            title_translations={},
             settings_json=None,
         )
 
@@ -235,13 +255,43 @@ def create_or_update_page_setting(
     Create or update page setting
     """
     existing = get_page_settings_record(db, current_user.tenant_id, page_data.page_code)
+    update_dict = page_data.model_dump(exclude_unset=True, exclude={"title_translations"})
+    incoming_settings_json = update_dict.get("settings_json")
+    base_settings_json = incoming_settings_json
+    if base_settings_json is None and existing:
+        base_settings_json = existing.settings_json
+    if not isinstance(base_settings_json, dict):
+        base_settings_json = {}
+    if "target_id" in update_dict:
+        base_settings_json = {
+            **base_settings_json,
+            "target_id": update_dict.pop("target_id"),
+        }
+    if "panorama_url" in update_dict:
+        base_settings_json = {
+            **base_settings_json,
+            "panorama_url": update_dict.pop("panorama_url"),
+        }
+
+    next_settings_json, _, primary_title = sync_title_translations(
+        base_settings_json,
+        title_translations=page_data.title_translations,
+        fallback_title=update_dict.get("vr_title"),
+    )
+
+    if page_data.title_translations is not None or "target_id" in page_data.model_fields_set or "panorama_url" in page_data.model_fields_set or (
+        isinstance(incoming_settings_json, dict) and "title_translations" in incoming_settings_json
+    ):
+        update_dict["settings_json"] = next_settings_json
+        update_dict["vr_title"] = primary_title
 
     if existing:
-        for key, value in page_data.model_dump(exclude_unset=True).items():
+        for key, value in update_dict.items():
             if hasattr(existing, key) and key != 'page_code':
                 setattr(existing, key, value)
                 if key == 'settings_json':
                     flag_modified(existing, key)
+        existing.updated_at = datetime.utcnow()
 
         db.add(existing)
         db.commit()
@@ -250,8 +300,9 @@ def create_or_update_page_setting(
 
     new_page = CafePageSettings(
         tenant_id=current_user.tenant_id,
-        **page_data.model_dump(exclude_unset=True),
+        **update_dict,
     )
+    new_page.updated_at = datetime.utcnow()
     db.add(new_page)
     db.commit()
     db.refresh(new_page)

@@ -1,0 +1,1 @@
+export const VR_SETTINGS_AUTOSAVE_DELAY_MS = 1500;

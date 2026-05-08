@@ -67,6 +67,8 @@ export interface CafeActivityLogResponse {
 }
 
 export interface CafeSettings {
+  id?: number;
+  tenant_id?: number;
   cafe_name?: string;
   slogan?: string;
   primary_color: string;
@@ -94,6 +96,7 @@ export interface CafeSettings {
   
   // Settings JSON
   settings_json?: Record<string, any>;
+  updated_at?: string | null;
 }
 
 export interface CafeSettingsUpdate extends Partial<CafeSettings> {}
@@ -102,16 +105,23 @@ export interface CafePageSettings {
   tenant_id?: number;
   page_code: string;
   is_displaying: boolean;
+  target_id?: number | null;
+  panorama_url?: string | null;
   vr360_link?: string | null;
   vr_title?: string | null;
+  title_translations?: Record<string, string> | null;
   settings_json?: Record<string, any> | null;
+  updated_at?: string | null;
 }
 
 export interface CafePageSettingsUpdate {
   page_code: string;
   is_displaying?: boolean;
+  target_id?: number | null;
+  panorama_url?: string | null;
   vr360_link?: string | null;
   vr_title?: string | null;
+  title_translations?: Record<string, string> | null;
   settings_json?: Record<string, any> | null;
 }
 
@@ -562,9 +572,13 @@ export interface CafeContact {
   instagram_url: string;
   twitter_url: string;
   youtube_url: string;
+  target_id?: number | null;
+  panorama_url?: string | null;
   vr360_link: string;
   vr_title: string;
+  title_translations?: Record<string, string> | null;
   map_coordinates: string;
+  updated_at?: string | null;
   address_translations: {
     [locale: string]: {
       address: string;

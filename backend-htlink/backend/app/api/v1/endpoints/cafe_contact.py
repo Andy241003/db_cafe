@@ -3,6 +3,7 @@ Cafe Contact API endpoints
 
 Handles cafe contact information separately from general settings
 """
+from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
@@ -12,6 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.cafe import CafeSettings
+from app.utils.cafe_vr_title import clean_title_translations, sync_title_translations
 
 router = APIRouter()
 
@@ -30,10 +32,14 @@ class CafeContactResponse(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
+    target_id: Optional[int] = None
+    panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
     map_coordinates: Optional[str] = None
     address_translations: Optional[Dict[str, Any]] = None
+    updated_at: Optional[datetime] = None
 
 
 class CafeContactUpdate(BaseModel):
@@ -46,8 +52,11 @@ class CafeContactUpdate(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
+    target_id: Optional[int] = None
+    panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
     map_coordinates: Optional[str] = None
     address_translations: Optional[Dict[str, Any]] = None
 
@@ -76,7 +85,9 @@ def get_cafe_contact(
         # Return default empty contact if settings don't exist
         return CafeContactResponse(
             is_displaying=True,
-            address_translations={}
+            address_translations={},
+            target_id=1,
+            updated_at=None,
         )
     
     # Extract contact info from settings_json
@@ -103,10 +114,14 @@ def get_cafe_contact(
         instagram_url=settings.instagram_url,
         twitter_url=settings_json.get('twitter_url'),
         youtube_url=settings.youtube_url,
+        target_id=settings_json.get('target_id'),
+        panorama_url=settings_json.get('panorama_url'),
         vr360_link=settings_json.get('vr360_link'),
         vr_title=settings_json.get('vr_title'),
+        title_translations=clean_title_translations(settings_json.get('title_translations')),
         map_coordinates=settings_json.get('map_coordinates'),
-        address_translations=address_translations
+        address_translations=address_translations,
+        updated_at=settings.updated_at,
     )
 
 
@@ -158,13 +173,24 @@ def update_cafe_contact(
         settings_json['contact_is_displaying'] = update_dict['is_displaying']
     if 'twitter_url' in update_dict:
         settings_json['twitter_url'] = update_dict['twitter_url']
+    if 'target_id' in update_dict:
+        settings_json['target_id'] = update_dict['target_id']
+    if 'panorama_url' in update_dict:
+        settings_json['panorama_url'] = update_dict['panorama_url']
     if 'vr360_link' in update_dict:
         settings_json['vr360_link'] = update_dict['vr360_link']
     if 'vr_title' in update_dict:
         settings_json['vr_title'] = update_dict['vr_title']
     if 'map_coordinates' in update_dict:
         settings_json['map_coordinates'] = update_dict['map_coordinates']
-    
+    if 'title_translations' in update_dict:
+        settings_json, _, primary_title = sync_title_translations(
+            settings_json,
+            title_translations=update_dict['title_translations'],
+            fallback_title=update_dict.get('vr_title'),
+        )
+        settings_json['vr_title'] = primary_title
+
     # Update address translations in settings_json
     if 'address_translations' in update_dict and update_dict['address_translations']:
         for locale, translation_data in update_dict['address_translations'].items():
@@ -176,6 +202,7 @@ def update_cafe_contact(
     
     # Save updated settings_json
     settings.settings_json = settings_json
+    settings.updated_at = datetime.utcnow()
     flag_modified(settings, 'settings_json')
     
     db.add(settings)

@@ -1,5 +1,4 @@
 import {
-    faCircleInfo,
     faEye,
     faGlobe,
     faImage,
@@ -14,9 +13,11 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dayjs from 'dayjs';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
+import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
+import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
 import {
     cafeBranchesApi,
     cafeEventsApi,
@@ -159,9 +160,12 @@ const CafeEvents: React.FC = () => {
   const [currentLocale, setCurrentLocale] = useState('vi');
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
+  const [panoramaUrl, setPanoramaUrl] = useState('');
   const [vr360Link, setVr360Link] = useState('');
-  const [vrTitle, setVrTitle] = useState('');
+  const [panoramaTargetId, setPanoramaTargetId] = useState('1');
+  const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
+  const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [eventFilter, setEventFilter] = useState<'all' | EventStatus>('all');
   const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
@@ -169,6 +173,12 @@ const CafeEvents: React.FC = () => {
 
   useEffect(() => {
     void loadInitialData();
+  }, []);
+
+  useEffect(() => () => {
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
   }, []);
 
   const loadInitialData = async () => {
@@ -189,8 +199,10 @@ const CafeEvents: React.FC = () => {
       setEvents(eventData);
       setBranches(branchData);
       setIsDisplaying(typeof settingsJson.events_is_displaying === 'boolean' ? settingsJson.events_is_displaying : true);
+      setPanoramaTargetId(String(settingsJson.events_panorama_target_id ?? 1));
+      setPanoramaUrl(typeof settingsJson.events_panorama_url === 'string' ? settingsJson.events_panorama_url : '');
       setVr360Link(typeof settingsJson.events_vr360_link === 'string' ? settingsJson.events_vr360_link : '');
-      setVrTitle(typeof settingsJson.events_vr_title === 'string' ? settingsJson.events_vr_title : '');
+      setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'events', locales));
     } catch (error: any) {
       toast.error(error.message || 'Failed to load events');
     } finally {
@@ -401,19 +413,29 @@ const CafeEvents: React.FC = () => {
     }
   };
 
-  const handleVR360Change = async (field: 'link' | 'title', value: string) => {
+  const persistVR360Change = async (field: 'target' | 'panorama' | 'vr' | 'title', value: string, localeForTitle = currentLocale) => {
     try {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
 
-      if (field === 'link') {
+      if (field === 'target') {
+        updates.events_panorama_target_id = Number(value) || 1;
+        setPanoramaTargetId(String(Number(value) || 1));
+      } else if (field === 'panorama') {
+        updates.events_panorama_url = value;
+        setPanoramaUrl(value);
+      } else if (field === 'vr') {
         const embedUrl = convertToEmbedUrl(value);
         updates.events_vr360_link = embedUrl;
         setVr360Link(embedUrl);
       } else {
-        updates.events_vr_title = value;
-        setVrTitle(value);
+        const nextTranslations = {
+          ...vrTitleTranslations,
+          [localeForTitle]: value,
+        };
+        Object.assign(updates, applyScopedTitleTranslations(updates, 'events', nextTranslations));
+        setVrTitleTranslations(nextTranslations);
       }
 
       await cafeSettingsApi.updateSettings({ settings_json: updates });
@@ -423,6 +445,30 @@ const CafeEvents: React.FC = () => {
     } finally {
       setSavingVR(false);
     }
+  };
+
+  const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
+    if (field === 'target') {
+      setPanoramaTargetId(value);
+    } else if (field === 'panorama') {
+      setPanoramaUrl(value);
+    } else if (field === 'vr') {
+      setVr360Link(convertToEmbedUrl(value));
+    } else {
+      setVrTitleTranslations((previous) => ({
+        ...previous,
+        [currentLocale]: value,
+      }));
+    }
+
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
+
+    const localeForTitle = currentLocale;
+    vrSaveTimeoutRef.current = setTimeout(() => {
+      void persistVR360Change(field, value, localeForTitle);
+    }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
   };
 
   const handleDisplayStatusChange = async (nextValue: boolean) => {
@@ -449,6 +495,7 @@ const CafeEvents: React.FC = () => {
     const branch = branches.find((item) => item.id === branchId);
     return branch ? getBranchName(branch) : 'Unknown branch';
   };
+  const panoramaTargetOptions = [1, 2, 3];
 
   return (
     <div className="space-y-6">
@@ -486,29 +533,68 @@ const CafeEvents: React.FC = () => {
 
         <div className="space-y-6">
           <div>
-            <label className={LABEL_CLASS}>VR360 Link</label>
+            <label className={LABEL_CLASS}>Target ID</label>
+            <select
+              className={FIELD_CLASS}
+              value={panoramaTargetId}
+              onChange={(e) => void handleVR360Change('target', e.target.value)}
+              disabled={savingVR}
+            >
+              {panoramaTargetOptions.map((id) => (
+                <option key={id} value={String(id)}>
+                  ID {id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Panorama URL</label>
+            <input
+              type="url"
+              className={FIELD_CLASS}
+              value={panoramaUrl}
+              onChange={(e) => void handleVR360Change('panorama', e.target.value)}
+              placeholder="https://example.com/panorama.jpg"
+              disabled={savingVR}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL_CLASS}>VR URL</label>
             <input
               type="url"
               className={FIELD_CLASS}
               value={vr360Link}
-              onChange={(e) => void handleVR360Change('link', e.target.value)}
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
+              onChange={(e) => void handleVR360Change('vr', e.target.value)}
+              placeholder="https://youtube.com/watch?v=... or https://example.com/vr"
               disabled={savingVR}
             />
-            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
-              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-slate-500" />
-              <span>Enter a 360 panorama image URL or YouTube video URL for the Events landing experience.</span>
-            </p>
           </div>
 
           <div>
-            <label className={LABEL_CLASS}>VR Tour Title</label>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {supportedLanguages.map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  onClick={() => setCurrentLocale(locale)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentLocale === locale
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {getLocaleShortLabel(locale)}
+                </button>
+              ))}
+            </div>
+            <label className={LABEL_CLASS}>Title ({getLocaleShortLabel(currentLocale)})</label>
             <input
               type="text"
               className={FIELD_CLASS}
-              value={vrTitle}
+              value={vrTitleTranslations[currentLocale] || ''}
               onChange={(e) => void handleVR360Change('title', e.target.value)}
-              placeholder="Enter VR tour title"
+              placeholder="Enter title"
               disabled={savingVR}
             />
           </div>
@@ -526,7 +612,7 @@ const CafeEvents: React.FC = () => {
                     src={vr360Link}
                     className="absolute left-0 top-0 h-full w-full"
                     allowFullScreen
-                    title="Events VR360 Preview"
+                    title="VR360 Preview"
                     allow="xr-spatial-tracking; gyroscope; accelerometer"
                   />
                 </div>
@@ -893,23 +979,4 @@ const CafeEvents: React.FC = () => {
 };
 
 export default CafeEvents;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

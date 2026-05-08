@@ -1,49 +1,32 @@
 // src/App.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
-// MainLayout & DashboardSelection - REMOVED (Cafe only)
-// import MainLayout from './layouts/MainLayout';
-// import DashboardSelection from './pages/DashboardSelection';
-import Login from './pages/Login';
-
-// Admin imports
-import AdminLayout from './pages/admin/AdminLayout';
-
-// Shared imports
-import SharedSettingsLayout from './layouts/SharedSettingsLayout';
-import Media from './pages/Media';
-
-// VR Hotel imports - REMOVED (Cafe only)
-// import VRHotelActivities from './pages/vr-hotel/Activities';
-// import VRHotelContact from './pages/vr-hotel/Contact';
-// ... (all VR Hotel imports removed)
-
-// Travel Link imports - REMOVED (Cafe only)
-// import MainLayout from './layouts/MainLayout';
-// import DashboardSelection from './pages/DashboardSelection';
-
-// Cafe imports
-import CafeActivities from './pages/cafe/Activities';
-import CafeBranches from './pages/cafe/Branches';
-import CafeCareers from './pages/cafe/Careers';
-import CafeContact from './pages/cafe/Contact';
-import CafeDashboard from './pages/cafe/Dashboard';
-import CafeEvents from './pages/cafe/Events';
-import CafeGallery from './pages/cafe/Gallery';
-import CafeAbout from './pages/cafe/About';
-import CafeHome from './pages/cafe/Home';
-import CafeLanguages from './pages/cafe/Languages';
-import CafeLayout from './pages/cafe/CafeLayout';
-import CafeMenu from './pages/cafe/Menu';
-import CafePromotions from './pages/cafe/Promotions';
-import CafeSettings from './pages/cafe/Settings';
-import CafeSpace from './pages/cafe/Space';
-import CafeUsers from './pages/cafe/Users';
-import CafeTenants from './pages/cafe/Tenants';
 import { autoDetectLanguage } from './utils/languageDetection';
+
+const Login = lazy(() => import('./pages/Login'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const SharedSettingsLayout = lazy(() => import('./layouts/SharedSettingsLayout'));
+const Media = lazy(() => import('./pages/Media'));
+const CafeActivities = lazy(() => import('./pages/cafe/Activities'));
+const CafeBranches = lazy(() => import('./pages/cafe/Branches'));
+const CafeCareers = lazy(() => import('./pages/cafe/Careers'));
+const CafeContact = lazy(() => import('./pages/cafe/Contact'));
+const CafeDashboard = lazy(() => import('./pages/cafe/Dashboard'));
+const CafeEvents = lazy(() => import('./pages/cafe/Events'));
+const CafeGallery = lazy(() => import('./pages/cafe/Gallery'));
+const CafeAbout = lazy(() => import('./pages/cafe/About'));
+const CafeHome = lazy(() => import('./pages/cafe/Home'));
+const CafeLanguages = lazy(() => import('./pages/cafe/Languages'));
+const CafeLayout = lazy(() => import('./pages/cafe/CafeLayout'));
+const CafeMenu = lazy(() => import('./pages/cafe/Menu'));
+const CafePromotions = lazy(() => import('./pages/cafe/Promotions'));
+const CafeSettings = lazy(() => import('./pages/cafe/Settings'));
+const CafeSpace = lazy(() => import('./pages/cafe/Space'));
+const CafeUsers = lazy(() => import('./pages/cafe/Users'));
+const CafeTenants = lazy(() => import('./pages/cafe/Tenants'));
 
 // Create a client
 const queryClient = new QueryClient({
@@ -106,10 +89,17 @@ function App() {
     }
   }, [isAuthenticated]); // Run when auth state changes
 
+  const routeFallback = (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 text-slate-600">
+      Loading...
+    </div>
+  );
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="App">
+          <Suspense fallback={routeFallback}>
           <Routes>
             <Route path="/login" element={<Login />} />
             
@@ -187,6 +177,7 @@ function App() {
             />
             <Route path="/*" element={<Navigate to="/cafe" replace />} />
           </Routes>
+          </Suspense>
         </div>
       </Router>
       {/* Modern Toast Notifications */}

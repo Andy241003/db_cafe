@@ -21,6 +21,8 @@ import {
     cafeLanguagesApi,
     cafePageSettingsApi,
 } from '../../services/cafeApi';
+import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
+import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
 
 const INPUT_CLASS = 'w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed';
 const TEXTAREA_CLASS = `${INPUT_CLASS} resize-y`;
@@ -58,8 +60,10 @@ interface IntroductionFormState {
 interface PageSettingsFormState {
   page_code: 'home' | 'about';
   is_displaying: boolean;
+  target_id: string;
+  panorama_url: string;
   vr360_link: string;
-  vr_title: string;
+  title_translations: TitleTranslations;
 }
 
 interface CafeHomeAboutPageProps {
@@ -111,13 +115,20 @@ const buildIntroductionState = (
 };
 
 const buildPageSettingsState = (
+  locales: string[],
   pageCode: 'home' | 'about',
   pageSettings?: CafePageSettings,
 ): PageSettingsFormState => ({
   page_code: pageCode,
   is_displaying: pageSettings?.is_displaying ?? true,
+  target_id: String(pageSettings?.target_id ?? 1),
+  panorama_url: pageSettings?.panorama_url || '',
   vr360_link: pageSettings?.vr360_link || '',
-  vr_title: pageSettings?.vr_title || '',
+  title_translations: buildTitleTranslations(
+    locales,
+    pageSettings?.title_translations || pageSettings?.settings_json?.title_translations,
+    pageSettings?.vr_title || '',
+  ),
 });
 
 const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
@@ -130,9 +141,12 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
   const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['vi', 'en']);
   const [currentLocale, setCurrentLocale] = useState<string>('vi');
   const [introduction, setIntroduction] = useState<IntroductionFormState | null>(null);
-  const [pageSettings, setPageSettings] = useState<PageSettingsFormState>(() => buildPageSettingsState(pageCode));
+  const [pageSettings, setPageSettings] = useState<PageSettingsFormState>(() => buildPageSettingsState(['vi', 'en'], pageCode));
   const [initialIntroduction, setInitialIntroduction] = useState<IntroductionFormState | null>(null);
-  const [initialPageSettings, setInitialPageSettings] = useState<PageSettingsFormState>(() => buildPageSettingsState(pageCode));
+  const [initialPageSettings, setInitialPageSettings] = useState<PageSettingsFormState>(() => buildPageSettingsState(['vi', 'en'], pageCode));
+  const [savingVR, setSavingVR] = useState(false);
+  const panoramaTargetOptions = [1, 2, 3];
+  const vrSaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPageData = useCallback(async () => {
     try {
@@ -156,7 +170,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
 
       const introductionSection = sections[0];
       const nextIntroduction = buildIntroductionState(resolvedLocales, pageCode, introductionSection);
-      const nextPageSettings = buildPageSettingsState(pageCode, pageSetting || undefined);
+      const nextPageSettings = buildPageSettingsState(resolvedLocales, pageCode, pageSetting || undefined);
 
       setIntroduction(nextIntroduction);
       setInitialIntroduction(JSON.parse(JSON.stringify(nextIntroduction)));
@@ -173,12 +187,72 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
     loadPageData();
   }, [loadPageData]);
 
+  useEffect(() => () => {
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
+  }, []);
+
   const handleDisplayToggle = (checked: boolean) => {
     setPageSettings((prev) => ({ ...prev, is_displaying: checked }));
   };
 
-  const handlePageSettingChange = (field: keyof Omit<PageSettingsFormState, 'page_code' | 'is_displaying'>, value: string) => {
+  const handleVrTitleChange = (locale: string, value: string) => {
+    setPageSettings((prev) => ({
+      ...prev,
+      title_translations: {
+        ...prev.title_translations,
+        [locale]: value,
+      },
+    }));
+  };
+
+  const persistVR360Change = useCallback(async (
+    field: 'target_id' | 'panorama_url' | 'vr360_link' | 'title',
+    value: string,
+    localeForTitle = currentLocale,
+  ) => {
+    try {
+      setSavingVR(true);
+      const nextSettings = {
+        ...pageSettings,
+        target_id: field === 'target_id' ? value : pageSettings.target_id,
+        panorama_url: field === 'panorama_url' ? value : pageSettings.panorama_url,
+        vr360_link: field === 'vr360_link' ? value : pageSettings.vr360_link,
+        title_translations:
+          field === 'title'
+            ? {
+                ...pageSettings.title_translations,
+                [localeForTitle]: value,
+              }
+            : pageSettings.title_translations,
+      };
+      await cafePageSettingsApi.createOrUpdatePageSetting({
+        page_code: pageCode,
+        is_displaying: nextSettings.is_displaying,
+        target_id: Number(nextSettings.target_id) || 1,
+        panorama_url: nextSettings.panorama_url || null,
+        vr360_link: nextSettings.vr360_link || null,
+        vr_title: pickPrimaryTitle(nextSettings.title_translations) || null,
+        title_translations: nextSettings.title_translations,
+      });
+      setInitialPageSettings(JSON.parse(JSON.stringify(nextSettings)));
+      toast.success('VR360 settings saved');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to save VR settings');
+    } finally {
+      setSavingVR(false);
+    }
+  }, [currentLocale, pageCode, pageSettings]);
+
+  const handlePageSettingChange = (field: 'target_id' | 'panorama_url' | 'vr360_link', value: string) => {
     setPageSettings((prev) => ({ ...prev, [field]: value }));
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
+    vrSaveTimeoutRef.current = setTimeout(() => {
+      void persistVR360Change(field, value, currentLocale);
+    }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
   };
 
   const handleTranslationChange = (locale: string, field: keyof TranslationFormValue, value: string) => {
@@ -233,7 +307,8 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
           page_code: pageCode,
           is_displaying: pageSettings.is_displaying,
           vr360_link: pageSettings.vr360_link || null,
-          vr_title: pageSettings.vr_title || null,
+          vr_title: pickPrimaryTitle(pageSettings.title_translations) || null,
+          title_translations: pageSettings.title_translations,
         }),
       ]);
 
@@ -368,30 +443,80 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Link VR360 Panorama / YouTube Video</label>
-            <input
-              type="url"
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
+            <label className="block text-sm font-medium text-slate-700 mb-2">Target ID</label>
+            <select
               className={INPUT_CLASS}
-              value={pageSettings.vr360_link}
-              onChange={(event) => handlePageSettingChange('vr360_link', event.target.value)}
-              disabled={fieldsDisabled}
-            />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
-              <span>Enter the URL to a 360� panorama image or YouTube video URL</span>
-            </p>
+              value={pageSettings.target_id}
+              onChange={(event) => handlePageSettingChange('target_id', event.target.value)}
+              disabled={fieldsDisabled || savingVR}
+            >
+              {panoramaTargetOptions.map((id) => (
+                <option key={id} value={String(id)}>
+                  ID {id}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Panorama URL</label>
+            <input
+              type="url"
+              placeholder="https://example.com/panorama.jpg"
+              className={INPUT_CLASS}
+              value={pageSettings.panorama_url}
+              onChange={(event) => handlePageSettingChange('panorama_url', event.target.value)}
+              disabled={fieldsDisabled || savingVR}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">VR URL</label>
+            <input
+              type="url"
+              placeholder="https://youtube.com/watch?v=... or https://example.com/vr"
+              className={INPUT_CLASS}
+              value={pageSettings.vr360_link}
+              onChange={(event) => handlePageSettingChange('vr360_link', event.target.value)}
+              disabled={fieldsDisabled || savingVR}
+            />
+          </div>
+
+          <div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {supportedLanguages.map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  onClick={() => setCurrentLocale(locale)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentLocale === locale
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {locale.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title ({currentLocale.toUpperCase()})</label>
             <input
               type="text"
-              placeholder="Enter VR tour title"
+              placeholder="Enter title"
               className={INPUT_CLASS}
-              value={pageSettings.vr_title}
-              onChange={(event) => handlePageSettingChange('vr_title', event.target.value)}
-              disabled={fieldsDisabled}
+              value={pageSettings.title_translations[currentLocale] || ''}
+              onChange={(event) => {
+                handleVrTitleChange(currentLocale, event.target.value);
+                if (vrSaveTimeoutRef.current) {
+                  clearTimeout(vrSaveTimeoutRef.current);
+                }
+                const localeForTitle = currentLocale;
+                const nextValue = event.target.value;
+                vrSaveTimeoutRef.current = setTimeout(() => {
+                  void persistVR360Change('title', nextValue, localeForTitle);
+                }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
+              }}
+              disabled={fieldsDisabled || savingVR}
             />
           </div>
 

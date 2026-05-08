@@ -52,6 +52,43 @@ export default defineConfig(({ mode }) => {
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild',
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+
+          if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('/react/')) {
+            return 'react-vendor';
+          }
+
+          if (id.includes('@tanstack/react-query') || id.includes('react-query') || id.includes('axios')) {
+            return 'data-vendor';
+          }
+
+          if (
+            id.includes('antd') ||
+            id.includes('@ant-design') ||
+            id.includes('@fortawesome') ||
+            id.includes('lucide-react')
+          ) {
+            return 'ui-vendor';
+          }
+
+          if (id.includes('@dnd-kit')) {
+            return 'dnd-vendor';
+          }
+
+          if (id.includes('chart.js') || id.includes('xlsx') || id.includes('react-quill')) {
+            return 'heavy-vendor';
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
 }});
 

@@ -4,7 +4,6 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import {
     faCircleCheck,
-    faCircleInfo,
     faEdit,
     faEye,
     faFlag,
@@ -20,11 +19,13 @@ import {
     faVrCardboard
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import { cafeBranchesApi, cafeLanguagesApi, cafeSettingsApi, type Branch, type BranchTranslation } from '../../services/cafeApi';
+import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { getApiBaseUrl } from '../../utils/api';
+import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
 
 
 const buildBranchTranslationsPayload = (localizedData: Record<string, BranchLocalizedFields>): BranchTranslation[] => {
@@ -270,9 +271,12 @@ const CafeBranches: React.FC = () => {
   // Display status state
   const [isDisplaying, setIsDisplaying] = useState(true);
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
+  const [panoramaUrl, setPanoramaUrl] = useState('');
   const [vr360Link, setVr360Link] = useState('');
-  const [vrTitle, setVrTitle] = useState('');
+  const [panoramaTargetId, setPanoramaTargetId] = useState('1');
+  const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
+  const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [amenityInput, setAmenityInput] = useState('');
   const [formData, setFormData] = useState<{
     code: string;
@@ -314,6 +318,7 @@ const CafeBranches: React.FC = () => {
       const nextLanguages = customEvent.detail?.supportedLanguages;
       if (nextLanguages && nextLanguages.length > 0) {
         setSupportedLanguages(nextLanguages);
+        setCurrentLang((prev) => (nextLanguages.includes(prev) ? prev : nextLanguages[0]));
         setLocalizedBranchData((prev) => {
           const next = buildEmptyLocalizedBranchData(nextLanguages);
           nextLanguages.forEach((locale) => {
@@ -331,6 +336,12 @@ const CafeBranches: React.FC = () => {
 
     window.addEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
     return () => window.removeEventListener('cafe-languages-updated', handleLanguagesUpdated as EventListener);
+  }, []);
+
+  useEffect(() => () => {
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
   }, []);
 
   const loadLanguageSettings = async () => {
@@ -354,8 +365,10 @@ const CafeBranches: React.FC = () => {
       const settings = await cafeSettingsApi.getSettings();
       const displayStatus = settings.settings_json?.branches_is_displaying ?? true;
       setIsDisplaying(displayStatus);
+      setPanoramaTargetId(String(settings.settings_json?.branches_panorama_target_id ?? 1));
+      setPanoramaUrl(settings.settings_json?.branches_panorama_url || '');
       setVr360Link(settings.settings_json?.branches_vr360_link || '');
-      setVrTitle(settings.settings_json?.branches_vr_title || '');
+      setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'branches', langs));
     } catch (error) {
       console.error('Error loading languages:', error);
     }
@@ -394,19 +407,29 @@ const CafeBranches: React.FC = () => {
     return url;
   };
 
-  const handleVR360Change = async (field: 'link' | 'title', value: string) => {
+  const persistVR360Change = async (field: 'target' | 'panorama' | 'vr' | 'title', value: string, localeForTitle = currentLang) => {
     try {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
       
-      if (field === 'link') {
+      if (field === 'target') {
+        updates.branches_panorama_target_id = Number(value) || 1;
+        setPanoramaTargetId(String(Number(value) || 1));
+      } else if (field === 'panorama') {
+        updates.branches_panorama_url = value;
+        setPanoramaUrl(value);
+      } else if (field === 'vr') {
         const embedUrl = convertToEmbedUrl(value);
         updates.branches_vr360_link = embedUrl;
         setVr360Link(embedUrl);
       } else {
-        updates.branches_vr_title = value;
-        setVrTitle(value);
+        const nextTranslations = {
+          ...vrTitleTranslations,
+          [localeForTitle]: value,
+        };
+        Object.assign(updates, applyScopedTitleTranslations(updates, 'branches', nextTranslations));
+        setVrTitleTranslations(nextTranslations);
       }
       
       await cafeSettingsApi.updateSettings({ settings_json: updates });
@@ -416,6 +439,30 @@ const CafeBranches: React.FC = () => {
     } finally {
       setSavingVR(false);
     }
+  };
+
+  const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
+    if (field === 'target') {
+      setPanoramaTargetId(value);
+    } else if (field === 'panorama') {
+      setPanoramaUrl(value);
+    } else if (field === 'vr') {
+      setVr360Link(convertToEmbedUrl(value));
+    } else {
+      setVrTitleTranslations((previous) => ({
+        ...previous,
+        [currentLang]: value,
+      }));
+    }
+
+    if (vrSaveTimeoutRef.current) {
+      clearTimeout(vrSaveTimeoutRef.current);
+    }
+
+    const localeForTitle = currentLang;
+    vrSaveTimeoutRef.current = setTimeout(() => {
+      void persistVR360Change(field, value, localeForTitle);
+    }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
   };
 
   const handleAdd = () => {
@@ -439,6 +486,7 @@ const CafeBranches: React.FC = () => {
     });
     setShowModal(true);
   };
+  const panoramaTargetOptions = [1, 2, 3];
 
   const handleEdit = (branch: Branch) => {
     const viTranslation = getBranchTranslation(branch, 'vi');
@@ -763,32 +811,70 @@ const CafeBranches: React.FC = () => {
         
         <div className="space-y-6">
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Target ID</label>
+            <select
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              value={panoramaTargetId}
+              onChange={(e) => handleVR360Change('target', e.target.value)}
+              disabled={savingVR}
+            >
+              {panoramaTargetOptions.map((id) => (
+                <option key={id} value={String(id)}>
+                  ID {id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Link VR360 Panorama / YouTube Video
+              Panorama URL
             </label>
             <input
               type="url"
-              placeholder="https://example.com/panorama.jpg or https://youtube.com/watch?v=..."
+              placeholder="https://example.com/panorama.jpg"
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-              value={vr360Link}
-              onChange={(e) => handleVR360Change('link', e.target.value)}
+              value={panoramaUrl}
+              onChange={(e) => handleVR360Change('panorama', e.target.value)}
               disabled={savingVR}
             />
-            <p className="mt-2 text-sm text-slate-500 flex items-start gap-2">
-              <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5" />
-              <span>
-                Enter the URL to a 360� panorama image (equirectangular JPG, min 4096x2048px) or YouTube video URL
-              </span>
-            </p>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">VR Tour Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">VR URL</label>
+            <input
+              type="url"
+              placeholder="https://youtube.com/watch?v=... or https://example.com/vr"
+              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              value={vr360Link}
+              onChange={(e) => handleVR360Change('vr', e.target.value)}
+              disabled={savingVR}
+            />
+          </div>
+
+          <div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {supportedLanguages.map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  onClick={() => setCurrentLang(locale)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentLang === locale
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {getLocaleShortLabel(locale)}
+                </button>
+              ))}
+            </div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title ({getLocaleShortLabel(currentLang)})</label>
             <input
               type="text"
-              placeholder="Enter VR tour title"
+              placeholder="Enter title"
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-              value={vrTitle}
+              value={vrTitleTranslations[currentLang] || ''}
               onChange={(e) => handleVR360Change('title', e.target.value)}
               disabled={savingVR}
             />
@@ -1186,5 +1272,4 @@ const CafeBranches: React.FC = () => {
 };
 
 export default CafeBranches;
-
 
