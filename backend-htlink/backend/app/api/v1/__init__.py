@@ -31,7 +31,7 @@ api_router.include_router(property_posts.router, prefix="/property-posts", tags=
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"], include_in_schema=False)
 api_router.include_router(test_upload.router, prefix="/test-upload", tags=["test-upload"], include_in_schema=False)
 
-api_router.include_router(vr360_scenes.router, prefix="/vr360", tags=["vr360", "cafe"])
+api_router.include_router(vr360_scenes.router, prefix="/vr360", tags=["vr360"])
 
 # Cafe routes
 api_router.include_router(cafe_settings.router, prefix="/cafe/settings", tags=["cafe"])

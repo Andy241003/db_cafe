@@ -197,15 +197,16 @@ class VR360SceneItem(BaseModel):
 
 
 class VR360SceneSyncRequest(BaseModel):
-    property_id: Optional[int] = Field(None, description="Property ID to associate scenes with")
-    tenant_code: Optional[str] = Field(None, description="Tenant code for scoping")
+    tenant_code: Optional[str] = Field(
+        None,
+        description="Optional tenant code for validation only. Authenticated tenant is authoritative.",
+    )
     scenes: List[VR360SceneItem] = Field(..., min_items=1, description="List of scenes to sync")
 
 
 class VR360SceneSyncResponse(BaseModel):
     success: bool = Field(default=True)
     message: str
-    property_id: Optional[int] = None
     tenant_code: Optional[str] = None
     count: int = Field(..., description="Total scenes processed")
     created: int = Field(..., description="Number of new scenes created")

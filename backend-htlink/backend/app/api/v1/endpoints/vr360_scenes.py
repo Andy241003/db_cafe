@@ -1,14 +1,11 @@
 """
-VR360 Scene Sync API endpoints
+VR360 Scene Sync API endpoints.
 
-Handles syncing VR360 scenes from frontend 3DVista export
+Cafe-only sync stores scene metadata per tenant and does not use property_id.
 """
-from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
+from sqlmodel import select
 
-from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Tenant
 from app.crud.vr_hotel import vr360_scene
@@ -27,35 +24,18 @@ def sync_vr360_scenes(
     Sync VR360 scenes from frontend payload.
 
     - Validates request data
-    - Determines tenant and property from headers/body
+    - Determines tenant from authenticated user
     - Upserts scenes in database
     - Returns sync statistics
     """
-    # Determine tenant
-    tenant_code_to_use = request.tenant_code
-    if not tenant_code_to_use:
-        tenant_code_to_use = "demo"  # Default tenant
-
-    # Get tenant from database
-    tenant = db.exec(
-        select(Tenant).where(Tenant.code == tenant_code_to_use)
-    ).first()
+    tenant = db.get(Tenant, current_user.tenant_id)
     if not tenant:
         raise HTTPException(
             status_code=404,
-            detail=f"Tenant with code '{tenant_code_to_use}' not found"
+            detail="Authenticated tenant not found"
         )
-
-    # Determine property
-    property_id = request.property_id
-    if not property_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Property ID is required in request body"
-        )
-
-    # Validate that property belongs to tenant
-    # (Assuming property validation is done elsewhere or add it here)
+    if request.tenant_code and request.tenant_code != tenant.code:
+        raise HTTPException(status_code=400, detail="tenant_code does not match authenticated tenant")
 
     # Convert request scenes to dict format for CRUD
     scenes_data = []
@@ -71,8 +51,7 @@ def sync_vr360_scenes(
     try:
         sync_result = vr360_scene.sync_scenes(
             db=db,
-            tenant_id=tenant.id,
-            property_id=property_id,
+            tenant_id=current_user.tenant_id,
             scenes_data=scenes_data
         )
     except Exception as e:
@@ -85,8 +64,7 @@ def sync_vr360_scenes(
     return VR360SceneSyncResponse(
         success=True,
         message="Scenes synced successfully",
-        property_id=property_id,
-        tenant_code=tenant_code_to_use,
+        tenant_code=tenant.code,
         count=len(request.scenes),
         created=sync_result["created"],
         updated=sync_result["updated"],

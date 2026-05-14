@@ -277,33 +277,31 @@ class CRUDVROffer(CRUDBase[VROffer, VROfferCreate, VROfferUpdate]):
 # ==========================================
 
 class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
-    def get_by_property_and_scene_id(
+    def get_by_tenant_and_scene_id(
         self,
         db: Session,
         *,
         tenant_id: int,
-        property_id: int,
         scene_id: str
     ) -> Optional[VR360Scene]:
-        """Get a specific scene by tenant, property and scene_id"""
+        """Get a specific scene by tenant and scene_id for cafe-only sync."""
         query = select(VR360Scene).where(
             VR360Scene.tenant_id == tenant_id,
-            VR360Scene.property_id == property_id,
+            VR360Scene.property_id.is_(None),
             VR360Scene.scene_id == scene_id
         )
         return db.exec(query).first()
 
-    def get_active_by_property(
+    def get_active_by_tenant(
         self,
         db: Session,
         *,
         tenant_id: int,
-        property_id: int
     ) -> List[VR360Scene]:
-        """Get all active scenes for a property, ordered by display_order"""
+        """Get all active cafe-only scenes for a tenant, ordered by display_order."""
         query = select(VR360Scene).where(
             VR360Scene.tenant_id == tenant_id,
-            VR360Scene.property_id == property_id,
+            VR360Scene.property_id.is_(None),
             VR360Scene.is_active == True
         ).order_by(VR360Scene.display_order)
         return list(db.exec(query).all())
@@ -313,7 +311,6 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         db: Session,
         *,
         tenant_id: int,
-        property_id: int,
         scenes_data: List[Dict[str, Any]]
     ) -> Dict[str, int]:
         """
@@ -324,13 +321,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         updated = 0
         deactivated = 0
 
-        # Get existing scene_ids for this property
-        existing_scene_ids = set()
-        existing_scenes = self.get_active_by_property(
-            db=db, tenant_id=tenant_id, property_id=property_id
-        )
-        for scene in existing_scenes:
-            existing_scene_ids.add(scene.scene_id)
+        existing_scenes = self.get_active_by_tenant(db=db, tenant_id=tenant_id)
 
         # Process incoming scenes
         incoming_scene_ids = set()
@@ -339,10 +330,9 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
             incoming_scene_ids.add(scene_id)
 
             # Check if scene exists
-            existing_scene = self.get_by_property_and_scene_id(
+            existing_scene = self.get_by_tenant_and_scene_id(
                 db=db,
                 tenant_id=tenant_id,
-                property_id=property_id,
                 scene_id=scene_id
             )
 
@@ -359,7 +349,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
                 # Create new scene
                 new_scene = VR360Scene(
                     tenant_id=tenant_id,
-                    property_id=property_id,
+                    property_id=None,
                     scene_id=scene_id,
                     scene_name=scene_data["name"],
                     scene_subtitle=scene_data.get("subtitle"),

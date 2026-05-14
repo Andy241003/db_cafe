@@ -22,7 +22,7 @@ def upgrade():
     op.create_table('vr360_scenes',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('tenant_id', sa.Integer(), nullable=False),
-        sa.Column('property_id', sa.Integer(), nullable=False),
+        sa.Column('property_id', sa.Integer(), nullable=True),
         sa.Column('scene_id', sa.String(length=255), nullable=False),
         sa.Column('scene_name', sa.String(length=255), nullable=False),
         sa.Column('scene_subtitle', sa.String(length=500), nullable=True),
@@ -30,7 +30,6 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
         sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
