@@ -498,6 +498,35 @@ class PropertyLocale(SQLModel, table=True):
     is_default: bool = Field(default=False)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ==========================================
+# VR360 Scenes
+# ==========================================
+
+class VR360Scene(SQLModel, table=True):
+    """
+    VR360 Scenes synced from frontend 3DVista export
+    """
+    __tablename__ = "vr360_scenes"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    property_id: int = Field(foreign_key="properties.id", index=True)
+    
+    # Scene unique identifier from 3DVista export
+    scene_id: str = Field(max_length=255, index=True)
+    
+    # Display information
+    scene_name: str = Field(max_length=255)
+    scene_subtitle: Optional[str] = Field(default=None, max_length=500)
+    display_order: int = Field(default=0)
+    
+    # Status
+    is_active: bool = Field(default=True)
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 

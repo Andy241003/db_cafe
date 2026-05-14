@@ -186,6 +186,46 @@ class VRFacilityResponse(VRFacilityBase):
 
 
 # ==========================================
+# VR360 Scene Schemas
+# ==========================================
+
+class VR360SceneItem(BaseModel):
+    id: str = Field(..., description="Unique scene ID from 3DVista export")
+    name: str = Field(..., description="Display name of the scene")
+    subtitle: Optional[str] = Field(None, description="Optional subtitle/description")
+    order: int = Field(..., ge=0, description="Display order in playlist")
+
+
+class VR360SceneSyncRequest(BaseModel):
+    property_id: Optional[int] = Field(None, description="Property ID to associate scenes with")
+    tenant_code: Optional[str] = Field(None, description="Tenant code for scoping")
+    scenes: List[VR360SceneItem] = Field(..., min_items=1, description="List of scenes to sync")
+
+
+class VR360SceneSyncResponse(BaseModel):
+    success: bool = Field(default=True)
+    message: str
+    property_id: Optional[int] = None
+    tenant_code: Optional[str] = None
+    count: int = Field(..., description="Total scenes processed")
+    created: int = Field(..., description="Number of new scenes created")
+    updated: int = Field(..., description="Number of existing scenes updated")
+    deactivated: int = Field(..., description="Number of scenes deactivated")
+
+
+class VRFacilityResponse(VRFacilityBase):
+    id: int
+    tenant_id: int
+    property_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    translations: List[VRFacilityTranslationData] = []
+    
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
 # VR Offer Schemas
 # ==========================================
 

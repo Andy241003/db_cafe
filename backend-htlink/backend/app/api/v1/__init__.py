@@ -4,8 +4,7 @@ from app.api.v1.endpoints import (
     auth, plans, tenants, users, properties, features, features_test, posts, media,
     categories, events, utils, locales, translations, property_categories,
     analytics, test_upload, property_posts, activity_logs, activity_test,
-    vr_hotel_settings, vr_hotel_languages, vr_hotel_introduction, vr_hotel_policies, vr_hotel_rules, vr_hotel_rooms,
-    vr_hotel_dining, vr_hotel_facility, vr_hotel_service, vr_hotel_contact, vr_hotel_offers, vr_hotel_export,
+    vr360_scenes,
     cafe_settings, cafe_contact, cafe_languages, cafe_branches, cafe_menu, cafe_events, cafe_careers, cafe_promotions,
     cafe_spaces, cafe_content_sections, cafe_services
 )
@@ -32,19 +31,7 @@ api_router.include_router(property_posts.router, prefix="/property-posts", tags=
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"], include_in_schema=False)
 api_router.include_router(test_upload.router, prefix="/test-upload", tags=["test-upload"], include_in_schema=False)
 
-# VR Hotel routes
-api_router.include_router(vr_hotel_settings.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_languages.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_introduction.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_policies.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_rules.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_rooms.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_dining.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_facility.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_service.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_contact.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_offers.router, prefix="/vr-hotel", tags=["vr-hotel"], include_in_schema=False)
-api_router.include_router(vr_hotel_export.router, prefix="/vr-hotel", tags=["vr-hotel-export"], include_in_schema=False)
+api_router.include_router(vr360_scenes.router, prefix="/vr360", tags=["vr360", "cafe"])
 
 # Cafe routes
 api_router.include_router(cafe_settings.router, prefix="/cafe/settings", tags=["cafe"])
