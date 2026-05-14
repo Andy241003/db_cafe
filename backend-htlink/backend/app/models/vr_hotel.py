@@ -520,6 +520,7 @@ class VR360Scene(SQLModel, table=True):
     # Display information
     scene_name: str = Field(max_length=255)
     scene_subtitle: Optional[str] = Field(default=None, max_length=500)
+    panorama_url: Optional[str] = Field(default=None, max_length=1000)
     display_order: int = Field(default=0)
     
     # Status

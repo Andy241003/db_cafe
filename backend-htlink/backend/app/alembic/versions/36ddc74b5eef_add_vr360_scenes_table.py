@@ -26,6 +26,7 @@ def upgrade():
         sa.Column('scene_id', sa.String(length=255), nullable=False),
         sa.Column('scene_name', sa.String(length=255), nullable=False),
         sa.Column('scene_subtitle', sa.String(length=500), nullable=True),
+        sa.Column('panorama_url', sa.String(length=1000), nullable=True),
         sa.Column('display_order', sa.Integer(), nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),

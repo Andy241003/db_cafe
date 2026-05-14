@@ -340,6 +340,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
                 # Update existing scene
                 existing_scene.scene_name = scene_data["name"]
                 existing_scene.scene_subtitle = scene_data.get("subtitle")
+                existing_scene.panorama_url = scene_data.get("panorama_url")
                 existing_scene.display_order = scene_data["order"]
                 existing_scene.is_active = True
                 existing_scene.updated_at = datetime.utcnow()
@@ -353,6 +354,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
                     scene_id=scene_id,
                     scene_name=scene_data["name"],
                     scene_subtitle=scene_data.get("subtitle"),
+                    panorama_url=scene_data.get("panorama_url"),
                     display_order=scene_data["order"],
                     is_active=True
                 )

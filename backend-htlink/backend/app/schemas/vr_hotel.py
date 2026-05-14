@@ -193,6 +193,7 @@ class VR360SceneItem(BaseModel):
     id: str = Field(..., description="Unique scene ID from 3DVista export")
     name: str = Field(..., description="Display name of the scene")
     subtitle: Optional[str] = Field(None, description="Optional subtitle/description")
+    panorama_url: Optional[str] = Field(None, description="Panorama URL posted from frontend")
     order: int = Field(..., ge=0, description="Display order in playlist")
 
 
@@ -212,6 +213,16 @@ class VR360SceneSyncResponse(BaseModel):
     created: int = Field(..., description="Number of new scenes created")
     updated: int = Field(..., description="Number of existing scenes updated")
     deactivated: int = Field(..., description="Number of scenes deactivated")
+
+
+class VR360SceneListItem(BaseModel):
+    id: int
+    scene_id: str
+    scene_name: str
+    scene_subtitle: Optional[str] = None
+    panorama_url: Optional[str] = None
+    display_order: int
+    is_active: bool
 
 
 class VRFacilityResponse(VRFacilityBase):
