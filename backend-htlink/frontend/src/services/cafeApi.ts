@@ -125,6 +125,16 @@ export interface CafePageSettingsUpdate {
   settings_json?: Record<string, any> | null;
 }
 
+export interface VR360SceneListItem {
+  id: number;
+  scene_id: string;
+  scene_name: string;
+  scene_subtitle?: string | null;
+  panorama_url?: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+
 // Translation Types
 export interface Translation {
   locale: string;
@@ -618,6 +628,13 @@ export const cafeContactApi = {
 
   updateContact: async (data: CafeContactUpdate): Promise<CafeContact> => {
     const response = await cafeClient.post('/cafe/contact/', data);
+    return response.data;
+  },
+};
+
+export const vr360ScenesApi = {
+  getScenes: async (): Promise<VR360SceneListItem[]> => {
+    const response = await cafeClient.get('/vr360/scenes');
     return response.data;
   },
 };

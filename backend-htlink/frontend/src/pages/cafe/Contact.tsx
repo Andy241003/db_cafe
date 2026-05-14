@@ -2,9 +2,10 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { cafeLanguagesApi, cafeContactApi } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeContactApi, vr360ScenesApi, type VR360SceneListItem } from '../../services/cafeApi';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
+import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
 
 // CSS Class Constants
 const INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -67,7 +68,7 @@ const CafeContact: React.FC = () => {
   const [currentLocale, setCurrentLocale] = useState<string>('vi');
   const [hasChanges, setHasChanges] = useState(false);
   const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const panoramaTargetOptions = [1, 2, 3];
+  const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
   
   const [settings, setSettings] = useState<ContactSettings>({
     is_displaying: true,
@@ -106,9 +107,13 @@ const CafeContact: React.FC = () => {
     try {
       setLoading(true);
       // Load supported languages first
-      const languages = await cafeLanguagesApi.getLanguages();
+      const [languages, scenes] = await Promise.all([
+        cafeLanguagesApi.getLanguages(),
+        vr360ScenesApi.getScenes(),
+      ]);
       const langCodes = languages.map(lang => lang.locale);
       setSupportedLanguages(langCodes);
+      setVr360Scenes(scenes);
       
       // Set first language as current
       if (langCodes.length > 0) {
@@ -211,10 +216,17 @@ const CafeContact: React.FC = () => {
   ) => {
     try {
       setSavingVR(true);
+      const selectedScene =
+        field === 'target_id' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
       const nextSettings: ContactSettings = {
         ...settings,
         target_id: field === 'target_id' ? value : settings.target_id,
-        panorama_url: field === 'panorama_url' ? value : settings.panorama_url,
+        panorama_url:
+          field === 'target_id'
+            ? selectedScene?.panorama_url || ''
+            : field === 'panorama_url'
+              ? value
+              : settings.panorama_url,
         vr360_link: field === 'vr360_link' ? value : settings.vr360_link,
         title_translations:
           field === 'title'
@@ -241,6 +253,11 @@ const CafeContact: React.FC = () => {
       setSavingVR(false);
     }
   };
+
+  const panoramaTargetOptions = useMemo(
+    () => buildVr360TargetOptions(vr360Scenes, settings.target_id),
+    [settings.target_id, vr360Scenes],
+  );
 
   const handleSave = async () => {
     try {
@@ -448,7 +465,12 @@ const CafeContact: React.FC = () => {
               value={settings.target_id}
               onChange={(e) => {
                 const nextValue = e.target.value;
-                setSettings((prev) => ({ ...prev, target_id: nextValue }));
+                const selectedScene = getVr360SceneByTargetId(vr360Scenes, nextValue);
+                setSettings((prev) => ({
+                  ...prev,
+                  target_id: nextValue,
+                  panorama_url: selectedScene?.panorama_url || '',
+                }));
                 if (vrSaveTimeoutRef.current) {
                   clearTimeout(vrSaveTimeoutRef.current);
                 }
@@ -458,9 +480,9 @@ const CafeContact: React.FC = () => {
               }}
               disabled={savingVR}
             >
-              {panoramaTargetOptions.map((id) => (
-                <option key={id} value={String(id)}>
-                  ID {id}
+              {panoramaTargetOptions.map((scene) => (
+                <option key={scene.id} value={String(scene.id)}>
+                  {getVr360TargetLabel(vr360Scenes, scene.id)}
                 </option>
               ))}
             </select>

@@ -18,15 +18,18 @@ import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
+import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
 import {
     cafeBranchesApi,
     cafeCareersApi,
     cafeLanguagesApi,
     cafeSettingsApi,
+    vr360ScenesApi,
     type Branch,
     type Career,
     type CareerCreate,
     type CareerTranslation,
+    type VR360SceneListItem,
 } from '../../services/cafeApi';
 import { getApiBaseUrl } from '../../utils/api';
 
@@ -161,6 +164,7 @@ const CafeCareers: React.FC = () => {
   const [panoramaTargetId, setPanoramaTargetId] = useState('1');
   const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
+  const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
   const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [careerFilter, setCareerFilter] = useState<'all' | CareerStatus>('all');
   const [editingCareer, setEditingCareer] = useState<EditableCareer | null>(null);
@@ -179,11 +183,12 @@ const CafeCareers: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [careerData, languages, settings, branchData] = await Promise.all([
+      const [careerData, languages, settings, branchData, scenes] = await Promise.all([
         cafeCareersApi.getCareers(),
         cafeLanguagesApi.getLanguages(),
         cafeSettingsApi.getSettings(),
         cafeBranchesApi.getBranches(),
+        vr360ScenesApi.getScenes(),
       ]);
 
       const locales = languages.length > 0 ? languages.map((item) => item.locale) : ['vi', 'en'];
@@ -196,6 +201,7 @@ const CafeCareers: React.FC = () => {
       setPanoramaUrl(settings.settings_json?.careers_panorama_url || '');
       setVr360Link(settings.settings_json?.careers_vr360_link || '');
       setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'careers', locales));
+      setVr360Scenes(scenes);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load careers');
     } finally {
@@ -402,10 +408,14 @@ const CafeCareers: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
+      const selectedScene =
+        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
 
       if (field === 'target') {
         updates.careers_panorama_target_id = Number(value) || 1;
+        updates.careers_panorama_url = selectedScene?.panorama_url || '';
         setPanoramaTargetId(String(Number(value) || 1));
+        setPanoramaUrl(selectedScene?.panorama_url || '');
       } else if (field === 'panorama') {
         updates.careers_panorama_url = value;
         setPanoramaUrl(value);
@@ -433,7 +443,9 @@ const CafeCareers: React.FC = () => {
 
   const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
     if (field === 'target') {
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
       setPanoramaTargetId(value);
+      setPanoramaUrl(selectedScene?.panorama_url || '');
     } else if (field === 'panorama') {
       setPanoramaUrl(value);
     } else if (field === 'vr') {
@@ -479,7 +491,7 @@ const CafeCareers: React.FC = () => {
     const branch = branches.find((item) => item.id === branchId);
     return branch ? getBranchName(branch) : 'Unknown branch';
   };
-  const panoramaTargetOptions = [1, 2, 3];
+  const panoramaTargetOptions = buildVr360TargetOptions(vr360Scenes, panoramaTargetId);
 
   return (
     <div className="space-y-6">
@@ -524,9 +536,9 @@ const CafeCareers: React.FC = () => {
               onChange={(e) => void handleVR360Change('target', e.target.value)}
               disabled={savingVR}
             >
-              {panoramaTargetOptions.map((id) => (
-                <option key={id} value={String(id)}>
-                  ID {id}
+              {panoramaTargetOptions.map((scene) => (
+                <option key={scene.id} value={String(scene.id)}>
+                  {getVr360TargetLabel(vr360Scenes, scene.id)}
                 </option>
               ))}
             </select>

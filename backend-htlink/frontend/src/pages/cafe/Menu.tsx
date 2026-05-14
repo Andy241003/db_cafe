@@ -5,10 +5,11 @@ import { Coffee, Edit, Eye, GripVertical, Info, Play, Plus, Trash2 } from 'lucid
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { cafeLanguagesApi, cafeMenuApi, cafeSettingsApi, type CategoryTranslation, type ItemTranslation, type MenuCategory, type MenuCategoryCreate, type MenuItem, type MenuItemCreate } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeMenuApi, cafeSettingsApi, vr360ScenesApi, type CategoryTranslation, type ItemTranslation, type MenuCategory, type MenuCategoryCreate, type MenuItem, type MenuItemCreate, type VR360SceneListItem } from '../../services/cafeApi';
 import { getApiBaseUrl } from '../../utils/api';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
+import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
 
 const { TextArea } = Input;
 
@@ -94,6 +95,7 @@ const CafeMenu: React.FC = () => {
   const [panoramaTargetId, setPanoramaTargetId] = useState('1');
   const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
+  const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
   const vrSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -165,13 +167,17 @@ const CafeMenu: React.FC = () => {
         setCurrentVrLocale((prev) => (langs.includes(prev) ? prev : langs[0]));
       }
       
-      const settings = await cafeSettingsApi.getSettings();
+      const [settings, scenes] = await Promise.all([
+        cafeSettingsApi.getSettings(),
+        vr360ScenesApi.getScenes(),
+      ]);
       const displayStatus = settings.settings_json?.menu_is_displaying ?? true;
       setIsDisplaying(displayStatus);
       setPanoramaTargetId(String(settings.settings_json?.menu_panorama_target_id ?? 1));
       setPanoramaUrl(settings.settings_json?.menu_panorama_url || '');
       setVr360Link(settings.settings_json?.menu_vr360_link || '');
       setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'menu', langs.length > 0 ? langs : ['vi', 'en']));
+      setVr360Scenes(scenes);
     } catch (error) {
       console.error('Failed to load languages:', error);
     }
@@ -215,10 +221,14 @@ const CafeMenu: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
+      const selectedScene =
+        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
       
       if (field === 'target') {
         updates.menu_panorama_target_id = Number(value) || 1;
+        updates.menu_panorama_url = selectedScene?.panorama_url || '';
         setPanoramaTargetId(String(Number(value) || 1));
+        setPanoramaUrl(selectedScene?.panorama_url || '');
       } else if (field === 'panorama') {
         updates.menu_panorama_url = value;
         setPanoramaUrl(value);
@@ -246,7 +256,9 @@ const CafeMenu: React.FC = () => {
 
   const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
     if (field === 'target') {
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
       setPanoramaTargetId(value);
+      setPanoramaUrl(selectedScene?.panorama_url || '');
     } else if (field === 'panorama') {
       setPanoramaUrl(value);
     } else if (field === 'vr') {
@@ -648,7 +660,7 @@ const CafeMenu: React.FC = () => {
 
     return badges;
   };
-  const panoramaTargetOptions = [1, 2, 3];
+  const panoramaTargetOptions = buildVr360TargetOptions(vr360Scenes, panoramaTargetId);
 
   const filteredCategories = categories.filter((category) => {
     if (categoryFilter === 'active') return category.is_active;
@@ -732,9 +744,9 @@ const CafeMenu: React.FC = () => {
               onChange={(e) => handleVR360Change('target', e.target.value)}
               disabled={savingVR}
             >
-              {panoramaTargetOptions.map((id) => (
-                <option key={id} value={String(id)}>
-                  ID {id}
+              {panoramaTargetOptions.map((scene) => (
+                <option key={scene.id} value={String(scene.id)}>
+                  {getVr360TargetLabel(vr360Scenes, scene.id)}
                 </option>
               ))}
             </select>

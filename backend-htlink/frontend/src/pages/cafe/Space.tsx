@@ -3,11 +3,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import type { Space, SpaceTranslation } from '../../services/cafeApi';
-import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi } from '../../services/cafeApi';
+import type { Space, SpaceTranslation, VR360SceneListItem } from '../../services/cafeApi';
+import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi, vr360ScenesApi } from '../../services/cafeApi';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { getApiBaseUrl } from '../../utils/api';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
+import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
 
 const LABEL_CLASS = 'block text-sm font-medium text-slate-700 mb-2';
 const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
@@ -46,6 +47,7 @@ const CafeSpace: React.FC = () => {
   const [reordering, setReordering] = useState(false);
   const [amenityInput, setAmenityInput] = useState('');
   const [spaceFilter, setSpaceFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
 
   useEffect(() => {
     void loadInitialData();
@@ -60,10 +62,11 @@ const CafeSpace: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [languages, settings, spaceData] = await Promise.all([
+      const [languages, settings, spaceData, scenes] = await Promise.all([
         cafeLanguagesApi.getLanguages(),
         cafeSettingsApi.getSettings(),
         cafeSpacesApi.getSpaces(),
+        vr360ScenesApi.getScenes(),
       ]);
       const langCodes = languages.map((item) => item.locale);
       if (langCodes.length > 0) {
@@ -76,6 +79,7 @@ const CafeSpace: React.FC = () => {
       setPanoramaTargetId(String(settings.settings_json?.spaces_panorama_target_id ?? 1));
       setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'spaces', langCodes.length > 0 ? langCodes : ['vi', 'en']));
       setSpaces(spaceData);
+      setVr360Scenes(scenes);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load spaces');
     } finally {
@@ -362,10 +366,18 @@ const CafeSpace: React.FC = () => {
     return url;
   };
 
-  const persistVR360Change = async (field: 'panorama' | 'vr' | 'title', value: string, localeForTitle = currentLocale) => {
+  const persistVR360Change = async (field: 'target' | 'panorama' | 'vr' | 'title', value: string, localeForTitle = currentLocale) => {
     try {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
+      const selectedScene =
+        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
+      const nextPanoramaUrl =
+        field === 'target'
+          ? selectedScene?.panorama_url || ''
+          : field === 'panorama'
+            ? value
+            : panoramaUrl;
       await cafeSettingsApi.updateSettings({
         settings_json: {
           ...applyScopedTitleTranslations(currentSettings.settings_json, 'spaces', field === 'title'
@@ -374,11 +386,15 @@ const CafeSpace: React.FC = () => {
                 [localeForTitle]: value,
               }
             : vrTitleTranslations),
-          spaces_panorama_target_id: Number(panoramaTargetId) || 1,
-          spaces_panorama_url: field === 'panorama' ? value : panoramaUrl,
+          spaces_panorama_target_id: field === 'target' ? (Number(value) || 1) : (Number(panoramaTargetId) || 1),
+          spaces_panorama_url: nextPanoramaUrl,
           spaces_vr360_link: field === 'vr' ? convertToEmbedUrl(value) : vr360Link,
         },
       });
+      if (field === 'target') {
+        setPanoramaTargetId(String(Number(value) || 1));
+        setPanoramaUrl(nextPanoramaUrl);
+      }
       if (field === 'panorama') setPanoramaUrl(value);
       if (field === 'vr') setVr360Link(convertToEmbedUrl(value));
       if (field === 'title') {
@@ -395,8 +411,12 @@ const CafeSpace: React.FC = () => {
     }
   };
 
-  const handleVR360Change = (field: 'panorama' | 'vr' | 'title', value: string) => {
-    if (field === 'panorama') {
+  const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
+    if (field === 'target') {
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
+      setPanoramaTargetId(value);
+      setPanoramaUrl(selectedScene?.panorama_url || '');
+    } else if (field === 'panorama') {
       setPanoramaUrl(value);
     } else if (field === 'vr') {
       setVr360Link(convertToEmbedUrl(value));
@@ -448,10 +468,10 @@ const CafeSpace: React.FC = () => {
     return true;
   });
 
-  const panoramaTargetOptions = useMemo(() => {
-    const ids = new Set<number>([1, ...spaces.map((space) => space.id)]);
-    return Array.from(ids).sort((a, b) => a - b);
-  }, [spaces]);
+  const panoramaTargetOptions = useMemo(
+    () => buildVr360TargetOptions(vr360Scenes, panoramaTargetId),
+    [panoramaTargetId, vr360Scenes],
+  );
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center text-slate-600">Loading spaces...</div>;
@@ -484,12 +504,12 @@ const CafeSpace: React.FC = () => {
             <select
               className={FIELD_CLASS}
               value={panoramaTargetId}
-              onChange={(e) => setPanoramaTargetId(e.target.value)}
+              onChange={(e) => void handleVR360Change('target', e.target.value)}
               disabled={savingVR}
             >
-              {panoramaTargetOptions.map((id) => (
-                <option key={id} value={id}>
-                  ID {id}
+              {panoramaTargetOptions.map((scene) => (
+                <option key={scene.id} value={scene.id}>
+                  {getVr360TargetLabel(vr360Scenes, scene.id)}
                 </option>
               ))}
             </select>

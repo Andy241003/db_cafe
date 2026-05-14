@@ -15,14 +15,17 @@ import type {
     CafePageSettings,
     ContentSection,
     ContentSectionTranslation,
+    VR360SceneListItem,
 } from '../../services/cafeApi';
 import {
     cafeContentSectionsApi,
     cafeLanguagesApi,
     cafePageSettingsApi,
+    vr360ScenesApi,
 } from '../../services/cafeApi';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
+import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
 
 const INPUT_CLASS = 'w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed';
 const TEXTAREA_CLASS = `${INPUT_CLASS} resize-y`;
@@ -145,7 +148,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
   const [initialIntroduction, setInitialIntroduction] = useState<IntroductionFormState | null>(null);
   const [initialPageSettings, setInitialPageSettings] = useState<PageSettingsFormState>(() => buildPageSettingsState(['vi', 'en'], pageCode));
   const [savingVR, setSavingVR] = useState(false);
-  const panoramaTargetOptions = [1, 2, 3];
+  const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
   const vrSaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPageData = useCallback(async () => {
@@ -158,7 +161,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
       setSupportedLanguages(resolvedLocales);
       setCurrentLocale((prev) => (resolvedLocales.includes(prev) ? prev : resolvedLocales[0]));
 
-      const [sections, pageSetting] = await Promise.all([
+      const [sections, pageSetting, scenes] = await Promise.all([
         cafeContentSectionsApi.getContentSections(pageCode, 'introduction'),
         cafePageSettingsApi.getPageSetting(pageCode).catch((error) => {
           if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -166,6 +169,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
           }
           throw error;
         }),
+        vr360ScenesApi.getScenes(),
       ]);
 
       const introductionSection = sections[0];
@@ -176,6 +180,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
       setInitialIntroduction(JSON.parse(JSON.stringify(nextIntroduction)));
       setPageSettings(nextPageSettings);
       setInitialPageSettings(JSON.parse(JSON.stringify(nextPageSettings)));
+      setVr360Scenes(scenes);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to load introduction data');
     } finally {
@@ -214,10 +219,17 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
   ) => {
     try {
       setSavingVR(true);
+      const selectedScene =
+        field === 'target_id' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
       const nextSettings = {
         ...pageSettings,
         target_id: field === 'target_id' ? value : pageSettings.target_id,
-        panorama_url: field === 'panorama_url' ? value : pageSettings.panorama_url,
+        panorama_url:
+          field === 'target_id'
+            ? selectedScene?.panorama_url || ''
+            : field === 'panorama_url'
+              ? value
+              : pageSettings.panorama_url,
         vr360_link: field === 'vr360_link' ? value : pageSettings.vr360_link,
         title_translations:
           field === 'title'
@@ -243,10 +255,24 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
     } finally {
       setSavingVR(false);
     }
-  }, [currentLocale, pageCode, pageSettings]);
+  }, [currentLocale, pageCode, pageSettings, vr360Scenes]);
+
+  const panoramaTargetOptions = useMemo(
+    () => buildVr360TargetOptions(vr360Scenes, pageSettings.target_id),
+    [pageSettings.target_id, vr360Scenes],
+  );
 
   const handlePageSettingChange = (field: 'target_id' | 'panorama_url' | 'vr360_link', value: string) => {
-    setPageSettings((prev) => ({ ...prev, [field]: value }));
+    if (field === 'target_id') {
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
+      setPageSettings((prev) => ({
+        ...prev,
+        target_id: value,
+        panorama_url: selectedScene?.panorama_url || '',
+      }));
+    } else {
+      setPageSettings((prev) => ({ ...prev, [field]: value }));
+    }
     if (vrSaveTimeoutRef.current) {
       clearTimeout(vrSaveTimeoutRef.current);
     }
@@ -450,9 +476,9 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
               onChange={(event) => handlePageSettingChange('target_id', event.target.value)}
               disabled={fieldsDisabled || savingVR}
             >
-              {panoramaTargetOptions.map((id) => (
-                <option key={id} value={String(id)}>
-                  ID {id}
+              {panoramaTargetOptions.map((scene) => (
+                <option key={scene.id} value={String(scene.id)}>
+                  {getVr360TargetLabel(vr360Scenes, scene.id)}
                 </option>
               ))}
             </select>
