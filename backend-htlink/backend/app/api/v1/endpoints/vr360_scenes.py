@@ -12,7 +12,7 @@ from app.models import Tenant
 from app.crud.vr_hotel import vr360_scene
 from app.schemas.vr_hotel import VR360SceneListItem, VR360SceneSyncRequest, VR360SceneSyncResponse
 
-router = APIRouter()
+router = APIRouter(tags=["vr360"])
 
 
 @router.get("/scenes", response_model=list[VR360SceneListItem])
