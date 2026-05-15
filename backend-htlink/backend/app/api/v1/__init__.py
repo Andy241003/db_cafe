@@ -4,7 +4,7 @@ from app.api.v1.endpoints import (
     auth, plans, tenants, users, properties, features, features_test, posts, media,
     categories, events, utils, locales, translations, property_categories,
     analytics, test_upload, property_posts, activity_logs, activity_test,
-    vr360_scenes,
+    vr360_scenes, vr_hotel_settings,
     cafe_settings, cafe_contact, cafe_languages, cafe_branches, cafe_menu, cafe_events, cafe_careers, cafe_promotions,
     cafe_spaces, cafe_content_sections, cafe_services
 )
@@ -32,6 +32,7 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["analytic
 api_router.include_router(test_upload.router, prefix="/test-upload", tags=["test-upload"], include_in_schema=False)
 
 api_router.include_router(vr360_scenes.router, prefix="/vr360")
+api_router.include_router(vr_hotel_settings.router, prefix="/vr360")
 
 # Cafe routes
 api_router.include_router(cafe_settings.router, prefix="/cafe/settings", tags=["cafe"])
