@@ -32,7 +32,7 @@ class CafeContactResponse(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
-    target_id: Optional[int] = None
+    scene_id: Optional[str] = None
     panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
@@ -52,7 +52,7 @@ class CafeContactUpdate(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
-    target_id: Optional[int] = None
+    scene_id: Optional[str] = None
     panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
@@ -86,7 +86,7 @@ def get_cafe_contact(
         return CafeContactResponse(
             is_displaying=True,
             address_translations={},
-            target_id=1,
+            scene_id=None,
             updated_at=None,
         )
     
@@ -114,7 +114,7 @@ def get_cafe_contact(
         instagram_url=settings.instagram_url,
         twitter_url=settings_json.get('twitter_url'),
         youtube_url=settings.youtube_url,
-        target_id=settings_json.get('target_id'),
+        scene_id=settings_json.get('scene_id'),
         panorama_url=settings_json.get('panorama_url'),
         vr360_link=settings_json.get('vr360_link'),
         vr_title=settings_json.get('vr_title'),
@@ -173,8 +173,8 @@ def update_cafe_contact(
         settings_json['contact_is_displaying'] = update_dict['is_displaying']
     if 'twitter_url' in update_dict:
         settings_json['twitter_url'] = update_dict['twitter_url']
-    if 'target_id' in update_dict:
-        settings_json['target_id'] = update_dict['target_id']
+    if 'scene_id' in update_dict:
+        settings_json['scene_id'] = update_dict['scene_id']
     if 'panorama_url' in update_dict:
         settings_json['panorama_url'] = update_dict['panorama_url']
     if 'vr360_link' in update_dict:

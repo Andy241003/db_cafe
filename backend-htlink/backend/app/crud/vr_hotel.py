@@ -331,7 +331,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         updated = 0
         deactivated = 0
 
-        existing_scenes = self.get_active_by_tenant(db=db, tenant_id=tenant_id)
+        existing_scenes = self.get_active_by_tenant(db=db, tenant_id=tenant_id, property_id=property_id)
 
         # Process incoming scenes
         incoming_scene_ids = set()
@@ -343,6 +343,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
             existing_scene = self.get_by_tenant_and_scene_id(
                 db=db,
                 tenant_id=tenant_id,
+                property_id=property_id,
                 scene_id=scene_id
             )
 
@@ -360,7 +361,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
                 # Create new scene
                 new_scene = VR360Scene(
                     tenant_id=tenant_id,
-                    property_id=None,
+                    property_id=property_id,
                     scene_id=scene_id,
                     scene_name=scene_data["name"],
                     scene_subtitle=scene_data.get("subtitle"),
