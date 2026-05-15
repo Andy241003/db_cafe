@@ -198,9 +198,13 @@ class VR360SceneItem(BaseModel):
 
 
 class VR360SceneSyncRequest(BaseModel):
+    property_id: Optional[int] = Field(
+        None,
+        description="Optional property ID. Leave empty for cafe-only tenant-scoped VR sync."
+    )
     tenant_code: Optional[str] = Field(
         None,
-        description="Optional tenant code for validation only. Authenticated tenant is authoritative.",
+        description="Optional tenant code for validation only. Authenticated tenant is authoritative."
     )
     scenes: List[VR360SceneItem] = Field(..., min_items=1, description="List of scenes to sync")
 

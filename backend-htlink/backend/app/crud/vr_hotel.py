@@ -282,14 +282,18 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         db: Session,
         *,
         tenant_id: int,
+        property_id: Optional[int],
         scene_id: str
     ) -> Optional[VR360Scene]:
-        """Get a specific scene by tenant and scene_id for cafe-only sync."""
+        """Get a specific scene by tenant, optional property, and scene_id"""
         query = select(VR360Scene).where(
             VR360Scene.tenant_id == tenant_id,
-            VR360Scene.property_id.is_(None),
             VR360Scene.scene_id == scene_id
         )
+        if property_id is not None:
+            query = query.where(VR360Scene.property_id == property_id)
+        else:
+            query = query.where(VR360Scene.property_id.is_(None))
         return db.exec(query).first()
 
     def get_active_by_tenant(
@@ -297,13 +301,18 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         db: Session,
         *,
         tenant_id: int,
+        property_id: Optional[int]
     ) -> List[VR360Scene]:
-        """Get all active cafe-only scenes for a tenant, ordered by display_order."""
+        """Get all active scenes for a tenant, optionally filtered by property."""
         query = select(VR360Scene).where(
             VR360Scene.tenant_id == tenant_id,
-            VR360Scene.property_id.is_(None),
             VR360Scene.is_active == True
-        ).order_by(VR360Scene.display_order)
+        )
+        if property_id is not None:
+            query = query.where(VR360Scene.property_id == property_id)
+        else:
+            query = query.where(VR360Scene.property_id.is_(None))
+        query = query.order_by(VR360Scene.display_order)
         return list(db.exec(query).all())
 
     def sync_scenes(
@@ -311,6 +320,7 @@ class CRUDVR360Scene(CRUDBase[VR360Scene, Any, Any]):
         db: Session,
         *,
         tenant_id: int,
+        property_id: Optional[int],
         scenes_data: List[Dict[str, Any]]
     ) -> Dict[str, int]:
         """

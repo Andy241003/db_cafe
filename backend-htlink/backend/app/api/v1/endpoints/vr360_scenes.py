@@ -61,8 +61,12 @@ def sync_vr360_scenes(
             status_code=404,
             detail="Authenticated tenant not found"
         )
+
     if request.tenant_code and request.tenant_code != tenant.code:
         raise HTTPException(status_code=400, detail="tenant_code does not match authenticated tenant")
+
+    # Determine property if provided; for cafe-only VR this is optional
+    property_id = request.property_id
 
     # Convert request scenes to dict format for CRUD
     scenes_data = []
@@ -80,6 +84,7 @@ def sync_vr360_scenes(
         sync_result = vr360_scene.sync_scenes(
             db=db,
             tenant_id=current_user.tenant_id,
+            property_id=property_id,
             scenes_data=scenes_data
         )
     except Exception as e:
