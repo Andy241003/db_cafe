@@ -105,7 +105,7 @@ export interface CafePageSettings {
   tenant_id?: number;
   page_code: string;
   is_displaying: boolean;
-  target_id?: number | null;
+  scene_id?: string | null;
   panorama_url?: string | null;
   vr360_link?: string | null;
   vr_title?: string | null;
@@ -117,7 +117,7 @@ export interface CafePageSettings {
 export interface CafePageSettingsUpdate {
   page_code: string;
   is_displaying?: boolean;
-  target_id?: number | null;
+  scene_id?: string | null;
   panorama_url?: string | null;
   vr360_link?: string | null;
   vr_title?: string | null;
@@ -582,7 +582,7 @@ export interface CafeContact {
   instagram_url: string;
   twitter_url: string;
   youtube_url: string;
-  target_id?: number | null;
+  scene_id?: string | null;
   panorama_url?: string | null;
   vr360_link: string;
   vr_title: string;
