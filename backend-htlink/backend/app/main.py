@@ -127,9 +127,27 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
 
-    # Temporarily disable filtering to show all APIs
     openapi_schema = app.openapi_schema_original()
-    app.openapi_schema = openapi_schema
+    filtered_schema = deepcopy(openapi_schema)
+    filtered_paths = {}
+
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        filtered_operations = {}
+        for method, operation in path_item.items():
+            tags = set(operation.get("tags", []))
+            # Only show vr360 APIs
+            if "vr360" in tags:
+                filtered_operations[method] = operation
+
+        if filtered_operations:
+            filtered_paths[path] = filtered_operations
+
+    filtered_schema["paths"] = filtered_paths
+    filtered_schema["tags"] = [
+        tag for tag in openapi_schema.get("tags", [])
+        if tag.get("name") == "vr360"
+    ]
+    app.openapi_schema = filtered_schema
     return app.openapi_schema
 
 
