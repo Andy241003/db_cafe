@@ -14,7 +14,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.models import UserRole
 from app.models.vr_hotel import VRHotelSettings, VRHotelContact, VRHotelSEO
 
-router = APIRouter()
+router = APIRouter(tags=["vr360"])
 
 
 # ==========================================
