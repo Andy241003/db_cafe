@@ -12,6 +12,13 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models.cafe import CafeSettings, CafePageSettings
+from app.utils.cafe_vr_settings import (
+    build_default_vr360_settings,
+    build_grouped_vr360_sections,
+    normalize_scoped_vr360_settings_json,
+    normalize_target_id,
+    normalize_vr360_settings,
+)
 from app.utils.cafe_vr_title import clean_title_translations, sync_title_translations
 
 router = APIRouter()
@@ -20,6 +27,14 @@ router = APIRouter()
 # ==========================================
 # Pydantic Schemas
 # ==========================================
+
+class CafeVR360SettingsResponse(BaseModel):
+    target_id: Optional[str] = None
+    panorama_url: Optional[str] = None
+    vr360_link: Optional[str] = None
+    vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
+
 
 class CafeSettingsResponse(BaseModel):
     """Cafe Settings Response"""
@@ -42,6 +57,7 @@ class CafeSettingsResponse(BaseModel):
     meta_keywords: Optional[str] = None
     business_hours: Optional[Dict[str, Any]] = None
     settings_json: Optional[Dict[str, Any]] = None
+    vr360_sections: Optional[Dict[str, CafeVR360SettingsResponse]] = None
     updated_at: Optional[datetime] = None
 
 
@@ -72,11 +88,7 @@ class CafePageSettingsResponse(BaseModel):
     tenant_id: Optional[int] = None
     page_code: str
     is_displaying: bool = True
-    scene_id: Optional[str] = None
-    panorama_url: Optional[str] = None
-    vr360_link: Optional[str] = None
-    vr_title: Optional[str] = None
-    title_translations: Optional[Dict[str, str]] = None
+    vr360: CafeVR360SettingsResponse
     settings_json: Optional[Dict[str, Any]] = None
     updated_at: Optional[datetime] = None
 
@@ -85,7 +97,7 @@ class CafePageSettingsUpdate(BaseModel):
     """Cafe Page Settings Update"""
     page_code: str
     is_displaying: Optional[bool] = None
-    scene_id: Optional[str] = None
+    target_id: Optional[str | int] = None
     panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
@@ -105,24 +117,50 @@ def get_cafe_settings_record(db: SessionDep, tenant_id: int) -> Optional[CafeSet
 
 def to_cafe_settings_response(
     settings: CafeSettings | CafeSettingsResponse,
+    db: SessionDep,
     tenant_id: int,
 ) -> CafeSettingsResponse:
     payload = settings.model_dump()
     payload["tenant_id"] = tenant_id
+    payload["settings_json"] = normalize_scoped_vr360_settings_json(
+        db,
+        tenant_id,
+        payload.get("settings_json"),
+    )
+    payload["vr360_sections"] = {
+        section_name: CafeVR360SettingsResponse(**section_value)
+        for section_name, section_value in build_grouped_vr360_sections(
+            db,
+            tenant_id,
+            payload.get("settings_json"),
+        ).items()
+    }
     return CafeSettingsResponse(**payload)
 
 
 def to_page_settings_response(
     page_settings: CafePageSettings | CafePageSettingsResponse,
+    db: SessionDep,
     tenant_id: int,
 ) -> CafePageSettingsResponse:
     payload = page_settings.model_dump()
     payload["tenant_id"] = tenant_id
-    payload["scene_id"] = (payload.get("settings_json") or {}).get("scene_id")
-    payload["panorama_url"] = (payload.get("settings_json") or {}).get("panorama_url")
-    payload["title_translations"] = clean_title_translations(
-        (payload.get("settings_json") or {}).get("title_translations")
+    normalized_vr360 = normalize_vr360_settings(
+        db,
+        tenant_id,
+        raw_target_id=(payload.get("settings_json") or {}).get("target_id"),
+        panorama_url=(payload.get("settings_json") or {}).get("panorama_url"),
+        vr360_link=payload.get("vr360_link"),
+        vr_title=payload.get("vr_title"),
+        title_translations=(payload.get("settings_json") or {}).get("title_translations"),
     )
+    payload["settings_json"] = {
+        **((payload.get("settings_json") or {}) if isinstance(payload.get("settings_json"), dict) else {}),
+        "target_id": normalized_vr360["target_id"],
+        "panorama_url": normalized_vr360["panorama_url"],
+        "title_translations": clean_title_translations(normalized_vr360.get("title_translations")),
+    }
+    payload["vr360"] = CafeVR360SettingsResponse(**normalized_vr360)
     return CafePageSettingsResponse(**payload)
 
 
@@ -155,10 +193,14 @@ def get_cafe_settings(
             cafe_name="My Cafe",
             primary_color="#6f4e37",
             secondary_color="#d4a574",
-            background_color="#ffffff"
+            background_color="#ffffff",
+            vr360_sections={
+                section_name: CafeVR360SettingsResponse(**build_default_vr360_settings(db, current_user.tenant_id))
+                for section_name in ("menu", "space", "branches", "events", "careers", "promotions", "contact")
+            },
         )
 
-    return to_cafe_settings_response(settings, current_user.tenant_id)
+    return to_cafe_settings_response(settings, db, current_user.tenant_id)
 
 
 @router.post("/", response_model=CafeSettingsResponse)
@@ -174,6 +216,8 @@ def create_or_update_cafe_settings(
 
     if existing:
         for key, value in settings_data.model_dump(exclude_unset=True).items():
+            if key == "settings_json" and isinstance(value, dict):
+                value = normalize_scoped_vr360_settings_json(db, current_user.tenant_id, value)
             if hasattr(existing, key):
                 setattr(existing, key, value)
                 if key in ['business_hours', 'settings_json']:
@@ -183,9 +227,15 @@ def create_or_update_cafe_settings(
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return to_cafe_settings_response(existing, current_user.tenant_id)
+        return to_cafe_settings_response(existing, db, current_user.tenant_id)
 
     settings_dict = settings_data.model_dump(exclude_unset=True)
+    if isinstance(settings_dict.get("settings_json"), dict):
+        settings_dict["settings_json"] = normalize_scoped_vr360_settings_json(
+            db,
+            current_user.tenant_id,
+            settings_dict["settings_json"],
+        )
     if 'cafe_name' not in settings_dict or settings_dict.get('cafe_name') is None:
         settings_dict['cafe_name'] = 'My Cafe'
 
@@ -197,7 +247,7 @@ def create_or_update_cafe_settings(
     db.add(new_settings)
     db.commit()
     db.refresh(new_settings)
-    return to_cafe_settings_response(new_settings, current_user.tenant_id)
+    return to_cafe_settings_response(new_settings, db, current_user.tenant_id)
 
 
 @router.get("/pages", response_model=list[CafePageSettingsResponse])
@@ -213,7 +263,7 @@ def get_cafe_page_settings(
     )
     page_settings = db.exec(statement).all()
     return [
-        to_page_settings_response(page, current_user.tenant_id)
+        to_page_settings_response(page, db, current_user.tenant_id)
         for page in page_settings
     ]
 
@@ -234,15 +284,11 @@ def get_page_setting(
             tenant_id=current_user.tenant_id,
             page_code=page_code,
             is_displaying=True,
-            scene_id=None,
-            panorama_url=None,
-            vr360_link=None,
-            vr_title=None,
-            title_translations={},
+            vr360=CafeVR360SettingsResponse(**build_default_vr360_settings(db, current_user.tenant_id)),
             settings_json=None,
         )
 
-    return to_page_settings_response(page_setting, current_user.tenant_id)
+    return to_page_settings_response(page_setting, db, current_user.tenant_id)
 
 
 @router.post("/pages", response_model=CafePageSettingsResponse)
@@ -262,10 +308,10 @@ def create_or_update_page_setting(
         base_settings_json = existing.settings_json
     if not isinstance(base_settings_json, dict):
         base_settings_json = {}
-    if "scene_id" in update_dict:
+    if "target_id" in update_dict:
         base_settings_json = {
             **base_settings_json,
-            "scene_id": update_dict.pop("scene_id"),
+            "target_id": normalize_target_id(db, current_user.tenant_id, update_dict.pop("target_id")),
         }
     if "panorama_url" in update_dict:
         base_settings_json = {
@@ -278,8 +324,21 @@ def create_or_update_page_setting(
         title_translations=page_data.title_translations,
         fallback_title=update_dict.get("vr_title"),
     )
+    normalized_vr360 = normalize_vr360_settings(
+        db,
+        current_user.tenant_id,
+        raw_target_id=next_settings_json.get("target_id"),
+        panorama_url=next_settings_json.get("panorama_url"),
+        vr360_link=update_dict.get("vr360_link") if "vr360_link" in update_dict else existing.vr360_link if existing else None,
+        vr_title=update_dict.get("vr_title") if "vr_title" in update_dict else primary_title,
+        title_translations=next_settings_json.get("title_translations"),
+    )
+    next_settings_json["target_id"] = normalized_vr360["target_id"]
+    next_settings_json["panorama_url"] = normalized_vr360["panorama_url"]
+    next_settings_json["title_translations"] = normalized_vr360["title_translations"]
+    update_dict["vr_title"] = normalized_vr360["vr_title"] or primary_title
 
-    if page_data.title_translations is not None or "scene_id" in page_data.model_fields_set or "panorama_url" in page_data.model_fields_set or (
+    if page_data.title_translations is not None or "target_id" in page_data.model_fields_set or "panorama_url" in page_data.model_fields_set or (
         isinstance(incoming_settings_json, dict) and "title_translations" in incoming_settings_json
     ):
         update_dict["settings_json"] = next_settings_json
@@ -296,7 +355,7 @@ def create_or_update_page_setting(
         db.add(existing)
         db.commit()
         db.refresh(existing)
-        return to_page_settings_response(existing, current_user.tenant_id)
+        return to_page_settings_response(existing, db, current_user.tenant_id)
 
     new_page = CafePageSettings(
         tenant_id=current_user.tenant_id,
@@ -306,7 +365,7 @@ def create_or_update_page_setting(
     db.add(new_page)
     db.commit()
     db.refresh(new_page)
-    return to_page_settings_response(new_page, current_user.tenant_id)
+    return to_page_settings_response(new_page, db, current_user.tenant_id)
 
 
 @router.delete("/pages/{page_code}")

@@ -220,8 +220,7 @@ class VR360SceneSyncResponse(BaseModel):
 
 
 class VR360SceneListItem(BaseModel):
-    id: int
-    scene_id: str
+    target_id: str
     scene_name: str
     scene_subtitle: Optional[str] = None
     panorama_url: Optional[str] = None

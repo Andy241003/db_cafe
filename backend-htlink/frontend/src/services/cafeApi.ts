@@ -96,20 +96,25 @@ export interface CafeSettings {
   
   // Settings JSON
   settings_json?: Record<string, any>;
+  vr360_sections?: Record<string, CafeVr360Settings>;
   updated_at?: string | null;
 }
 
 export interface CafeSettingsUpdate extends Partial<CafeSettings> {}
+export interface CafeVr360Settings {
+  target_id?: string | null;
+  panorama_url?: string | null;
+  vr360_link?: string | null;
+  vr_title?: string | null;
+  title_translations?: Record<string, string> | null;
+}
+
 export interface CafePageSettings {
   id?: number;
   tenant_id?: number;
   page_code: string;
   is_displaying: boolean;
-  scene_id?: string | null;
-  panorama_url?: string | null;
-  vr360_link?: string | null;
-  vr_title?: string | null;
-  title_translations?: Record<string, string> | null;
+  vr360: CafeVr360Settings;
   settings_json?: Record<string, any> | null;
   updated_at?: string | null;
 }
@@ -117,7 +122,7 @@ export interface CafePageSettings {
 export interface CafePageSettingsUpdate {
   page_code: string;
   is_displaying?: boolean;
-  scene_id?: string | null;
+  target_id?: string | null;
   panorama_url?: string | null;
   vr360_link?: string | null;
   vr_title?: string | null;
@@ -126,8 +131,7 @@ export interface CafePageSettingsUpdate {
 }
 
 export interface VR360SceneListItem {
-  id: number;
-  scene_id: string;
+  target_id: string;
   scene_name: string;
   scene_subtitle?: string | null;
   panorama_url?: string | null;
@@ -582,11 +586,7 @@ export interface CafeContact {
   instagram_url: string;
   twitter_url: string;
   youtube_url: string;
-  scene_id?: string | null;
-  panorama_url?: string | null;
-  vr360_link: string;
-  vr_title: string;
-  title_translations?: Record<string, string> | null;
+  vr360: CafeVr360Settings;
   map_coordinates: string;
   updated_at?: string | null;
   address_translations: {
@@ -598,7 +598,29 @@ export interface CafeContact {
   };
 }
 
-export interface CafeContactUpdate extends Partial<CafeContact> {}
+export interface CafeContactUpdate {
+  is_displaying?: boolean;
+  phone?: string;
+  email?: string;
+  website?: string;
+  facebook_url?: string;
+  instagram_url?: string;
+  twitter_url?: string;
+  youtube_url?: string;
+  target_id?: string | null;
+  panorama_url?: string | null;
+  vr360_link?: string | null;
+  vr_title?: string | null;
+  title_translations?: Record<string, string> | null;
+  map_coordinates?: string;
+  address_translations?: {
+    [locale: string]: {
+      address: string;
+      working_hours: string;
+      description: string;
+    };
+  };
+}
 
 export const cafePageSettingsApi = {
   getPageSettings: async (): Promise<CafePageSettings[]> => {

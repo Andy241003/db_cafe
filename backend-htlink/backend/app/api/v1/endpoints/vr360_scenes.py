@@ -7,10 +7,17 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
+from app.models.cafe import CafePageSettings, CafeSettings
 from app.models.vr_hotel import VR360Scene
 from app.models import Tenant
 from app.crud.vr_hotel import vr360_scene
 from app.schemas.vr_hotel import VR360SceneListItem, VR360SceneSyncRequest, VR360SceneSyncResponse
+from app.utils.cafe_vr_settings import (
+    build_default_vr360_settings,
+    build_grouped_vr360_sections,
+    build_scene_catalog,
+    normalize_vr360_settings,
+)
 
 router = APIRouter(tags=["vr360"])
 
@@ -29,8 +36,7 @@ def list_vr360_scenes(
 
     return [
         VR360SceneListItem(
-            id=scene.id,
-            scene_id=scene.scene_id,
+            target_id=scene.scene_id,
             scene_name=scene.scene_name,
             scene_subtitle=scene.scene_subtitle,
             panorama_url=scene.panorama_url,
@@ -39,6 +45,59 @@ def list_vr360_scenes(
         )
         for scene in scenes
     ]
+
+
+@router.get("/settings")
+def get_vr360_settings(
+    current_user: CurrentUser,
+    db: SessionDep,
+):
+    cafe_settings = db.exec(
+        select(CafeSettings).where(CafeSettings.tenant_id == current_user.tenant_id).limit(1)
+    ).first()
+
+    page_settings = db.exec(
+        select(CafePageSettings).where(CafePageSettings.tenant_id == current_user.tenant_id)
+    ).all()
+
+    page_settings_map = {page.page_code: page for page in page_settings}
+    scenes = build_scene_catalog(db, current_user.tenant_id)
+
+    sections = {
+        "home": normalize_vr360_settings(
+            db,
+            current_user.tenant_id,
+            raw_target_id=((page_settings_map.get("home").settings_json if page_settings_map.get("home") else {}) or {}).get("target_id"),
+            panorama_url=((page_settings_map.get("home").settings_json if page_settings_map.get("home") else {}) or {}).get("panorama_url"),
+            vr360_link=page_settings_map.get("home").vr360_link if page_settings_map.get("home") else None,
+            vr_title=page_settings_map.get("home").vr_title if page_settings_map.get("home") else None,
+            title_translations=((page_settings_map.get("home").settings_json if page_settings_map.get("home") else {}) or {}).get("title_translations"),
+        ),
+        "about": normalize_vr360_settings(
+            db,
+            current_user.tenant_id,
+            raw_target_id=((page_settings_map.get("about").settings_json if page_settings_map.get("about") else {}) or {}).get("target_id"),
+            panorama_url=((page_settings_map.get("about").settings_json if page_settings_map.get("about") else {}) or {}).get("panorama_url"),
+            vr360_link=page_settings_map.get("about").vr360_link if page_settings_map.get("about") else None,
+            vr_title=page_settings_map.get("about").vr_title if page_settings_map.get("about") else None,
+            title_translations=((page_settings_map.get("about").settings_json if page_settings_map.get("about") else {}) or {}).get("title_translations"),
+        ),
+        **build_grouped_vr360_sections(
+            db,
+            current_user.tenant_id,
+            cafe_settings.settings_json if cafe_settings else {},
+        ),
+    }
+
+    if not page_settings_map.get("home"):
+        sections["home"] = build_default_vr360_settings(db, current_user.tenant_id)
+    if not page_settings_map.get("about"):
+        sections["about"] = build_default_vr360_settings(db, current_user.tenant_id)
+
+    return {
+        "scenes": scenes,
+        "sections": sections,
+    }
 
 
 @router.post("/scenes/sync", response_model=VR360SceneSyncResponse)

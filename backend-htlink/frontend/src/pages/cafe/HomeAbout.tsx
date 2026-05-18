@@ -11,6 +11,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import VR360PreviewFrame from '../../components/VR360PreviewFrame';
 import type {
     CafePageSettings,
     ContentSection,
@@ -124,13 +125,13 @@ const buildPageSettingsState = (
 ): PageSettingsFormState => ({
   page_code: pageCode,
   is_displaying: pageSettings?.is_displaying ?? true,
-  target_id: String(pageSettings?.target_id ?? 1),
-  panorama_url: pageSettings?.panorama_url || '',
-  vr360_link: pageSettings?.vr360_link || '',
+  target_id: pageSettings?.vr360?.target_id || '',
+  panorama_url: pageSettings?.vr360?.panorama_url || '',
+  vr360_link: pageSettings?.vr360?.vr360_link || '',
   title_translations: buildTitleTranslations(
     locales,
-    pageSettings?.title_translations || pageSettings?.settings_json?.title_translations,
-    pageSettings?.vr_title || '',
+    pageSettings?.vr360?.title_translations || pageSettings?.settings_json?.title_translations,
+    pageSettings?.vr360?.vr_title || '',
   ),
 });
 
@@ -242,7 +243,7 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
       await cafePageSettingsApi.createOrUpdatePageSetting({
         page_code: pageCode,
         is_displaying: nextSettings.is_displaying,
-        target_id: Number(nextSettings.target_id) || 1,
+        target_id: nextSettings.target_id || null,
         panorama_url: nextSettings.panorama_url || null,
         vr360_link: nextSettings.vr360_link || null,
         vr_title: pickPrimaryTitle(nextSettings.title_translations) || null,
@@ -477,8 +478,8 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
               disabled={fieldsDisabled || savingVR}
             >
               {panoramaTargetOptions.map((scene) => (
-                <option key={scene.id} value={String(scene.id)}>
-                  {getVr360TargetLabel(vr360Scenes, scene.id)}
+                <option key={scene.target_id} value={scene.target_id}>
+                  {getVr360TargetLabel(vr360Scenes, scene.target_id)}
                 </option>
               ))}
             </select>
@@ -546,42 +547,11 @@ const CafeHomeAboutPage: React.FC<CafeHomeAboutPageProps> = ({
             />
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-              <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
-            </div>
-            <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50">
-              {pageSettings.vr360_link ? (
-                <div className="relative w-full" style={{ height: '500px' }}>
-                  <iframe
-                    src={pageSettings.vr360_link}
-                    className="absolute top-0 left-0 w-full h-full"
-                    allowFullScreen
-                    title={`${pageTitle} VR360 Preview`}
-                    allow="xr-spatial-tracking; gyroscope; accelerometer"
-                  />
-                </div>
-              ) : (
-                <div className="p-8 text-center">
-                  <FontAwesomeIcon icon={faVrCardboard} className="text-slate-400 text-5xl mb-3" />
-                  <p className="text-slate-600 font-medium mb-1">VR360 Preview</p>
-                  <p className="text-slate-500 text-sm">Enter VR360 link to preview</p>
-                </div>
-              )}
-            </div>
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                disabled={!pageSettings.vr360_link}
-                onClick={() => window.open(pageSettings.vr360_link, '_blank')}
-                className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <FontAwesomeIcon icon={faPlay} />
-                View Fullscreen
-              </button>
-            </div>
-          </div>
+          <VR360PreviewFrame
+            panoramaUrl={pageSettings.panorama_url}
+            vr360Link={pageSettings.vr360_link}
+            title={`${pageTitle} VR360 Preview`}
+          />
         </div>
       </div>
 

@@ -13,7 +13,7 @@ RUN npm install
 COPY . .
 
 # Build arguments
-ARG VITE_API_URL=https://travel.link360.vn
+ARG VITE_API_URL=
 ARG NODE_ENV=production
 
 # Set environment variables

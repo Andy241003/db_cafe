@@ -2,23 +2,23 @@ import type { VR360SceneListItem } from '../services/cafeApi';
 
 export const getVr360SceneByTargetId = (
   scenes: VR360SceneListItem[],
-  targetId: string | number,
+  targetId: string | null | undefined,
 ) => {
-  const numericId = Number(targetId);
-  if (!Number.isFinite(numericId)) {
+  const normalizedTargetId = targetId?.trim();
+  if (!normalizedTargetId) {
     return undefined;
   }
 
-  return scenes.find((scene) => scene.id === numericId);
+  return scenes.find((scene) => scene.target_id === normalizedTargetId);
 };
 
 export const buildVr360TargetOptions = (
   scenes: VR360SceneListItem[],
-  selectedTargetId?: string | number,
+  selectedTargetId?: string | null,
 ) => {
   const activeScenes = scenes
     .filter((scene) => scene.is_active)
-    .sort((left, right) => left.display_order - right.display_order || left.id - right.id);
+    .sort((left, right) => left.display_order - right.display_order || left.target_id.localeCompare(right.target_id));
 
   const selectedScene = getVr360SceneByTargetId(activeScenes, selectedTargetId ?? '');
 
@@ -32,12 +32,12 @@ export const buildVr360TargetOptions = (
 
 export const getVr360TargetLabel = (
   scenes: VR360SceneListItem[],
-  targetId: string | number,
+  targetId: string,
 ) => {
   const scene = getVr360SceneByTargetId(scenes, targetId);
   if (!scene) {
     return `ID ${targetId}`;
   }
 
-  return scene.scene_name ? `ID ${scene.id} - ${scene.scene_name}` : `ID ${scene.id}`;
+  return scene.scene_name ? `${scene.target_id} - ${scene.scene_name}` : scene.target_id;
 };

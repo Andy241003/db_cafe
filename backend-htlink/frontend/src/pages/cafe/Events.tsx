@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
+import VR360PreviewFrame from '../../components/VR360PreviewFrame';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
 import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
@@ -165,7 +166,7 @@ const CafeEvents: React.FC = () => {
   const [savingDisplayStatus, setSavingDisplayStatus] = useState(false);
   const [panoramaUrl, setPanoramaUrl] = useState('');
   const [vr360Link, setVr360Link] = useState('');
-  const [panoramaTargetId, setPanoramaTargetId] = useState('1');
+  const [panoramaTargetId, setPanoramaTargetId] = useState('');
   const [vrTitleTranslations, setVrTitleTranslations] = useState<TitleTranslations>({ vi: '', en: '' });
   const [savingVR, setSavingVR] = useState(false);
   const [vr360Scenes, setVr360Scenes] = useState<VR360SceneListItem[]>([]);
@@ -204,10 +205,12 @@ const CafeEvents: React.FC = () => {
       setEvents(eventData);
       setBranches(branchData);
       setIsDisplaying(typeof settingsJson.events_is_displaying === 'boolean' ? settingsJson.events_is_displaying : true);
-      setPanoramaTargetId(String(settingsJson.events_panorama_target_id ?? 1));
-      setPanoramaUrl(typeof settingsJson.events_panorama_url === 'string' ? settingsJson.events_panorama_url : '');
-      setVr360Link(typeof settingsJson.events_vr360_link === 'string' ? settingsJson.events_vr360_link : '');
-      setVrTitleTranslations(getScopedTitleTranslations(settings.settings_json, 'events', locales));
+      setPanoramaTargetId(settings.vr360_sections?.events?.target_id || '');
+      setPanoramaUrl(settings.vr360_sections?.events?.panorama_url || '');
+      setVr360Link(settings.vr360_sections?.events?.vr360_link || '');
+      setVrTitleTranslations(getScopedTitleTranslations({
+        events_title_translations: settings.vr360_sections?.events?.title_translations || {},
+      }, 'events', locales));
       setVr360Scenes(scenes);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load events');
@@ -428,9 +431,9 @@ const CafeEvents: React.FC = () => {
         field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
 
       if (field === 'target') {
-        updates.events_panorama_target_id = Number(value) || 1;
+        updates.events_panorama_target_id = value || null;
         updates.events_panorama_url = selectedScene?.panorama_url || '';
-        setPanoramaTargetId(String(Number(value) || 1));
+        setPanoramaTargetId(value);
         setPanoramaUrl(selectedScene?.panorama_url || '');
       } else if (field === 'panorama') {
         updates.events_panorama_url = value;
@@ -553,8 +556,8 @@ const CafeEvents: React.FC = () => {
               disabled={savingVR}
             >
               {panoramaTargetOptions.map((scene) => (
-                <option key={scene.id} value={String(scene.id)}>
-                  {getVr360TargetLabel(vr360Scenes, scene.id)}
+                <option key={scene.target_id} value={scene.target_id}>
+                  {getVr360TargetLabel(vr360Scenes, scene.target_id)}
                 </option>
               ))}
             </select>
@@ -611,37 +614,7 @@ const CafeEvents: React.FC = () => {
             />
           </div>
 
-          {vr360Link && (
-            <div>
-              <div className="mb-3 flex items-center gap-2">
-                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-                <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
-              </div>
-
-              <div className="overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-50">
-                <div className="relative w-full" style={{ height: '500px' }}>
-                  <iframe
-                    src={vr360Link}
-                    className="absolute left-0 top-0 h-full w-full"
-                    allowFullScreen
-                    title="VR360 Preview"
-                    allow="xr-spatial-tracking; gyroscope; accelerometer"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => window.open(vr360Link, '_blank')}
-                  className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-6 py-2 text-white transition-colors hover:bg-slate-700"
-                >
-                  <FontAwesomeIcon icon={faGlobe} />
-                  View Fullscreen
-                </button>
-              </div>
-            </div>
-          )}
+          <VR360PreviewFrame panoramaUrl={panoramaUrl} vr360Link={vr360Link} />
         </div>
       </div>
 

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.core.db import get_db
 from app.api.deps import CurrentUser, SessionDep
 from app.models.cafe import CafeSettings
+from app.utils.cafe_vr_settings import build_default_vr360_settings, normalize_scoped_vr360_settings_json, normalize_target_id, normalize_vr360_settings
 from app.utils.cafe_vr_title import clean_title_translations, sync_title_translations
 
 router = APIRouter()
@@ -21,6 +22,14 @@ router = APIRouter()
 # ==========================================
 # Pydantic Schemas
 # ==========================================
+
+class CafeVR360SettingsResponse(BaseModel):
+    target_id: Optional[str] = None
+    panorama_url: Optional[str] = None
+    vr360_link: Optional[str] = None
+    vr_title: Optional[str] = None
+    title_translations: Optional[Dict[str, str]] = None
+
 
 class CafeContactResponse(BaseModel):
     """Cafe Contact Response"""
@@ -32,11 +41,7 @@ class CafeContactResponse(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
-    scene_id: Optional[str] = None
-    panorama_url: Optional[str] = None
-    vr360_link: Optional[str] = None
-    vr_title: Optional[str] = None
-    title_translations: Optional[Dict[str, str]] = None
+    vr360: CafeVR360SettingsResponse
     map_coordinates: Optional[str] = None
     address_translations: Optional[Dict[str, Any]] = None
     updated_at: Optional[datetime] = None
@@ -52,7 +57,7 @@ class CafeContactUpdate(BaseModel):
     instagram_url: Optional[str] = None
     twitter_url: Optional[str] = None
     youtube_url: Optional[str] = None
-    scene_id: Optional[str] = None
+    target_id: Optional[str | int] = None
     panorama_url: Optional[str] = None
     vr360_link: Optional[str] = None
     vr_title: Optional[str] = None
@@ -86,7 +91,7 @@ def get_cafe_contact(
         return CafeContactResponse(
             is_displaying=True,
             address_translations={},
-            scene_id=None,
+            vr360=CafeVR360SettingsResponse(**build_default_vr360_settings(db, current_user.tenant_id)),
             updated_at=None,
         )
     
@@ -105,6 +110,16 @@ def get_cafe_contact(
                     'description': value.get('description', '')
                 }
     
+    normalized_vr360 = normalize_vr360_settings(
+        db,
+        current_user.tenant_id,
+        raw_target_id=settings_json.get('target_id'),
+        panorama_url=settings_json.get('panorama_url'),
+        vr360_link=settings_json.get('vr360_link'),
+        vr_title=settings_json.get('vr_title'),
+        title_translations=settings_json.get('title_translations'),
+    )
+
     return CafeContactResponse(
         is_displaying=settings_json.get('contact_is_displaying', True),
         phone=settings.phone,
@@ -114,11 +129,7 @@ def get_cafe_contact(
         instagram_url=settings.instagram_url,
         twitter_url=settings_json.get('twitter_url'),
         youtube_url=settings.youtube_url,
-        scene_id=settings_json.get('scene_id'),
-        panorama_url=settings_json.get('panorama_url'),
-        vr360_link=settings_json.get('vr360_link'),
-        vr_title=settings_json.get('vr_title'),
-        title_translations=clean_title_translations(settings_json.get('title_translations')),
+        vr360=CafeVR360SettingsResponse(**normalized_vr360),
         map_coordinates=settings_json.get('map_coordinates'),
         address_translations=address_translations,
         updated_at=settings.updated_at,
@@ -149,7 +160,7 @@ def update_cafe_contact(
         db.add(settings)
     
     # Get current settings_json
-    settings_json = settings.settings_json or {}
+    settings_json = normalize_scoped_vr360_settings_json(db, current_user.tenant_id, settings.settings_json or {})
     
     # Update contact fields from request
     update_dict = contact_data.model_dump(exclude_unset=True)
@@ -173,8 +184,8 @@ def update_cafe_contact(
         settings_json['contact_is_displaying'] = update_dict['is_displaying']
     if 'twitter_url' in update_dict:
         settings_json['twitter_url'] = update_dict['twitter_url']
-    if 'scene_id' in update_dict:
-        settings_json['scene_id'] = update_dict['scene_id']
+    if 'target_id' in update_dict:
+        settings_json['target_id'] = normalize_target_id(db, current_user.tenant_id, update_dict['target_id'])
     if 'panorama_url' in update_dict:
         settings_json['panorama_url'] = update_dict['panorama_url']
     if 'vr360_link' in update_dict:
@@ -190,6 +201,21 @@ def update_cafe_contact(
             fallback_title=update_dict.get('vr_title'),
         )
         settings_json['vr_title'] = primary_title
+
+    normalized_vr360 = normalize_vr360_settings(
+        db,
+        current_user.tenant_id,
+        raw_target_id=settings_json.get('target_id'),
+        panorama_url=settings_json.get('panorama_url'),
+        vr360_link=settings_json.get('vr360_link'),
+        vr_title=settings_json.get('vr_title'),
+        title_translations=settings_json.get('title_translations'),
+    )
+    settings_json['target_id'] = normalized_vr360['target_id']
+    settings_json['panorama_url'] = normalized_vr360['panorama_url']
+    settings_json['vr360_link'] = normalized_vr360['vr360_link']
+    settings_json['vr_title'] = normalized_vr360['vr_title']
+    settings_json['title_translations'] = clean_title_translations(normalized_vr360['title_translations'])
 
     # Update address translations in settings_json
     if 'address_translations' in update_dict and update_dict['address_translations']:

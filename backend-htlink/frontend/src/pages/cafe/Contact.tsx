@@ -2,6 +2,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import VR360PreviewFrame from '../../components/VR360PreviewFrame';
 import { cafeLanguagesApi, cafeContactApi, vr360ScenesApi, type VR360SceneListItem } from '../../services/cafeApi';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
@@ -79,7 +80,7 @@ const CafeContact: React.FC = () => {
     instagram_url: '',
     twitter_url: '',
     youtube_url: '',
-    target_id: '1',
+    target_id: '',
     panorama_url: '',
     vr360_link: '',
     title_translations: { vi: '', en: '' },
@@ -155,10 +156,10 @@ const CafeContact: React.FC = () => {
         instagram_url: data.instagram_url || '',
         twitter_url: data.twitter_url || '',
         youtube_url: data.youtube_url || '',
-        target_id: String(data.target_id ?? 1),
-        panorama_url: data.panorama_url || '',
-        vr360_link: data.vr360_link || '',
-        title_translations: buildTitleTranslations(langCodes, data.title_translations, data.vr_title || ''),
+        target_id: data.vr360?.target_id || '',
+        panorama_url: data.vr360?.panorama_url || '',
+        vr360_link: data.vr360?.vr360_link || '',
+        title_translations: buildTitleTranslations(langCodes, data.vr360?.title_translations, data.vr360?.vr_title || ''),
         map_coordinates: data.map_coordinates || '',
         settings_json: address_translations
       };
@@ -237,7 +238,7 @@ const CafeContact: React.FC = () => {
             : settings.title_translations,
       };
       await cafeContactApi.updateContact({
-        target_id: Number(nextSettings.target_id) || 1,
+        target_id: nextSettings.target_id || null,
         panorama_url: nextSettings.panorama_url,
         vr360_link: nextSettings.vr360_link,
         vr_title: pickPrimaryTitle(nextSettings.title_translations),
@@ -272,7 +273,7 @@ const CafeContact: React.FC = () => {
         instagram_url: settings.instagram_url,
         twitter_url: settings.twitter_url,
         youtube_url: settings.youtube_url,
-        target_id: Number(settings.target_id) || 1,
+        target_id: settings.target_id || null,
         panorama_url: settings.panorama_url,
         vr360_link: settings.vr360_link,
         vr_title: pickPrimaryTitle(settings.title_translations),
@@ -481,8 +482,8 @@ const CafeContact: React.FC = () => {
               disabled={savingVR}
             >
               {panoramaTargetOptions.map((scene) => (
-                <option key={scene.id} value={String(scene.id)}>
-                  {getVr360TargetLabel(vr360Scenes, scene.id)}
+                <option key={scene.target_id} value={scene.target_id}>
+                  {getVr360TargetLabel(vr360Scenes, scene.target_id)}
                 </option>
               ))}
             </select>
@@ -576,37 +577,12 @@ const CafeContact: React.FC = () => {
             />
           </div>
           
-          {settings.vr360_link && (
-            <div className="relative z-0">
-              <div className="flex items-center gap-2 mb-3">
-                <FontAwesomeIcon icon={faEye} className="text-slate-600" />
-                <h3 className="text-sm font-medium text-slate-700">VR360 Preview</h3>
-              </div>
-              
-              <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50 pointer-events-none relative z-0">
-                <div className="relative w-full" style={{ height: '500px' }}>
-                  <iframe
-                    src={settings.vr360_link}
-                    className="absolute top-0 left-0 w-full h-full"
-                    allowFullScreen
-                    title="VR360 Preview"
-                    allow="xr-spatial-tracking; gyroscope; accelerometer"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => window.open(settings.vr360_link, '_blank')}
-                  className="px-6 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors flex items-center gap-2 mx-auto"
-                >
-                  <FontAwesomeIcon icon={faPlay} />
-                  View Fullscreen
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="relative z-0">
+            <VR360PreviewFrame
+              panoramaUrl={settings.panorama_url}
+              vr360Link={settings.vr360_link}
+            />
+          </div>
         </div>
       </div>
 

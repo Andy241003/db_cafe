@@ -30,18 +30,15 @@ export const getApiBaseUrl = (): string => {
     return '/api/v1';
   }
 
+  const configuredUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
+
   // Check if we're in browser environment
   if (typeof window === 'undefined') {
-    return 'https://travel.link360.vn/api/v1';
+    return configuredUrl || '/api/v1';
   }
 
-  // Auto-detect based on current URL (PRIORITY: Use same domain as frontend)
+  // Auto-detect based on current URL and prefer same-origin when no explicit API URL is configured.
   const { protocol, hostname } = window.location;
-
-  // For new production domain app.botonblue.com, use backend at travel.link360.vn
-  if (hostname.includes('app.botonblue.com')) {
-    return 'https://travel.link360.vn/api/v1';
-  }
 
   // If we are running on localhost or 127.0.0.1, rely on the Vite/dev proxy or current origin.
   // This takes PRIORITY over VITE_API_URL to ensure proxy works in development
@@ -49,33 +46,16 @@ export const getApiBaseUrl = (): string => {
     return '/api/v1';
   }
 
-  const configuredUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '');
-
   if (configuredUrl) {
-    return normalizeApiBaseUrl(configuredUrl) || '/api/v1';
+    // If VITE_API_URL accidentally points to an internal Docker hostname,
+    // fall back to same-origin so browsers never try to resolve internal names.
+    if (configuredUrl.includes('backend:8000') && hostname !== 'backend') {
+      return `${protocol}//${hostname}/api/v1`;
+    }
+
+    return configuredUrl;
   }
 
-  // If VITE_API_URL explicitly points to the internal Docker backend hostname,
-  // do not expose that to the browser from a non-Docker client.
-  if (configuredUrl && configuredUrl.includes('backend:8000') && hostname !== 'backend') {
-    return '/api/v1';
-  }
-
-  // If VITE_API_URL is explicitly set in production, prefer it over hostname inference.
-  if (configuredUrl) {
-    return normalizeApiBaseUrl(configuredUrl) || '/api/v1';
-  }
-
-  // For old production domains or backend domain itself
-  if (hostname.includes('travel.link360.vn') || hostname.includes('link360.vn') || hostname.includes('trip360.vn')) {
-    return `https://${hostname}/api/v1`;
-  }
-
-  // For any HTTPS site, use same origin with HTTPS
-  if (protocol === 'https:' && !hostname.includes('localhost')) {
-    return `${protocol}//${hostname}/api/v1`;
-  }
-
-  // For non-localhost HTTP environments, use same origin as a fallback.
+  // For production-like environments without an explicit API URL, use same origin.
   return `${protocol}//${hostname}/api/v1`;
 };
