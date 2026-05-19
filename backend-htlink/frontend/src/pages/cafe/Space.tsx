@@ -1,4 +1,4 @@
-import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPenToSquare, faPlay, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCircleCheck, faCircleInfo, faEye, faGripVertical, faImages, faPenToSquare, faPlus, faTrash, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
