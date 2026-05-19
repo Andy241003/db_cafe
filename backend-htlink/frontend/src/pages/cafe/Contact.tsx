@@ -6,7 +6,14 @@ import VR360PreviewFrame from '../../components/VR360PreviewFrame';
 import { cafeLanguagesApi, cafeContactApi, vr360ScenesApi, type VR360SceneListItem } from '../../services/cafeApi';
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { buildTitleTranslations, pickPrimaryTitle, type TitleTranslations } from '../../utils/cafeVrTitle';
-import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
+import {
+  buildVr360TargetOptions,
+  getVr360SceneByTargetId,
+  getVr360TargetLabel,
+  getVr360TargetSelectValue,
+  isVr360NullTargetValue,
+  VR360_NULL_TARGET_VALUE,
+} from '../../utils/vr360Scenes';
 
 // CSS Class Constants
 const INPUT_CLASS = 'w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -217,14 +224,17 @@ const CafeContact: React.FC = () => {
   ) => {
     try {
       setSavingVR(true);
+      const normalizedTargetId = field === 'target_id' && isVr360NullTargetValue(value) ? '' : value;
       const selectedScene =
-        field === 'target_id' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
+        field === 'target_id' ? getVr360SceneByTargetId(vr360Scenes, normalizedTargetId) : undefined;
       const nextSettings: ContactSettings = {
         ...settings,
-        target_id: field === 'target_id' ? value : settings.target_id,
+        target_id: field === 'target_id' ? normalizedTargetId : settings.target_id,
         panorama_url:
           field === 'target_id'
-            ? selectedScene?.panorama_url || ''
+            ? normalizedTargetId
+              ? selectedScene?.panorama_url || ''
+              : ''
             : field === 'panorama_url'
               ? value
               : settings.panorama_url,
@@ -239,7 +249,7 @@ const CafeContact: React.FC = () => {
       };
       await cafeContactApi.updateContact({
         target_id: nextSettings.target_id || null,
-        panorama_url: nextSettings.panorama_url,
+        panorama_url: nextSettings.panorama_url || null,
         vr360_link: nextSettings.vr360_link,
         vr_title: pickPrimaryTitle(nextSettings.title_translations),
         title_translations: nextSettings.title_translations,
@@ -274,7 +284,7 @@ const CafeContact: React.FC = () => {
         twitter_url: settings.twitter_url,
         youtube_url: settings.youtube_url,
         target_id: settings.target_id || null,
-        panorama_url: settings.panorama_url,
+        panorama_url: settings.panorama_url || null,
         vr360_link: settings.vr360_link,
         vr_title: pickPrimaryTitle(settings.title_translations),
         title_translations: settings.title_translations,
@@ -463,24 +473,26 @@ const CafeContact: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">Target ID</label>
             <select
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={settings.target_id}
+              value={getVr360TargetSelectValue(settings.target_id)}
               onChange={(e) => {
-                const nextValue = e.target.value;
+                const selectedValue = e.target.value;
+                const nextValue = isVr360NullTargetValue(selectedValue) ? '' : selectedValue;
                 const selectedScene = getVr360SceneByTargetId(vr360Scenes, nextValue);
                 setSettings((prev) => ({
                   ...prev,
                   target_id: nextValue,
-                  panorama_url: selectedScene?.panorama_url || '',
+                  panorama_url: nextValue ? selectedScene?.panorama_url || '' : '',
                 }));
                 if (vrSaveTimeoutRef.current) {
                   clearTimeout(vrSaveTimeoutRef.current);
                 }
                 vrSaveTimeoutRef.current = setTimeout(() => {
-                  void persistVR360Change('target_id', nextValue, currentLocale);
+                  void persistVR360Change('target_id', selectedValue, currentLocale);
                 }, VR_SETTINGS_AUTOSAVE_DELAY_MS);
               }}
               disabled={savingVR}
             >
+              <option value={VR360_NULL_TARGET_VALUE}>Null</option>
               {panoramaTargetOptions.map((scene) => (
                 <option key={scene.target_id} value={scene.target_id}>
                   {getVr360TargetLabel(vr360Scenes, scene.target_id)}

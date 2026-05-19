@@ -27,7 +27,14 @@ import { cafeBranchesApi, cafeLanguagesApi, cafeSettingsApi, vr360ScenesApi, typ
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { getApiBaseUrl } from '../../utils/api';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
-import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
+import {
+  buildVr360TargetOptions,
+  getVr360SceneByTargetId,
+  getVr360TargetLabel,
+  getVr360TargetSelectValue,
+  isVr360NullTargetValue,
+  VR360_NULL_TARGET_VALUE,
+} from '../../utils/vr360Scenes';
 
 
 const buildBranchTranslationsPayload = (localizedData: Record<string, BranchLocalizedFields>): BranchTranslation[] => {
@@ -421,14 +428,15 @@ const CafeBranches: React.FC = () => {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
       const updates = { ...currentSettings.settings_json };
+      const normalizedTargetId = field === 'target' && isVr360NullTargetValue(value) ? '' : value;
       const selectedScene =
-        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
+        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, normalizedTargetId) : undefined;
       
       if (field === 'target') {
-        updates.branches_panorama_target_id = value || null;
-        updates.branches_panorama_url = selectedScene?.panorama_url || '';
-        setPanoramaTargetId(value);
-        setPanoramaUrl(selectedScene?.panorama_url || '');
+        updates.branches_panorama_target_id = normalizedTargetId || null;
+        updates.branches_panorama_url = normalizedTargetId ? selectedScene?.panorama_url || null : null;
+        setPanoramaTargetId(normalizedTargetId);
+        setPanoramaUrl(normalizedTargetId ? selectedScene?.panorama_url || '' : '');
       } else if (field === 'panorama') {
         updates.branches_panorama_url = value;
         setPanoramaUrl(value);
@@ -456,9 +464,10 @@ const CafeBranches: React.FC = () => {
 
   const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
     if (field === 'target') {
-      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
-      setPanoramaTargetId(value);
-      setPanoramaUrl(selectedScene?.panorama_url || '');
+      const normalizedTargetId = isVr360NullTargetValue(value) ? '' : value;
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, normalizedTargetId);
+      setPanoramaTargetId(normalizedTargetId);
+      setPanoramaUrl(normalizedTargetId ? selectedScene?.panorama_url || '' : '');
     } else if (field === 'panorama') {
       setPanoramaUrl(value);
     } else if (field === 'vr') {
@@ -829,10 +838,11 @@ const CafeBranches: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">Target ID</label>
             <select
               className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-              value={panoramaTargetId}
+              value={getVr360TargetSelectValue(panoramaTargetId)}
               onChange={(e) => handleVR360Change('target', e.target.value)}
               disabled={savingVR}
             >
+              <option value={VR360_NULL_TARGET_VALUE}>Null</option>
               {panoramaTargetOptions.map((scene) => (
                 <option key={scene.target_id} value={scene.target_id}>
                   {getVr360TargetLabel(vr360Scenes, scene.target_id)}

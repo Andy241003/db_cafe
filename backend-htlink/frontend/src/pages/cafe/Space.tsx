@@ -9,7 +9,14 @@ import { cafeLanguagesApi, cafeSettingsApi, cafeSpacesApi, vr360ScenesApi } from
 import { VR_SETTINGS_AUTOSAVE_DELAY_MS } from '../../utils/cafeVrAutosave';
 import { getApiBaseUrl } from '../../utils/api';
 import { applyScopedTitleTranslations, getScopedTitleTranslations, type TitleTranslations } from '../../utils/cafeVrTitle';
-import { buildVr360TargetOptions, getVr360SceneByTargetId, getVr360TargetLabel } from '../../utils/vr360Scenes';
+import {
+  buildVr360TargetOptions,
+  getVr360SceneByTargetId,
+  getVr360TargetLabel,
+  getVr360TargetSelectValue,
+  isVr360NullTargetValue,
+  VR360_NULL_TARGET_VALUE,
+} from '../../utils/vr360Scenes';
 
 const LABEL_CLASS = 'block text-sm font-medium text-slate-700 mb-2';
 const FIELD_CLASS = 'w-full rounded-md border border-slate-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500';
@@ -373,11 +380,14 @@ const CafeSpace: React.FC = () => {
     try {
       setSavingVR(true);
       const currentSettings = await cafeSettingsApi.getSettings();
+      const normalizedTargetId = field === 'target' && isVr360NullTargetValue(value) ? '' : value;
       const selectedScene =
-        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, value) : undefined;
+        field === 'target' ? getVr360SceneByTargetId(vr360Scenes, normalizedTargetId) : undefined;
       const nextPanoramaUrl =
         field === 'target'
-          ? selectedScene?.panorama_url || ''
+          ? normalizedTargetId
+            ? selectedScene?.panorama_url || ''
+            : ''
           : field === 'panorama'
             ? value
             : panoramaUrl;
@@ -389,13 +399,13 @@ const CafeSpace: React.FC = () => {
                 [localeForTitle]: value,
               }
             : vrTitleTranslations),
-          spaces_panorama_target_id: field === 'target' ? (value || null) : (panoramaTargetId || null),
-          spaces_panorama_url: nextPanoramaUrl,
+          spaces_panorama_target_id: field === 'target' ? (normalizedTargetId || null) : (panoramaTargetId || null),
+          spaces_panorama_url: nextPanoramaUrl || null,
           spaces_vr360_link: field === 'vr' ? convertToEmbedUrl(value) : vr360Link,
         },
       });
       if (field === 'target') {
-        setPanoramaTargetId(value);
+        setPanoramaTargetId(normalizedTargetId);
         setPanoramaUrl(nextPanoramaUrl);
       }
       if (field === 'panorama') setPanoramaUrl(value);
@@ -416,9 +426,10 @@ const CafeSpace: React.FC = () => {
 
   const handleVR360Change = (field: 'target' | 'panorama' | 'vr' | 'title', value: string) => {
     if (field === 'target') {
-      const selectedScene = getVr360SceneByTargetId(vr360Scenes, value);
-      setPanoramaTargetId(value);
-      setPanoramaUrl(selectedScene?.panorama_url || '');
+      const normalizedTargetId = isVr360NullTargetValue(value) ? '' : value;
+      const selectedScene = getVr360SceneByTargetId(vr360Scenes, normalizedTargetId);
+      setPanoramaTargetId(normalizedTargetId);
+      setPanoramaUrl(normalizedTargetId ? selectedScene?.panorama_url || '' : '');
     } else if (field === 'panorama') {
       setPanoramaUrl(value);
     } else if (field === 'vr') {
@@ -506,10 +517,11 @@ const CafeSpace: React.FC = () => {
             <label className={LABEL_CLASS}>Target ID</label>
             <select
               className={FIELD_CLASS}
-              value={panoramaTargetId}
+              value={getVr360TargetSelectValue(panoramaTargetId)}
               onChange={(e) => void handleVR360Change('target', e.target.value)}
               disabled={savingVR}
             >
+              <option value={VR360_NULL_TARGET_VALUE}>Null</option>
               {panoramaTargetOptions.map((scene) => (
                 <option key={scene.target_id} value={scene.target_id}>
                   {getVr360TargetLabel(vr360Scenes, scene.target_id)}

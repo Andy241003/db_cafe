@@ -1,5 +1,7 @@
 import type { VR360SceneListItem } from '../services/cafeApi';
 
+export const VR360_NULL_TARGET_VALUE = '__vr360_null__';
+
 export const getVr360SceneByTargetId = (
   scenes: VR360SceneListItem[],
   targetId: string | null | undefined,
@@ -11,6 +13,12 @@ export const getVr360SceneByTargetId = (
 
   return scenes.find((scene) => scene.target_id === normalizedTargetId);
 };
+
+export const isVr360NullTargetValue = (value: string | null | undefined) =>
+  (value ?? '') === VR360_NULL_TARGET_VALUE;
+
+export const getVr360TargetSelectValue = (targetId: string | null | undefined) =>
+  targetId?.trim() || VR360_NULL_TARGET_VALUE;
 
 export const buildVr360TargetOptions = (
   scenes: VR360SceneListItem[],
