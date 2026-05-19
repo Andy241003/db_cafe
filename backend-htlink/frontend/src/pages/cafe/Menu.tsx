@@ -1,7 +1,7 @@
 import { faImages, faVrCardboard, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Form, Input, InputNumber, Popconfirm, Select, Tag } from 'antd';
-import { Coffee, Edit, GripVertical, Info, Plus, Trash2 } from 'lucide-react';
+import { Coffee, Edit, GripVertical, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import MediaPickerModal from '../../components/MediaPickerModal';
