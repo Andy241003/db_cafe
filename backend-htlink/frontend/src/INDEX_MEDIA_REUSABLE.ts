@@ -158,7 +158,6 @@ const SpacePageExample = () => {
  * 
  * - MEDIA_SELECTION_GUIDE.md          - Complete guide with all patterns
  * - MEDIA_REUSE_SUMMARY.md            - Summary and quick reference
- * - CAREERS_REFACTOR_EXAMPLE.tsx      - Real before/after example
  * - This file (INDEX.ts)              - You are here!
  */
 
